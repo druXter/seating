@@ -291,6 +291,18 @@ Header-Regeln entsprechend ordnen (siehe Stolpersteine im suite-kit-README).
 endgültig löschen, Verifizierung erneut senden, manuell bestätigen, interne Notiz, Verwaltungslink neu erzeugen,
 Buchung manuell anlegen (z. B. telefonische Reservierung, `source = ADMIN`).
 
+**E-Mail-Adresse korrigieren** (Entscheidung 13 Nr. 3): nur solange die Buchung `PENDING` (unbestätigt) ist – typischer
+Fall: Tippfehler, die Verifizierungsmail kam nie an, die Person meldet sich telefonisch.
+
+* Neuer Token/Code an die **neue** Adresse, der alte wird ungültig, Versuchszähler auf 0. Ob die Frist neu beginnt,
+  wählt der Admin (wie beim erneuten Senden, standardmäßig an – die Person hatte ja keine Chance zu bestätigen).
+* **Keine Mail an die alte Adresse:** Bei einem Tippfehler gehört sie vermutlich jemand anderem, der von der Buchung
+  nichts erfahren soll.
+* `oneBookingPerEmail` wird für die neue Adresse geprüft; Eintrag im Audit-Log (alt → neu).
+* Bestätigte Adressen sind nicht änderbar – die Bestätigung wäre sonst wertlos. Wer eine andere Adresse braucht: Buchung
+  stornieren und neu anlegen (bzw. neu buchen). Buchungen mit `source = RSVP` übernehmen die Adresse aus rsvp-app und
+  sind hier nie änderbar.
+
 **Zuordnungsmodus (`ASSIGNED`):** Gästeliste links (manuell, CSV oder aus rsvp-app), Plan rechts, Personen per
 Drag & Drop auf Plätze. Markierung: noch nicht platziert, Begleitungen zusammenhalten.
 
@@ -381,8 +393,8 @@ Test-Setup im Repo; Seating ist das erste mit automatisierten Tests.
    (`oneBookingPerEmail`), siehe Abschnitt 4.
 2. ~~**Verlängert "Verifizierung erneut senden" den Verfall?**~~ **Entschieden:** bei Kund*in nein, beim Admin wählbar,
    siehe Abschnitt 5.
-3. **Darf der Admin die E-Mail-Adresse ändern?** Wenn ja: neue Adresse direkt übernehmen (Admin vertraut) oder neu
-   verifizieren lassen? Mail an alte *und* neue Adresse?
+3. ~~**Darf der Admin die E-Mail-Adresse ändern?**~~ **Entschieden:** nur bei unbestätigten Buchungen (Korrektur mit
+   neuer Verifizierung, keine Mail an die alte Adresse); bestätigte Adressen nie. Siehe Abschnitt 8.
 4. ~~**Tische teilen:** Darf in `TABLE` ein großer Tisch an mehrere kleine Gruppen gehen?~~ **Entschieden: nein.** Das
    Gefühl "unser Tisch" geht vor – im Modus `TABLE` gehört ein Tisch immer genau einer Buchung. Wer Plätze einzeln
    vergeben will, nutzt `SEAT`.
