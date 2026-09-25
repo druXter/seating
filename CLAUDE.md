@@ -55,8 +55,9 @@ Alle Regeln aus dem suite-kit-README gelten. Zusätzlich für Seating:
 * **Doppelbuchung verhindert der Unique-Index `Allocation(eventId, unitId)`**, nicht eine vorherige Abfrage. Buchen in
   einer Transaktion: abgelaufene Holds freigeben → einfügen → Konflikt sauber abfangen.
 * **GET verändert nie Daten.** Verifizierungslinks öffnen eine Seite mit Button (POST) – Mail-Scanner rufen Links vorab auf.
-* Verifizierungstoken/-codes nur als Hash, Codes mit Versuchslimit. Verwaltungslinks per HMAC abgeleitet (siehe Konzept
-  Abschnitt 6), Vergleich mit konstanter Laufzeit.
+* Verifizierungstoken nur als SHA-256-Hash, 6-stellige Codes nur als HMAC mit `VERIFY_CODE_SECRET` (nie reiner Hash –
+  10⁶ Möglichkeiten sind offline sofort durchprobiert) und mit Versuchslimit. Verwaltungslinks per HMAC abgeleitet
+  (siehe Konzept Abschnitt 6), Vergleich mit konstanter Laufzeit.
 * Berechtigung in **jeder** Server Action und jedem Route Handler prüfen: Admin-Session bzw. gültiger Verwaltungslink
   *für genau diese Buchung*.
 * Öffentliche Ansichten zeigen keine Namen oder Kontaktdaten anderer Buchender.

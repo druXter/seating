@@ -89,7 +89,9 @@ Event            id, slug (unique), title, description, location,
                  startsAt, endsAt, timezone ("Europe/Berlin"),
                  mode (TABLE|SEAT|ASSIGNED), access (OPEN|RSVP|NONE),
                  status (DRAFT|OPEN|CLOSED|ARCHIVED),
-                 bookingOpensAt?, bookingClosesAt?, selfEditUntil?,
+                 bookingOpensAt?, bookingClosesAt?,
+                 selfEditHoursBefore,        -- Selbständerung bis startsAt − N h (Standard 24, 0 = bis Beginn)
+                 oneBookingPerEmail (bool),  -- Standard true, siehe Abschnitt 4
                  pendingTtlMinutes,          -- Verfall unbestätigter Buchungen
                  minFillRatio?,              -- TABLE: z. B. 0.5 → 8er-Tisch ab 4 Personen
                  maxSeatsPerBooking?,        -- SEAT
@@ -106,7 +108,7 @@ Booking          id, eventId, status (PENDING|CONFIRMED|CANCELLED|EXPIRED),
                  source (PUBLIC|RSVP|ADMIN),
                  name, email, phone?, partySize, note?, adminNote?,
                  emailVerifiedAt?, expiresAt?,             -- nur bei PENDING
-                 verifyTokenHash?, verifyCodeHash?, verifyAttempts,
+                 verifyTokenHash?, verifyCodeHmac?, verifyAttempts,   -- siehe Abschnitt 6
                  manageTokenVersion (int),                 -- siehe Abschnitt 6
                  icsSequence (int),
                  externalRef?  (z. B. rsvp:<eventId>:<guestId>),
@@ -143,12 +145,18 @@ BookingThrottle  analog LoginThrottle (IP / E-Mail)
      Der Link öffnet eine Seite mit Button "Buchung bestätigen" → POST.
 6. Buchung wird `CONFIRMED`, Verifizierungstoken/-code werden gelöscht, Bestätigungsmail mit `.ics` und persönlichem
    Verwaltungslink geht raus.
-7. Über den Verwaltungslink (bis `selfEditUntil`): Gruppengröße ändern (innerhalb der Tischregeln), auf freien Tisch
+7. Über den Verwaltungslink (bis `startsAt − selfEditHoursBefore`): Gruppengröße ändern (innerhalb der Tischregeln), auf freien Tisch
    wechseln, Name/Telefon/Anmerkung ändern, stornieren. **E-Mail nicht änderbar.**
 
 Regeln:
 
-* Pro E-Mail höchstens eine aktive Buchung je Event (Voreinstellung; siehe offene Entscheidungen).
+* Pro E-Mail höchstens eine aktive (`PENDING` oder `CONFIRMED`) Buchung je Event – Voreinstellung, pro Event abschaltbar
+  (`oneBookingPerEmail`), z. B. wenn Firmen oder Vereine mehrere Tische buchen. Geprüft in derselben Transaktion wie
+  die Buchung (eine teilweise eindeutige Bedingung "nur aktive Buchungen" kann Prisma für SQLite nicht ausdrücken).
+  Die Meldung verrät nicht, ob die Adresse schon gebucht hat, sondern verweist auf die Mail mit dem Verwaltungslink.
+* Kund*innen ändern und stornieren selbst bis `startsAt − selfEditHoursBefore` (Standard 24 h, pro Event anpassbar,
+  0 = bis Beginn). Bewusst als Abstand statt als fester Zeitpunkt gespeichert, damit die Frist mitwandert, wenn der
+  Admin das Event verschiebt. Danach nur noch über den Admin.
 * Unbestätigte Buchungen blockieren den Tisch – deshalb Drosselung (pro IP und pro E-Mail, wie Login-Drosselung der Suite)
   und eine Obergrenze gleichzeitiger `PENDING`-Buchungen pro IP. Hinter Cloudflare optional Turnstile.
 * Verfallene Buchungen werden `EXPIRED`, der Tisch wird frei (siehe Abschnitt 5). Optional kurze Info-Mail.
@@ -169,8 +177,9 @@ Die Modi `SEAT` und Zugang `RSVP` nutzen denselben Ablauf mit anderer Einheit bz
 * Belegt gilt eine Einheit, wenn sie eine Allocation hat, deren Buchung `CONFIRMED` ist oder `PENDING` mit
   `expiresAt > now`. Abgelaufenes wird also schon **beim Lesen** ignoriert; der Cron räumt nur auf.
 * Cron `/api/cron/cleanup` (wie in der Suite): abgelaufene `PENDING` → `EXPIRED`, Löschfristen umsetzen.
-* Erneutes Senden der Verifizierung (Kund*in oder Admin): neuer Token/Code, alter wird ungültig. Ob sich dabei der
-  Verfall verlängert, siehe offene Entscheidungen.
+* Erneutes Senden der Verifizierung (Kund*in oder Admin): neuer Token/Code, alter wird ungültig, Versuchszähler auf 0.
+  **Durch die Kund*in verlängert es den Verfall nicht** – sonst ließe sich ein Tisch durch wiederholtes Anfordern
+  beliebig lange blockieren. Der Admin kann beim erneuten Senden wählen, ob `expiresAt` neu gesetzt wird (Phase 4).
 
 ---
 
@@ -179,7 +188,7 @@ Die Modi `SEAT` und Zugang `RSVP` nutzen denselben Ablauf mit anderer Einheit bz
 | Token | Erzeugung | Speicherung | Gültigkeit |
 | --- | --- | --- | --- |
 | Verifizierungslink | 32 Byte Zufall | nur SHA-256-Hash | einmalig, bis `expiresAt` |
-| Verifizierungscode | 6 Ziffern | nur Hash | max. 5 Versuche, dann neuer Code nötig |
+| Verifizierungscode | 6 Ziffern | `HMAC-SHA256(VERIFY_CODE_SECRET, bookingId ":" code)` | max. 5 Versuche, dann neuer Code nötig |
 | Verwaltungslink | `HMAC-SHA256(MANAGE_LINK_SECRET, bookingId ":" manageTokenVersion)` | **gar nicht** | bis Storno / Löschung |
 
 **Warum der Verwaltungslink abgeleitet statt gespeichert wird:** Er muss in *jeder* späteren Mail wieder auftauchen
@@ -187,6 +196,13 @@ Die Modi `SEAT` und Zugang `RSVP` nutzen denselben Ablauf mit anderer Einheit bz
 ohne den alten Link (und damit den Link in bereits importierten Kalendereinträgen) zu entwerten. Die HMAC-Variante ist
 reproduzierbar, ein reiner Datenbank-Abzug verrät keine Links, und "Link neu erzeugen" (Admin) erhöht einfach
 `manageTokenVersion`. Für Schlüsselrotation `MANAGE_LINK_SECRET_PREVIOUS` beim Prüfen mit akzeptieren.
+
+**Warum der Code per HMAC statt als reiner Hash gespeichert wird:** Es gibt nur 10⁶ sechsstellige Codes. Aus einem
+reinen SHA-256-Hash ließe sich der Code bei einem Datenbank-Abzug in Millisekunden zurückrechnen; das Versuchslimit
+schützt nur den Online-Weg. Mit dem Server-Secret (liegt nicht in der Datenbank) geht das nicht. Die `bookingId` im
+HMAC sorgt dafür, dass gleiche Codes verschiedener Buchungen verschieden aussehen. Rotation ist unkritisch: Ein neues
+Secret entwertet nur gerade offene Codes, der Verifizierungslink funktioniert weiter. Der Verifizierungslink selbst
+bleibt ein reiner SHA-256-Hash – bei 32 Byte Zufall ist Zurückrechnen ausgeschlossen.
 
 URL-Form: `/b/<bookingId>/<token>`. Vergleich mit konstanter Laufzeit. Verwaltungsseite mit
 `Cache-Control: no-store`, `Referrer-Policy: no-referrer`, `X-Robots-Tag: noindex`, `frame-ancestors 'none'`.
@@ -228,7 +244,7 @@ URL-Form: `/b/<bookingId>/<token>`. Vergleich mit konstanter Laufzeit. Verwaltun
 ## 8. Admin-Bereich
 
 **Events:** anlegen/bearbeiten, Slug, Modus, Zugang, Status, Buchungszeitraum, `pendingTtlMinutes`, `minFillRatio`,
-`maxSeatsPerBooking`, `selfEditUntil`, Pflichtfelder, Texte (Beschreibung, Hinweise in Mails), RSVP-Verknüpfung.
+`maxSeatsPerBooking`, `selfEditHoursBefore`, `oneBookingPerEmail`, Pflichtfelder, Texte (Beschreibung, Hinweise in Mails), RSVP-Verknüpfung.
 
 **Slugs:** Kleinbuchstaben, Ziffern, Bindestrich. Reservierte Namen ablehnen (`admin`, `api`, `login`, `logout`,
 `account`, `b`, `verify`, `plans`, `_next`, `.well-known`, `impressum`, `datenschutz`, `forgot-password`,
@@ -295,7 +311,7 @@ Empfang der Platzierung, Anzeige beim Einlass, Benachrichtigung bei Absage/Ände
 ## 11. Betrieb und Datenschutz
 
 Zusätzliche Env-Variablen (neben denen der Suite): `DATABASE_URL`, `SMTP_*`, `MAIL_FROM`, `CRON_SECRET`,
-`MANAGE_LINK_SECRET`, `MANAGE_LINK_SECRET_PREVIOUS`, ggf. `RSVP_*` für den Vertrag mit rsvp-app,
+`MANAGE_LINK_SECRET`, `MANAGE_LINK_SECRET_PREVIOUS`, `VERIFY_CODE_SECRET`, ggf. `RSVP_*` für den Vertrag mit rsvp-app,
 optional `TURNSTILE_*`.
 
 * Löschfristen suite-weit: Inhalte 18 Monate nach Eventende, Konten nach 2 Jahren ohne Anmeldung (Admins ausgenommen).
@@ -328,14 +344,17 @@ Test-Setup im Repo; Seating ist das erste mit automatisierten Tests.
 
 ## 13. Offene Entscheidungen
 
-1. **Pro E-Mail nur eine Buchung je Event?** (Voreinstellung ja; Firmen/Vereine buchen evtl. mehrere Tische.)
-2. **Verlängert "Verifizierung erneut senden" den Verfall?** Vorschlag: bei Kund*in nein, beim Admin wählbar.
+1. ~~**Pro E-Mail nur eine Buchung je Event?**~~ **Entschieden:** ja als Voreinstellung, pro Event abschaltbar
+   (`oneBookingPerEmail`), siehe Abschnitt 4.
+2. ~~**Verlängert "Verifizierung erneut senden" den Verfall?**~~ **Entschieden:** bei Kund*in nein, beim Admin wählbar,
+   siehe Abschnitt 5.
 3. **Darf der Admin die E-Mail-Adresse ändern?** Wenn ja: neue Adresse direkt übernehmen (Admin vertraut) oder neu
    verifizieren lassen? Mail an alte *und* neue Adresse?
 4. ~~**Tische teilen:** Darf in `TABLE` ein großer Tisch an mehrere kleine Gruppen gehen?~~ **Entschieden: nein.** Das
    Gefühl "unser Tisch" geht vor – im Modus `TABLE` gehört ein Tisch immer genau einer Buchung. Wer Plätze einzeln
    vergeben will, nutzt `SEAT`.
-5. **Bis wann dürfen Kund*innen selbst ändern/stornieren?** (`selfEditUntil` pro Event, Vorschlag: Eventbeginn − 24 h.)
+5. ~~**Bis wann dürfen Kund*innen selbst ändern/stornieren?**~~ **Entschieden:** Standard Eventbeginn − 24 h, pro
+   Event anpassbar (`selfEditHoursBefore`), siehe Abschnitt 4.
 6. **Begleitpersonen in rsvp-app:** nur Anzahl oder mit Namen? Bestimmt, ob Seating Namen pro Platz kennt.
 7. **Synchronisation mit rsvp-app bei Absage:** Push von rsvp-app an Seating oder Abgleich durch Seating?
 8. **Warteliste** für ausgebuchte Events (rsvp-app hat eine) – jetzt, später oder gar nicht?
