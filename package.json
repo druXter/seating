@@ -16,7 +16,8 @@
     "nodemailer": "^9.0.3",
     "react": "19.2.4",
     "react-dom": "19.2.4",
-    "suite-kit": "github:druXter/suite-kit#v0.1.0"
+    "suite-kit": "github:druXter/suite-kit#v0.1.0",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@playwright/test": "^1.63.0",
