@@ -39,6 +39,9 @@ export type PlanSvgProps = {
   className?: string
   onElementPointerDown?: (event: PointerEvent<SVGGElement>, id: string) => void
   onBackgroundPointerDown?: (event: PointerEvent<SVGRectElement>) => void
+  onPointerMove?: (event: PointerEvent<SVGSVGElement>) => void
+  /** Auch für pointercancel (z.B. Geste vom Browser übernommen) - eine Geste muss immer enden. */
+  onPointerUp?: (event: PointerEvent<SVGSVGElement>) => void
   /** Zusätzliche Ebene über dem Plan (Auswahlrahmen, Drehgriff im Editor). */
   overlay?: ReactNode
   svgRef?: React.Ref<SVGSVGElement>
@@ -46,7 +49,7 @@ export type PlanSvgProps = {
 
 export default function PlanSvg({
   layout, backgroundUrl, selected, viewBox, showGrid = false, title, className, onElementPointerDown,
-  onBackgroundPointerDown, overlay, svgRef
+  onBackgroundPointerDown, onPointerMove, onPointerUp, overlay, svgRef
 }: PlanSvgProps) {
   const box = viewBox ?? { x: -50, y: -50, width: layout.width + 100, height: layout.height + 100 }
   const background = backgroundUrl ? (layout.background ?? { x: 0, y: 0, width: layout.width, opacity: 0.5 }) : null
@@ -60,7 +63,10 @@ export default function PlanSvg({
       className={className}
       role="img"
       aria-label={title}
-      style={{ touchAction: 'none', userSelect: 'none' }}
+      style={{ touchAction: 'none', userSelect: 'none', background: '#f8fafc' }}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerCancel={onPointerUp}
     >
       <title>{title}</title>
       <defs>

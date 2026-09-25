@@ -28,7 +28,7 @@ test('leeren Plan anlegen, umbenennen, als Vorlage anbieten', async ({ page }) =
 
   await page.getByLabel('Name', { exact: true }).fill('Großer Festsaal')
   await page.getByLabel('Als gemeinsame Vorlage anbieten').check()
-  await page.getByRole('button', { name: 'Speichern', exact: true }).click()
+  await page.getByRole('button', { name: 'Einstellungen speichern' }).click()
   await expect(page).toHaveURL(/settings=1/)
   expect(await prisma.floorPlan.findUniqueOrThrow({ where: { id: plan.id } })).toMatchObject({ name: 'Großer Festsaal', shared: true, version: 1 })
 })

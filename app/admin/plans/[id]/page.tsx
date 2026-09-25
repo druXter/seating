@@ -5,6 +5,7 @@ import { loadPlanOr404 } from '../../../lib/floorplan/store'
 import { summarize } from '../../../lib/floorplan/units'
 import { duplicatePlan, updatePlanSettings } from '../actions'
 import PlanSvg from '../../../ui/plan/plan-svg'
+import PlanEditor from './editor/plan-editor'
 import Notice from '../../../ui/notice'
 
 export const dynamic = 'force-dynamic'
@@ -44,9 +45,16 @@ export default async function PlanPage({
           </Notice>
         )}
 
-        <div className="bg-white rounded-lg shadow p-2">
-          <PlanSvg layout={plan.layout} backgroundUrl={backgroundUrl} title={`Raumplan ${plan.name}`} className="w-full h-auto max-h-[75vh]" />
-        </div>
+        {plan.access === 'edit' ? (
+          <PlanEditor
+            planId={plan.id} planName={plan.name} initialLayout={plan.layout} initialVersion={plan.version}
+            backgroundUrl={backgroundUrl}
+          />
+        ) : (
+          <div className="bg-white rounded-lg shadow p-2">
+            <PlanSvg layout={plan.layout} backgroundUrl={backgroundUrl} title={`Raumplan ${plan.name}`} className="w-full h-auto max-h-[75vh]" />
+          </div>
+        )}
 
         <div className="grid gap-4 md:grid-cols-2">
           {plan.access === 'edit' && (
@@ -64,7 +72,7 @@ export default async function PlanPage({
                   <span className="block text-xs text-gray-600">Andere Konten (außer Moderator*innen) können den Plan ansehen und duplizieren, aber nicht ändern.</span>
                 </span>
               </label>
-              <button type="submit" className="bg-blue-600 text-white font-bold py-2 px-4 rounded hover:bg-blue-700">Speichern</button>
+              <button type="submit" className="bg-blue-600 text-white font-bold py-2 px-4 rounded hover:bg-blue-700">Einstellungen speichern</button>
             </form>
           )}
           <div className="bg-white rounded-lg shadow p-4 space-y-2 text-sm">
