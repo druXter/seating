@@ -332,11 +332,9 @@ Test-Setup im Repo; Seating ist das erste mit automatisierten Tests.
 2. **Verlängert "Verifizierung erneut senden" den Verfall?** Vorschlag: bei Kund*in nein, beim Admin wählbar.
 3. **Darf der Admin die E-Mail-Adresse ändern?** Wenn ja: neue Adresse direkt übernehmen (Admin vertraut) oder neu
    verifizieren lassen? Mail an alte *und* neue Adresse?
-4. **Tische teilen:** Darf in `TABLE` ein großer Tisch an mehrere kleine Gruppen gehen? (Vorschlag: vorerst nein;
-   dafür gibt es `SEAT`.) Wenn ja, dann **nicht** über eine Kapazitätszählung pro Tisch („Summe der Gruppen ≤
-   Plätze“ – das wäre wieder „erst prüfen, dann schreiben“ und bräuchte eigene Sperren), sondern über die
-   Platz-Einheiten des Tisches: Die Gruppe bekommt N Plätze an diesem Tisch, der Unique-Index auf
-   `Allocation(eventId, unitId)` bleibt die Garantie (siehe Abschnitt 5).
+4. ~~**Tische teilen:** Darf in `TABLE` ein großer Tisch an mehrere kleine Gruppen gehen?~~ **Entschieden: nein.** Das
+   Gefühl "unser Tisch" geht vor – im Modus `TABLE` gehört ein Tisch immer genau einer Buchung. Wer Plätze einzeln
+   vergeben will, nutzt `SEAT`.
 5. **Bis wann dürfen Kund*innen selbst ändern/stornieren?** (`selfEditUntil` pro Event, Vorschlag: Eventbeginn − 24 h.)
 6. **Begleitpersonen in rsvp-app:** nur Anzahl oder mit Namen? Bestimmt, ob Seating Namen pro Platz kennt.
 7. **Synchronisation mit rsvp-app bei Absage:** Push von rsvp-app an Seating oder Abgleich durch Seating?
