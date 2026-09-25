@@ -15,7 +15,7 @@ Fachliche Grundlage und Fahrplan: [docs/KONZEPT.md](docs/KONZEPT.md).
 | 1 | Raumplan-Editor, Vorlagen, Import/Export | offen |
 | 2 | Events mit Plan-Snapshot, öffentliche Planansicht | offen |
 | 3 | Tischbuchung mit Verifizierung, `.ics`, Verwaltungslink | offen |
-| 4–8 | Buchungsverwaltung, Modi `SEAT`/`ASSIGNED`, rsvp-app, Föderation | offen |
+| 4–8 | Buchungsverwaltung, Warteliste, Modi `SEAT`/`ASSIGNED`, rsvp-app, Föderation | offen |
 
 Bisher gibt es also nur die Konten der Veranstalter\*innen – Buchen ist noch nicht möglich.
 

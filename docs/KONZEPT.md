@@ -96,6 +96,7 @@ Event            id, slug (unique), title, description, location,
                  minFillRatio?,              -- TABLE: z. B. 0.5 → 8er-Tisch ab 4 Personen
                  maxSeatsPerBooking?,        -- SEAT
                  requirePhone (bool),
+                 waitlistEnabled (bool), offerTtlHours,   -- Warteliste, siehe Abschnitt 5
                  layout (JSON, Snapshot), layoutVersion,
                  rsvpLink (JSON?)            -- Verknüpfung zu rsvp-app, siehe Abschnitt 9
 
@@ -104,7 +105,7 @@ Unit             id, eventId, key, kind (TABLE|SEAT), label,
                  bookable (bool)
                  UNIQUE(eventId, key)
 
-Booking          id, eventId, status (PENDING|CONFIRMED|CANCELLED|EXPIRED),
+Booking          id, eventId, status (PENDING|CONFIRMED|CANCELLED|EXPIRED|WAITLISTED|OFFERED),
                  source (PUBLIC|RSVP|ADMIN),
                  name, email, phone?, partySize, note?, adminNote?,
                  emailVerifiedAt?, expiresAt?,             -- nur bei PENDING
@@ -181,6 +182,34 @@ Die Modi `SEAT` und Zugang `RSVP` nutzen denselben Ablauf mit anderer Einheit bz
   **Durch die Kund*in verlängert es den Verfall nicht** – sonst ließe sich ein Tisch durch wiederholtes Anfordern
   beliebig lange blockieren. Der Admin kann beim erneuten Senden wählen, ob `expiresAt` neu gesetzt wird (Phase 4).
 
+### Warteliste (eigener Schritt nach Phase 4)
+
+Angelehnt an rsvp-app (Nachrücken in Reihenfolge der Anmeldung, Admin kann direkt zulassen), aber mit **Angebot statt
+automatischer Zuteilung**: Ein frei werdender Tisch ist ein bestimmter Tisch, den die Gruppe nicht selbst ausgesucht hat
+– und eine Gruppe, die längst andere Pläne hat, würde ihn sonst leer stehen lassen. Pro Event abschaltbar
+(`waitlistEnabled`).
+
+1. **Eintragen:** Ist kein passender Tisch frei, kann man sich mit Name, E-Mail und Gruppengröße eintragen. Bei Zugang
+   `OPEN` mit derselben Mail-Verifizierung wie beim Buchen; erst danach gilt der Eintrag (`WAITLISTED`, ohne Allocation).
+   `oneBookingPerEmail` zählt Wartelisten-Einträge mit.
+2. **Angebot:** Wird eine Einheit frei (Storno, Verfall, Löschen, Admin vergrößert/ergänzt den Plan), bekommt der am
+   längsten wartende Eintrag, **für den sie passt** (Gruppengröße und `minFillRatio`), ein Angebot: Die Buchung wird
+   `OFFERED`, erhält die Allocation (Unique-Index wie immer die Garantie) und `expiresAt = now + offerTtlHours`. Mail mit
+   Link zur Annahme (Seite mit Button, POST – GET verändert nichts).
+3. **Annehmen** → `CONFIRMED`, Bestätigungsmail mit `.ics` und Verwaltungslink wie bei einer normalen Buchung.
+   **Nicht reagiert** → `EXPIRED`, Allocation weg, das Angebot geht an den nächsten passenden Eintrag. Ausdrücklich
+   **ablehnen** geht ebenfalls (Eintrag endet).
+4. **Admin:** kann einem Eintrag direkt einen Tisch zuweisen (auch am Nachrück-Verfahren vorbei), Einträge löschen und
+   die Reihenfolge einsehen. Da passende Einträge vorgezogen werden, können große Gruppen länger warten – das sieht der
+   Admin in der Liste.
+5. Belegt ist eine Einheit auch durch `OFFERED` mit `expiresAt > now` (gleiche Regel wie `PENDING`). Der Cron setzt
+   abgelaufene Angebote auf `EXPIRED` und stößt das nächste Angebot an; zusätzlich passiert das sofort bei jedem Ereignis,
+   das eine Einheit frei macht.
+
+* **`SEAT`:** Das Angebot gilt für N konkrete Plätze. Welche (möglichst nebeneinander), wird mit Phase 5 entschieden.
+* **Zugang `RSVP`:** keine eigene Warteliste – dort wartet man in rsvp-app; wer nachrückt, kommt über den normalen Weg
+  (Abschnitt 9 A) zur Platzwahl.
+
 ---
 
 ## 6. Links und Tokens
@@ -219,6 +248,9 @@ URL-Form: `/b/<bookingId>/<token>`. Vergleich mit konstanter Laufzeit. Verwaltun
 | Änderung durch Admin (verschoben, Personenzahl, Kontakt) | Buchende*r, mit Gegenüberstellung alt → neu | `.ics` (SEQUENCE + 1) |
 | Stornierung (durch wen auch immer) | Buchende*r | `.ics` (CANCEL) |
 | Verfallen (optional) | Buchende*r | – |
+| Wartelisten-Eintrag bestätigt | Wartende*r | – |
+| Nachrück-Angebot (mit Frist) | Wartende*r | – |
+| Angebot verfallen | Wartende*r | – |
 | Rundmail | gefilterte Buchende | optional aktuelle `.ics` |
 
 * Jede Mail enthält den persönlichen Verwaltungslink (außer der Verifizierungsmail).
@@ -331,6 +363,7 @@ optional `TURNSTILE_*`.
 | 2 | Events: Anlegen mit Plan-Snapshot, Slug-Routing, öffentliche Planansicht mit Belegung (noch ohne Buchung) |
 | 3 | Tischbuchung `TABLE`+`OPEN`: Reservierung, Verifizierung, Verfall, Bestätigung, `.ics`, Verwaltungslink |
 | 4 | Admin-Buchungsverwaltung: Verschieben, Ändern, Löschen, Änderungsmails, Rundmail, erneute Verifizierung, Audit, Export |
+| 4b | Warteliste mit Nachrück-Angebot (Abschnitt 5) |
 | 5 | Modus `SEAT` (Kino/Winterball) |
 | 6 | Modus `ASSIGNED` (Hochzeit) mit manueller/CSV-Gästeliste |
 | 7 | rsvp-app-Anbindung (A und B), Änderungen in rsvp-app |
@@ -357,7 +390,8 @@ Test-Setup im Repo; Seating ist das erste mit automatisierten Tests.
    Event anpassbar (`selfEditHoursBefore`), siehe Abschnitt 4.
 6. **Begleitpersonen in rsvp-app:** nur Anzahl oder mit Namen? Bestimmt, ob Seating Namen pro Platz kennt.
 7. **Synchronisation mit rsvp-app bei Absage:** Push von rsvp-app an Seating oder Abgleich durch Seating?
-8. **Warteliste** für ausgebuchte Events (rsvp-app hat eine) – jetzt, später oder gar nicht?
+8. ~~**Warteliste** für ausgebuchte Events (rsvp-app hat eine) – jetzt, später oder gar nicht?~~ **Entschieden:** ja, als
+   eigener Schritt nach Phase 4, mit zeitlich begrenztem Nachrück-Angebot statt automatischer Zuteilung (Abschnitt 5).
 9. ~~**Rollen:** reicht "Admin sieht alles", oder braucht es Event-bezogene Admins (z. B. Brautpaar sieht nur die eigene
    Hochzeit)?~~ **Entschieden:** Rollen wie im Abstimmungstool (`ADMIN`/`CREATOR`/`MODERATOR`) plus Freigabe pro Event
    (`EventAccess`) ab Phase 2 – das Brautpaar ist `MODERATOR` mit Freigabe für die eigene Hochzeit. Siehe Abschnitt 10.
