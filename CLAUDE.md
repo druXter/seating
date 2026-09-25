@@ -77,6 +77,9 @@ Alle Regeln aus dem suite-kit-README gelten. Zusätzlich für Seating:
 * Server Action → Redirect auf Route Handler → Redirect auf fremde Domain hängt im Client-Router: Zwischenseite mit
   `window.location.replace`.
 * Bei mehreren passenden `headers()`-Regeln gewinnt die spätere. `/admin` passt auch auf `/:slug`.
+* Header aus `next.config.ts` **überschreiben** gleichnamige Header, die ein Route Handler oder eine Seite selbst setzt
+  (z. B. CSP). Braucht ein Pfad eigene Werte, gehört dafür eine eigene Regel hinter die allgemeinen – im Test den
+  tatsächlich ausgelieferten Header prüfen, nicht den Code.
 * Öffentliche Eventseiten evtl. einbettbar halten (wie rsvp-app); `frame-ancestors 'none'` nur für Admin, Login,
   Verwaltungslink-Seiten.
 * Playwright: gefälschte POSTs erst nach frischem Seitenaufruf bauen (sonst fehlt `$ACTION_ID`).

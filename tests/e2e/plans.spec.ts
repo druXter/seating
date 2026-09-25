@@ -152,7 +152,7 @@ test('gemeinsame Vorlage: andere Creator sehen, exportieren und duplizieren – 
   await submitForm(other, deleteForm, { planId: plan.id })
   expect(await prisma.floorPlan.findUnique({ where: { id: plan.id } })).toMatchObject({ name: 'Gemeinsamer Saal' })
 
-  await other.getByRole('button', { name: 'Duplizieren' }).click()
+  await other.getByRole('button', { name: 'Plan duplizieren' }).click()
   await expect(other.getByRole('heading', { name: 'Kopie von Gemeinsamer Saal' })).toBeVisible()
   const copy = await prisma.floorPlan.findFirstOrThrow({ where: { ownerId: otherUser.id } })
   expect(copy).toMatchObject({ shared: false })

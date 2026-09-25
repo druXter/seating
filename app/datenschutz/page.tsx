@@ -3,8 +3,8 @@ import Link from 'next/link'
 
 // ENTWURF: Beschreibt, was dieses Tool tatsächlich speichert und verarbeitet. Er ersetzt keine
 // Rechtsberatung - vor dem Einsatz mit Externen bitte einmal prüfen lassen und bei jeder
-// Änderung der Datenverarbeitung mitpflegen. Stand: Phase 0 (nur Konten der
-// Veranstalter*innen). Mit Phase 3 kommen Buchungen dazu (Name, E-Mail, ggf. Telefon,
+// Änderung der Datenverarbeitung mitpflegen. Stand: Phase 1 (Konten der Veranstalter*innen,
+// Raumpläne mit Hintergrundbildern). Mit Phase 3 kommen Buchungen dazu (Name, E-Mail, ggf. Telefon,
 // Gruppengröße, Verifizierung, Buchungsmails mit .ics, Verwaltungslink, Löschfristen für
 // Buchungen) - dann hier ergänzen, siehe docs/KONZEPT.md Abschnitt 11.
 //
@@ -72,7 +72,23 @@ export default function DatenschutzPage() {
         </div>
 
         <div>
-          <h2 className="font-bold text-lg">4. Schutz vor Missbrauch (Drosselung)</h2>
+          <h2 className="font-bold text-lg">4. Raumpläne und hochgeladene Bilder</h2>
+          <p className="mt-2">
+            Veranstalter*innen können Raumpläne anlegen und optional ein Bild (z.B. einen Grundriss) als Hintergrund
+            hochladen. Gespeichert werden der Plan, sein Name, das Konto, dem er gehört, und das Bild als Datei auf unserem
+            Server. Sehen können Plan und Bild nur das besitzende Konto und Administrator*innen sowie – wenn der Plan
+            ausdrücklich als gemeinsame Vorlage angeboten wird – andere angemeldete Veranstalter*innen. Öffentlich
+            abrufbar ist beides nicht.
+          </p>
+          <p className="mt-2">
+            Raumpläne sollen keine personenbezogenen Daten enthalten; bitte lade keine Bilder hoch, auf denen Personen oder
+            Namen zu sehen sind. Ein Plan bleibt gespeichert, bis er gelöscht wird; mit dem Löschen verschwindet auch das
+            Bild. Wird ein Konto gelöscht, gehen seine Raumpläne an eine*n Administrator*in über.
+          </p>
+        </div>
+
+        <div>
+          <h2 className="font-bold text-lg">5. Schutz vor Missbrauch (Drosselung)</h2>
           <p className="mt-2">
             Um das Erraten von Passwörtern und das massenhafte Auslösen von Mails zu verhindern, zählen wir
             fehlgeschlagene Anmeldeversuche und Passwort-Reset-Anfragen. Dazu wird deine{' '}
@@ -84,7 +100,7 @@ export default function DatenschutzPage() {
         </div>
 
         <div>
-          <h2 className="font-bold text-lg">5. E-Mails</h2>
+          <h2 className="font-bold text-lg">6. E-Mails</h2>
           <p className="mt-2">
             Wir verschicken E-Mails nur für Kontofunktionen: die Einladung zu einem neuen Konto und den auf Wunsch
             angeforderten Passwort-Reset. Werbung oder Newsletter gibt es nicht.
@@ -92,7 +108,7 @@ export default function DatenschutzPage() {
         </div>
 
         <div>
-          <h2 className="font-bold text-lg">6. Cookies</h2>
+          <h2 className="font-bold text-lg">7. Cookies</h2>
           <p className="mt-2">
             Wir setzen ausschließlich technisch notwendige Cookies ein (Art. 6 Abs. 1 lit. b/f DSGVO, § 25 Abs. 2 Nr. 2
             TDDDG) - eine Einwilligung ist dafür nicht erforderlich. Es gibt keine Tracking-, Analyse- oder
@@ -105,7 +121,7 @@ export default function DatenschutzPage() {
         </div>
 
         <div>
-          <h2 className="font-bold text-lg">7. Empfänger und Auftragsverarbeiter</h2>
+          <h2 className="font-bold text-lg">8. Empfänger und Auftragsverarbeiter</h2>
           <p className="mt-2">
             <strong>E-Mail-Versand:</strong> Einladungs- und Passwort-Reset-Mails versenden wir über den
             E-Mail-Server <code>{smtpHost}</code>. Mit dem Betreiber dieses Servers besteht, soweit es sich um einen
@@ -119,21 +135,22 @@ export default function DatenschutzPage() {
         </div>
 
         <div>
-          <h2 className="font-bold text-lg">8. Speicherdauer</h2>
+          <h2 className="font-bold text-lg">9. Speicherdauer</h2>
           <p className="mt-2">
             Ein Konto wird automatisch gelöscht, wenn du dich <strong>2 Jahre</strong> lang nicht mehr angemeldet
-            hast - inklusive Sitzungen. Administrator-Konten sind von dieser automatischen Löschung ausgenommen.
+            hast und dir keine Raumpläne mehr gehören - inklusive Sitzungen. Administrator-Konten sind von dieser
+            automatischen Löschung ausgenommen.
             Unabhängig davon kannst du jederzeit unter der oben genannten Adresse um frühere Löschung deines Kontos
             bitten.
           </p>
           <p className="mt-2">
             Sitzungen laufen nach 30 Tagen ab, Einladungs- und Reset-Links nach 7 Tagen bzw. 1 Stunde und werden dann
-            entfernt. Drossel-Zähler siehe Punkt 4.
+            entfernt. Drossel-Zähler siehe Punkt 5.
           </p>
         </div>
 
         <div>
-          <h2 className="font-bold text-lg">9. Deine Rechte</h2>
+          <h2 className="font-bold text-lg">10. Deine Rechte</h2>
           <p className="mt-2">
             Du hast das Recht auf Auskunft (Art. 15 DSGVO), Berichtigung (Art. 16 DSGVO), Löschung (Art. 17 DSGVO),
             Einschränkung der Verarbeitung (Art. 18 DSGVO), Datenübertragbarkeit (Art. 20 DSGVO) und Widerspruch (Art.
@@ -147,7 +164,7 @@ export default function DatenschutzPage() {
         </div>
 
         <div>
-          <h2 className="font-bold text-lg">10. Datensicherheit</h2>
+          <h2 className="font-bold text-lg">11. Datensicherheit</h2>
           <p className="mt-2">
             Die Übertragung erfolgt verschlüsselt (TLS/HTTPS). Anmelde-Cookies sind <code>httpOnly</code> gesetzt und
             damit per JavaScript nicht auslesbar. Passwörter, Sitzungs-Tokens und Einmal-Links werden nur als Hash

@@ -61,6 +61,13 @@ const nextConfig: NextConfig = {
         headers: [...PRIVATE_PAGE, { key: "Referrer-Policy", value: "no-referrer" }],
       },
       {
+        // Hochgeladene Hintergrundbilder: Diese Regel steht HINTER /admin/:path* und ersetzt deren
+        // CSP (sonst ginge die CSP des Route Handlers verloren - Header aus dieser Datei gewinnen).
+        // Selbst wenn ein Browser das Bild als Dokument öffnet: keine Skripte, keine Einbettung.
+        source: "/admin/plans/:id/background",
+        headers: [{ key: "Content-Security-Policy", value: "default-src 'none'; sandbox; frame-ancestors 'none'" }],
+      },
+      {
         // Persönlicher Verwaltungslink einer Buchung (/b/<bookingId>/<token>, ab Phase 3),
         // siehe docs/KONZEPT.md Abschnitt 6.
         source: "/b/:path*",

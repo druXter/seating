@@ -9,6 +9,7 @@ import { defineConfig, devices } from '@playwright/test'
 const PORT = 3701
 export const BASE_URL = `http://127.0.0.1:${PORT}`
 export const TEST_CRON_SECRET = 'e2e-cron-secret'
+export const TEST_UPLOAD_DIR = 'data/test-uploads'
 
 // Gilt für den Server UND für die Testprozesse (tests/e2e/helpers.ts greift direkt auf die
 // Datenbank zu). Relative SQLite-Pfade löst Prisma relativ zu prisma/schema.prisma auf.
@@ -31,7 +32,7 @@ export default defineConfig({
     // Datenbank bei jedem Lauf frisch anlegen (nur die eigene Testdatei löschen - bewusst kein
     // `prisma db push --force-reset`, das bei falsch gesetzter DATABASE_URL eine fremde
     // Datenbank leeren würde), dann wie in Produktion bauen und starten.
-    command: `rm -f prisma/test.db prisma/test.db-journal && npx prisma db push --skip-generate && npx next build && npx next start -H 127.0.0.1 -p ${PORT}`,
+    command: `rm -rf prisma/test.db prisma/test.db-journal data/test-uploads && npx prisma db push --skip-generate && npx next build && npx next start -H 127.0.0.1 -p ${PORT}`,
     url: `${BASE_URL}/impressum`,
     reuseExistingServer: false,
     timeout: 240_000,
@@ -44,6 +45,8 @@ export default defineConfig({
       // Besucher-IPs zu simulieren.
       TRUST_PROXY_HOPS: '1',
       CRON_SECRET: TEST_CRON_SECRET,
+      // Eigenes Upload-Verzeichnis, wird wie die Test-Datenbank bei jedem Lauf geleert.
+      UPLOAD_DIR: TEST_UPLOAD_DIR,
       // Kein Mailversand: Einladungslinks werden angezeigt, Reset-Mails gehen nirgendwohin.
       SMTP_HOST: '',
       TZ: 'Europe/Berlin'

@@ -119,6 +119,18 @@ export async function updatePlanSettings(formData: FormData) {
   redirect(`/admin/plans/${plan.id}?settings=1`)
 }
 
+/** Entfernt das Hintergrundbild (Datei und Verweis). Die Lage in layout.background bleibt harmlos stehen. */
+export async function removeBackground(formData: FormData) {
+  const user = await requireUser('/admin/plans')
+  const plan = await loadPlan(formString(formData, 'planId', 50), user)
+  if (!plan || plan.access !== 'edit') redirect('/admin/plans')
+
+  const record = await prisma.floorPlan.findUnique({ where: { id: plan.id }, select: { backgroundFile: true } })
+  await prisma.floorPlan.update({ where: { id: plan.id }, data: { backgroundFile: null, backgroundType: null } })
+  await deleteUpload(record?.backgroundFile)
+  redirect(`/admin/plans/${plan.id}?background=removed`)
+}
+
 export type SaveResult =
   | { ok: true; version: number }
   | { ok: false; reason: 'conflict' | 'invalid' | 'forbidden'; errors?: string[] }

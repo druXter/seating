@@ -12,12 +12,12 @@ Fachliche Grundlage und Fahrplan: [docs/KONZEPT.md](docs/KONZEPT.md).
 | Phase | Inhalt | Stand |
 | --- | --- | --- |
 | 0 | Gerüst, Admin-Login, Kontoverwaltung, Sicherheits-Header, Docker, Tests | ✅ umgesetzt |
-| 1 | Raumplan-Editor, Vorlagen, Import/Export | offen |
+| 1 | Raumplan-Editor, Vorlagen, Import/Export, Hintergrundbild | ✅ umgesetzt |
 | 2 | Events mit Plan-Snapshot, öffentliche Planansicht | offen |
 | 3 | Tischbuchung mit Verifizierung, `.ics`, Verwaltungslink | offen |
 | 4–8 | Buchungsverwaltung, Warteliste, Modi `SEAT`/`ASSIGNED`, rsvp-app, Föderation | offen |
 
-Bisher gibt es also nur die Konten der Veranstalter\*innen – Buchen ist noch nicht möglich.
+Bisher gibt es also Konten und Raumpläne für Veranstalter\*innen – Events und Buchen folgen.
 
 ## Konten
 
@@ -51,6 +51,32 @@ Admins vergeben die Rollen CREATOR/ADMIN; Creator laden ausschließlich Moderato
 der Oberfläche bewusst weder ändern noch löschen (Schutz vor Aussperren) und haben keinen Passwort-Reset per Mail – das
 geht nur per `create-user.js`.
 
+## Raumpläne
+
+Unter `/admin/plans` legen Creator und Admins wiederverwendbare Raumpläne an (Moderator\*innen nicht). Ein Plan ist eine
+**Vorlage**: Beim Anlegen eines Events (Phase 2) wird er kopiert, spätere Änderungen verändern keine laufenden Events.
+
+* **Elemente:** Tische (rund, rechteckig, oval; Plätze werden automatisch rundherum verteilt, einzelne Seiten
+  abschaltbar), einzelne Stühle, Reihenblöcke (Reihen × Plätze, Gänge, weggelassene Plätze, Krümmung, Beschriftung A/B/…
+  oder 1/2/…, Zählrichtung) und nicht buchbare Objekte (Bühne, Tanzfläche, Bar, Buffet, Tür, Säule, Wand, Text).
+* **Editor:** SVG mit Ziehen (Einrasten am Raster), Drehgriff (15°-Schritte, mit Umschalt frei), Mehrfachauswahl
+  (Umschalt+Klick), Duplizieren (Strg+D), Löschen (Entf), Pfeiltasten (ein Rasterfeld, mit Alt 1 cm),
+  Rückgängig/Wiederholen, Zoom (Mausrad) und Verschieben der Ansicht. Alle Werte lassen sich auch im
+  Eigenschaften-Panel eintippen; die Elementliste erlaubt die Auswahl per Tastatur.
+* **Speichern** ausdrücklich (Button oder Strg+S). Hat inzwischen jemand anderes gespeichert (zweiter Tab, anderes Konto),
+  wird nichts überschrieben – der Editor meldet den Konflikt und bietet an, den eigenen Stand herunterzuladen.
+* **Stabile Schlüssel:** Jede buchbare Einheit hat einen unveränderlichen Schlüssel (`t12`, `t12-s3`, `s5`,
+  `blk1-r2-s12` = Block 1, Reihe 2 von vorne, Position 12 von links). Umbenennen, Verschieben, Drehen oder eine andere
+  Reihen-/Platzzählung ändern ihn nicht; gelöschte Nummern werden nie neu vergeben.
+* **Import/Export** als JSON (`format: "seating-floorplan"`, `schemaVersion`). Ein Import legt immer einen neuen Plan an
+  und durchläuft dieselbe Prüfung wie jedes Speichern (zod, `app/lib/floorplan/schema.ts`: Aufbau, eindeutige
+  Schlüssel, Wertebereiche, höchstens 500 Elemente und 3000 Plätze).
+* **Gemeinsame Vorlage:** Ein Plan ist privat (besitzendes Konto und Admins). Mit „Als gemeinsame Vorlage anbieten“
+  können andere Creator ihn ansehen, exportieren und duplizieren, aber nicht ändern.
+* **Hintergrundbild:** PNG, JPEG oder WebP bis 5 MB als Unterlage, Lage/Breite/Deckkraft im Editor. Die Dateiart wird am
+  Inhalt erkannt (kein SVG). Gespeichert in `UPLOAD_DIR` (Standard `data/uploads`), ausgeliefert nur an Konten mit
+  Zugriff auf den Plan, mit `nosniff` und `Content-Security-Policy: sandbox`. Nicht Teil des Exports.
+
 ## Sicherheit
 
 Übernommen aus dem Abstimmungstool (Referenzimplementierung der Suite, siehe README von `suite-kit`):
@@ -83,8 +109,10 @@ Ein externer Scheduler (z. B. Uptime Kuma) ruft **einmal täglich** auf:
 
 `GET https://plaetze.deine-domain.de/api/cron/cleanup?secret=<CRON_SECRET>`
 
-Ein leeres oder fehlendes `CRON_SECRET` lässt niemanden durch. Stand Phase 0 gelöscht werden: Konten nach 2 Jahren ohne
-Anmeldung (Admin-Konten ausgenommen), abgelaufene Sitzungen, Einladungs-/Reset-Links und Drossel-Zähler. Mit den
+Ein leeres oder fehlendes `CRON_SECRET` lässt niemanden durch. Derzeit gelöscht werden: Konten nach 2 Jahren ohne
+Anmeldung (Admin-Konten und Konten, denen noch Raumpläne gehören, ausgenommen), abgelaufene Sitzungen,
+Einladungs-/Reset-Links und Drossel-Zähler. Wird ein Konto von Hand gelöscht, gehen seine Raumpläne an den löschenden
+Admin über. Mit den
 Buchungen kommen die Fristen aus dem Konzept dazu (Events 18 Monate nach Ende, abgelaufene/stornierte Buchungen nach
 30 Tagen).
 
@@ -103,17 +131,21 @@ Es gibt keinen `migrations`-Ordner – wie in den anderen Tools der Suite aussch
 ## Tests
 
 ```bash
-npm test            # Unit-Tests (vitest): Passwort, Drossel-IP, Formular-Helfer, Slugs, Cron-Secret
+npm test            # Unit-Tests (vitest): Passwort, Drossel-IP, Formular-Helfer, Slugs, Cron-Secret,
+                    # Raumplan-Format, Geometrie, Schlüssel, Editor-Zustand, Bilderkennung
 npm run test:e2e    # Playwright gegen eine frisch gebaute Instanz auf http://127.0.0.1:3701
 ```
 
-Die E2E-Tests löschen und erzeugen bei jedem Lauf ihre eigene Datenbank `prisma/test.db` (nie die Entwicklungs-
-oder Produktivdatenbank), bauen mit `next build` und starten `next start` – sie prüfen also das, was auch in Produktion
+Die E2E-Tests löschen und erzeugen bei jedem Lauf ihre eigene Datenbank `prisma/test.db` und ihr Upload-Verzeichnis
+`data/test-uploads` (nie die Entwicklungs- oder Produktivdaten), bauen mit `next build` und starten `next start` – sie prüfen also das, was auch in Produktion
 läuft. Geprüft werden u. a.: Sicherheits-Header je Pfadgruppe, Session-Cookie und Hash in der Datenbank,
 Session-Fixation, Open Redirect, gleiche Meldung und Antwortzeit bei unbekannten Adressen, Sperre beim 11. Versuch pro
 E-Mail und 21. pro IP, erfundene `X-Forwarded-For`-Einträge, 30 gleichzeitige Versuche, Einladungs-/Reset-Link
 (einmalig, GET verbraucht nichts), gefälschte Formular-POSTs ohne Berechtigung und mit fremdem Origin – jeweils **mit
-Positivkontrolle**, dass derselbe POST als berechtigtes Konto wirkt.
+Positivkontrolle**, dass derselbe POST als berechtigtes Konto wirkt. Für Raumpläne außerdem: Anlegen, Import/Export
+(auch ungültige Dateien und HTML in Beschriftungen), Editor per Werkzeugleiste, Tastatur und Maus, Versionskonflikt mit
+zwei Tabs, nachgespielte Speicher-Aufrufe fremder Konten, Freigabe als Vorlage, Bild-Upload (SVG, getarnte Dateien,
+Übergröße, fremde Herkunft) und die Header der Bildauslieferung.
 
 Voraussetzung: Chromium für Playwright (`npx playwright install chromium`, einmalig).
 
@@ -128,12 +160,13 @@ docker compose run --rm seating node create-user.js deine-email@domain.de ADMIN 
 ```
 
 * Der Container läuft **nicht als root**, sondern als Nutzer `node` (UID 1000). Das gemountete Verzeichnis `./data`
-  (SQLite-Datenbank) muss ihm gehören – legt Docker es selbst an, gehört es root und der Start scheitert.
+  (SQLite-Datenbank, hochgeladene Bilder in `data/uploads`) muss ihm gehören – legt Docker es selbst an, gehört es
+  root und der Start scheitert.
 * Installiert wird mit `npm ci` exakt nach `package-lock.json`. Das gemeinsame Paket `suite-kit` kommt direkt von
   GitHub, das Dockerfile installiert dafür `git`.
 * Beim Start synchronisiert `prisma db push` das Schema, dann startet `next start` auf Port 3000 im Container.
   Voreingestellt ist Host-Port 3007 (3005/3006 sind von rsvp-app und Abstimmungstool belegt).
-* **Vor jedem Update die Datenbank sichern** (`data/prod.db` kopieren).
+* **Vor jedem Update die Daten sichern** (`data/prod.db` und `data/uploads/` kopieren).
 
 ## Umgebungsvariablen
 
@@ -147,6 +180,7 @@ Siehe `.env.example` (mit Erklärungen). Kurzüberblick:
 | `CRON_SECRET` | Schutz des Aufräum-Endpunkts |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` | Mailversand (Phase 0 optional, ab Phase 3 nötig) |
 | `IMPRESSUM_*` | Angaben für Impressum und Datenschutzerklärung |
+| `UPLOAD_DIR` | optional: Ablage hochgeladener Bilder (Standard `data/uploads` im Arbeitsverzeichnis) |
 
 Später kommen dazu: `MANAGE_LINK_SECRET(_PREVIOUS)` (Phase 3), `RSVP_*` (Phase 7), `SUITE_*` (Phase 8), optional
 `TURNSTILE_*`.

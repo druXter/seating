@@ -3,24 +3,34 @@ import Link from 'next/link'
 import { requireUser } from '../../../lib/auth'
 import { loadPlanOr404 } from '../../../lib/floorplan/store'
 import { summarize } from '../../../lib/floorplan/units'
-import { duplicatePlan, updatePlanSettings } from '../actions'
+import { duplicatePlan, removeBackground, updatePlanSettings } from '../actions'
+import { MAX_BACKGROUND_BYTES } from '../../../lib/image-type'
 import PlanSvg from '../../../ui/plan/plan-svg'
 import PlanEditor from './editor/plan-editor'
 import Notice from '../../../ui/notice'
 
 export const dynamic = 'force-dynamic'
 
+const BACKGROUND_MESSAGES: Record<string, string> = {
+  uploaded: 'Hintergrundbild gespeichert.',
+  removed: 'Hintergrundbild entfernt.',
+  type: 'Nur PNG, JPEG oder WebP sind erlaubt (erkannt am Dateiinhalt, nicht an der Endung).',
+  size: `Das Bild ist zu groß (höchstens ${MAX_BACKGROUND_BYTES / 1024 / 1024} MB).`,
+  missing: 'Bitte wähle eine Bilddatei aus.',
+  invalid: 'Der Upload konnte nicht gelesen werden.'
+}
+
 export default async function PlanPage({
   params,
   searchParams
 }: {
   params: Promise<{ id: string }>
-  searchParams: Promise<{ imported?: string; settings?: string; error?: string }>
+  searchParams: Promise<{ imported?: string; settings?: string; error?: string; background?: string }>
 }) {
   const { id } = await params
   const user = await requireUser(`/admin/plans/${id}`)
   const plan = await loadPlanOr404(id, user)
-  const { imported, settings, error } = await searchParams
+  const { imported, settings, error, background } = await searchParams
   const summary = summarize(plan.layout)
   const backgroundUrl = plan.hasBackground ? `/admin/plans/${plan.id}/background?v=${plan.version}` : null
 
@@ -38,6 +48,9 @@ export default async function PlanPage({
         {imported === '1' && <Notice tone="success">Raumplan importiert.</Notice>}
         {settings === '1' && <Notice tone="success">Einstellungen gespeichert.</Notice>}
         {error === 'name' && <Notice tone="error">Der Name darf nicht leer sein.</Notice>}
+        {background && BACKGROUND_MESSAGES[background] && (
+          <Notice tone={background === 'uploaded' || background === 'removed' ? 'success' : 'error'}>{BACKGROUND_MESSAGES[background]}</Notice>
+        )}
 
         {plan.access === 'view' && (
           <Notice tone="info">
@@ -75,11 +88,35 @@ export default async function PlanPage({
               <button type="submit" className="bg-blue-600 text-white font-bold py-2 px-4 rounded hover:bg-blue-700">Einstellungen speichern</button>
             </form>
           )}
+          {plan.access === 'edit' && (
+            <div className="bg-white rounded-lg shadow p-4 space-y-3">
+              <h2 className="font-bold">Hintergrundbild</h2>
+              <p className="text-xs text-gray-600">
+                Ein Grundriss als Unterlage (PNG, JPEG oder WebP, höchstens {MAX_BACKGROUND_BYTES / 1024 / 1024} MB). Lage, Breite
+                und Deckkraft stellst du im Editor ein, wenn nichts ausgewählt ist. Speichere vorher Änderungen im Editor –
+                der Upload lädt die Seite neu.
+              </p>
+              {/* Normales Formular an den Route Handler (kein Server-Action-Limit von 1 MB). */}
+              <form action={`/admin/plans/${plan.id}/background`} method="post" encType="multipart/form-data" className="space-y-2">
+                <label htmlFor="background-file" className="block text-sm font-medium">Bilddatei</label>
+                <input id="background-file" name="file" type="file" accept="image/png,image/jpeg,image/webp" required className="w-full text-sm" />
+                <button type="submit" className="bg-blue-600 text-white font-bold py-2 px-4 rounded hover:bg-blue-700">
+                  {plan.hasBackground ? 'Bild ersetzen' : 'Bild hochladen'}
+                </button>
+              </form>
+              {plan.hasBackground && (
+                <form action={removeBackground}>
+                  <input type="hidden" name="planId" value={plan.id} />
+                  <button type="submit" className="text-sm text-red-700 hover:underline">Hintergrundbild entfernen</button>
+                </form>
+              )}
+            </div>
+          )}
           <div className="bg-white rounded-lg shadow p-4 space-y-2 text-sm">
             <h2 className="font-bold">Aktionen</h2>
             <form action={duplicatePlan}>
               <input type="hidden" name="planId" value={plan.id} />
-              <button type="submit" className="text-blue-700 hover:underline">Duplizieren</button>
+              <button type="submit" className="text-blue-700 hover:underline">Plan duplizieren</button>
             </form>
             <a href={`/admin/plans/${plan.id}/export`} className="block text-blue-700 hover:underline">Als Datei exportieren</a>
           </div>

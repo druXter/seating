@@ -57,9 +57,20 @@ Der Admin kann in **allen** Modi Buchungen anlegen, verschieben, ändern und lö
 
 * Koordinaten in abstrakten Einheiten (Vorschlag: 1 Einheit = 1 cm), Darstellung als **SVG mit viewBox** – skaliert
   sauber, lässt sich stylen, drucken und für Screenreader beschriften.
-* Jede buchbare Einheit hat einen **stabilen, unveränderlichen Schlüssel** (`key`, z. B. `t12`, `t12-s3`, `blk1-A-12`)
-  und ein frei änderbares **Label** ("Tisch 12", "Reihe A, Platz 12"). Buchungen referenzieren die Einheit, nie das Label.
-* Import/Export als JSON mit `schemaVersion`, damit Pläne zwischen Instanzen wandern können.
+* Jede buchbare Einheit hat einen **stabilen, unveränderlichen Schlüssel** (`key`, z. B. `t12`, `t12-s3`, `s5`,
+  `blk1-r1-s12`) und ein frei änderbares **Label** ("Tisch 12", "Reihe A, Platz 12"). Buchungen referenzieren die
+  Einheit, nie das Label. Plätze in Reihenblöcken bekommen ihren Schlüssel aus der **Position** (Reihe von vorne, Platz
+  von links), nicht aus der Beschriftung – sonst würde eine geänderte Reihenzählung (A → C) Schlüssel verschieben
+  (umgesetzt in Phase 1, `app/lib/floorplan/units.ts`). Element-Nummern laufen nur vorwärts (`nextId`); eine gelöschte
+  Nummer wird nie neu vergeben.
+* Import/Export als JSON mit `schemaVersion`, damit Pläne zwischen Instanzen wandern können. Format und Prüfregeln
+  (zod): `app/lib/floorplan/schema.ts`. Ein Import legt immer einen neuen Plan an; das Hintergrundbild gehört nicht zur
+  Datei.
+* **Sichtbarkeit:** Pläne sind privat (besitzendes Konto und Admins). Jeder Plan lässt sich als **gemeinsame
+  Vorlage** anbieten – andere Creator können ihn dann ansehen, exportieren und duplizieren, aber nicht ändern.
+* **Hintergrundbild:** PNG/JPEG/WebP bis 5 MB, Dateiart am Inhalt erkannt (kein SVG), abgelegt als Datei mit
+  Zufallsnamen außerhalb von `public/`, ausgeliefert nur an Konten mit Zugriff. Upload über einen Route Handler statt
+  einer Server Action, damit das 1-MB-Limit der Server Actions für alle anderen Formulare bestehen bleibt.
 
 ### Editor (Admin)
 
@@ -83,7 +94,8 @@ Pseudo-Schema, Feldnamen englisch. Konten-Tabellen (`User`, `Session`, `External
 Referenzimplementierung (Abstimmungstool).
 
 ```text
-FloorPlan        id, name, layout (JSON), createdAt, updatedAt
+FloorPlan        id, name, ownerId?, shared (bool), layout (JSON), version (int, für Konflikterkennung),
+                 backgroundFile?, backgroundType?, createdAt, updatedAt   -- umgesetzt in Phase 1
 
 Event            id, slug (unique), title, description, location,
                  startsAt, endsAt, timezone ("Europe/Berlin"),
