@@ -1,0 +1,44 @@
+# dependencies
+/node_modules
+
+# testing
+/coverage
+/test-results/
+/playwright-report/
+/blob-report/
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+
+# env files (can opt-in for committing if needed)
+.env*
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# Datenbank und sensible Daten
+data/
+*.db
+*.db-journal
+
+# KI-Assistenten & Editor-Workspaces
+.claude/
+.agents/
+# AGENTS.md wird von `next dev` gepflegt (Next.js 16.3+, siehe
+# node_modules/next/dist/server/lib/generate-agent-files.js) und soll mitversioniert werden.
+# CLAUDE.md ist hier eigene Projektdoku und bindet AGENTS.md per @AGENTS.md ein.
+
+# Erlaube explizit die .env.example (wird sonst von ".env*" oben blockiert!)
+!.env.example

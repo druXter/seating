@@ -1,0 +1,94 @@
+// prisma/schema.prisma
+// Kein eigener migrations-Ordner - wie im Abstimmungstool und in rsvp-app ausschließlich per
+// `npx prisma db push` synchronisiert (siehe README.md/Dockerfile).
+//
+// Phase 0 enthält nur die Konten-Tabellen (1:1 nach dem Abstimmungstool). Die fachlichen
+// Tabellen (FloorPlan, Event, Unit, Booking, Allocation, ...) folgen ab Phase 1, siehe
+// docs/KONZEPT.md Abschnitt 3.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// Gleiche Rollen wie im Abstimmungstool und in rsvp-app, aber eigenständig vergeben:
+// ADMIN sieht/verwaltet alle Events, Raumpläne und Konten. CREATOR legt eigene Events und
+// Raumpläne an und teilt sie mit anderen Konten. MODERATOR legt nichts selbst an, sondern
+// bearbeitet ausschließlich ihm freigegebene Events (z.B. das Brautpaar für die eigene
+// Hochzeit). Die Freigabe pro Event (EventAccess, analog PollAccess) kommt mit Phase 2.
+enum Role {
+  ADMIN
+  CREATOR
+  MODERATOR
+}
+
+// Ein lokales Konto dieses Tools - nur für Veranstalter*innen. Buchende haben kein Konto.
+// Registrierung ist nicht öffentlich: Konten legt ein eingeloggtes Konto an (Einladungslink,
+// siehe resetTokenHash) oder sie entstehen später beim ersten Login über ein verbundenes Tool
+// (ExternalIdentity, Phase 8). passwordHash ist null bei rein föderierten Konten und bei noch
+// nicht angenommenen Einladungen - beides kann sich nur nicht per Passwort anmelden.
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String?
+  passwordHash String?
+  role         Role     @default(CREATOR)
+  createdAt    DateTime @default(now())
+  // Zuletzt bei einer Anmeldung gesetzt (siehe issueSession in app/lib/auth.ts). Grundlage
+  // für die automatische Löschung inaktiver Konten (app/api/cron/cleanup/route.ts) -
+  // Admin-Konten sind davon ausgenommen.
+  lastLoginAt  DateTime @default(now())
+
+  // Einladung UND Passwort-Reset teilen sich denselben Mechanismus: ein einmaliger,
+  // befristeter Link. Gespeichert wird nur der SHA-256-Hash des Tokens, damit ein
+  // Datenbank-Leak keine gültigen Links preisgibt (siehe app/lib/auth.ts hashToken).
+  resetTokenHash      String?   @unique
+  resetTokenExpiresAt DateTime?
+
+  sessions   Session[]
+  identities ExternalIdentity[]
+}
+
+// Server-seitige Session: das Cookie trägt nur den zufälligen Token, in der Datenbank
+// liegt ausschließlich dessen SHA-256-Hash - ein Leak der Datenbank ergibt also keine
+// übernehmbaren Sitzungen.
+model Session {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+// Verknüpfung eines lokalen Kontos mit einem Konto in einem anderen Tool der Suite
+// (siehe suite-kit, genutzt ab Phase 8). Identität ist (issuer, subject) - NIE die E-Mail,
+// die sich beim Anbieter ändern lässt. issuer = Origin des Anbieter-Tools, subject = dessen Konto-ID.
+model ExternalIdentity {
+  id        String   @id @default(cuid())
+  issuer    String
+  subject   String
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([issuer, subject])
+  @@index([userId])
+}
+
+// Zähler gegen Passwort-Raten und Mail-Flut (siehe app/lib/throttle.ts). `key` ist ein
+// SHA-256-Hash aus Bereich + Kennung (E-Mail bzw. IP-Adresse) - es werden also weder
+// Adressen noch IPs im Klartext gespeichert. Zeilen werden nach Ablauf des Zeitfensters
+// bei Gelegenheit wieder gelöscht. Die Buchungs-Drosselung (Phase 3) nutzt eine eigene
+// Tabelle BookingThrottle nach demselben Muster.
+model LoginThrottle {
+  key         String   @id
+  count       Int
+  windowStart DateTime
+}

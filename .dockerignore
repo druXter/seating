@@ -1,0 +1,30 @@
+# Abhängigkeiten
+node_modules
+npm-debug.log
+
+# Build-Ordner von Next.js
+.next
+out
+build
+
+# Git
+.git
+.gitignore
+
+# Datenbanken und Umgebungsvariablen (werden über Volumes/Compose geregelt)
+*.db
+*.db-journal
+data/
+.env
+.env.local
+
+# Tests und Testergebnisse gehören nicht ins Image
+tests
+test-results
+playwright-report
+playwright.config.ts
+vitest.config.mts
+
+# IDE-Dateien und KI-Assistenten
+.vscode
+.claude
