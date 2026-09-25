@@ -38,7 +38,7 @@ export default async function UsersPage({
         orderBy: { createdAt: 'asc' },
         select: {
           id: true, email: true, name: true, role: true, passwordHash: true,
-          _count: { select: { identities: true } }
+          _count: { select: { identities: true, floorPlans: true } }
         }
       })
     : []
@@ -103,6 +103,8 @@ export default async function UsersPage({
                         {ROLE_LABELS[u.role]}
                         {' · '}
                         {pending ? 'Einladung offen' : u.passwordHash ? 'Passwort' : 'Anmeldung über anderes Tool'}
+                        {' · '}
+                        {u._count.floorPlans} Raumpl{u._count.floorPlans === 1 ? 'an' : 'äne'}
                       </div>
                     </div>
 
@@ -125,7 +127,7 @@ export default async function UsersPage({
                           </form>
                         )}
 
-                        <ConfirmForm action={deleteUser} message={`Konto ${u.email} löschen?`}>
+                        <ConfirmForm action={deleteUser} message={`Konto ${u.email} löschen? Seine Raumpläne gehen an dich über.`}>
                           <input type="hidden" name="userId" value={u.id} />
                           <button type="submit" className="text-xs text-red-700 hover:underline">Löschen</button>
                         </ConfirmForm>

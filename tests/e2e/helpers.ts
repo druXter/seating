@@ -114,3 +114,28 @@ export function locationOf(response: APIResponse): URL | null {
   const location = response.headers()['location']
   return location ? new URL(location, BASE_URL) : null
 }
+
+/** Kleiner gültiger Plan für Tests (ein runder Tisch, ein Reihenblock, eine Bühne). */
+export function testLayout() {
+  return {
+    schemaVersion: 1,
+    width: 2000,
+    height: 1500,
+    grid: 50,
+    nextId: 4,
+    elements: [
+      { id: 't1', type: 'table', shape: 'round', x: 400, y: 400, rotation: 0, width: 150, height: 150, seats: 8, sides: { top: true, right: true, bottom: true, left: true }, bookable: true },
+      {
+        id: 'blk2', type: 'seatBlock', x: 1200, y: 900, rotation: 0, rows: 3, seatsPerRow: 6, seatSpacing: 55, rowSpacing: 90,
+        rowLabels: 'letters', rowStart: 1, numbering: 'ltr', seatStart: 1, aisles: [3], omitted: [], curveRadius: 0, bookable: true
+      },
+      { id: 'o3', type: 'static', kind: 'stage', shape: 'rect', x: 1000, y: 150, rotation: 0, width: 600, height: 200, label: 'Bühne' }
+    ]
+  }
+}
+
+export async function createPlanRecord(ownerId: string, options: { name?: string; shared?: boolean; layout?: object } = {}) {
+  return prisma.floorPlan.create({
+    data: { name: options.name ?? `Plan ${uniqueEmail('p')}`, ownerId, shared: options.shared ?? false, layout: options.layout ?? testLayout() }
+  })
+}

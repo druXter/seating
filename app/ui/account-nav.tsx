@@ -19,6 +19,7 @@ export default async function AccountNav() {
       {user ? (
         <>
           <Link href="/admin" className="hover:text-gray-900">Verwaltung</Link>
+          {user.role !== 'MODERATOR' && <Link href="/admin/plans" className="hover:text-gray-900">Raumpläne</Link>}
           {user.role !== 'MODERATOR' && <Link href="/admin/users" className="hover:text-gray-900">Nutzer*innen</Link>}
           <Link href="/account" className="hover:text-gray-900">{user.name || user.email}</Link>
           <form action={logoutUser}>

@@ -12,10 +12,10 @@ const ACCOUNT_INACTIVITY_YEARS = 2
  * DSGVO), gleiches Muster wie im Abstimmungstool und in rsvp-app. Läuft idempotent, einmal
  * täglich reicht.
  *
- * Stand Phase 0:
+ * Stand Phase 1:
  * 1. Löscht Konten, die seit ACCOUNT_INACTIVITY_YEARS nicht mehr eingeloggt waren - bewusst
- *    NICHT Admin-Konten (sie sind eine fortlaufende Identität). Ab Phase 2 bleiben zusätzlich
- *    Konten stehen, denen noch Events gehören (wie im Abstimmungstool).
+ *    NICHT Admin-Konten (sie sind eine fortlaufende Identität) und nicht Konten, denen noch
+ *    Raumpläne gehören (wie im Abstimmungstool bei Abstimmungen; ab Phase 2 ebenso Events).
  * 2. Räumt Technisches auf: abgelaufene Sitzungen, abgelaufene Einladungs-/Reset-Links,
  *    veraltete Drossel-Zähler.
  *
@@ -39,7 +39,7 @@ export async function GET(request: Request) {
 
   // Sitzungen und Verknüpfungen verschwinden per Cascade mit dem Konto.
   const deletedUsers = await prisma.user.deleteMany({
-    where: { role: { not: 'ADMIN' }, lastLoginAt: { lt: inactivityCutoff } }
+    where: { role: { not: 'ADMIN' }, lastLoginAt: { lt: inactivityCutoff }, floorPlans: { none: {} } }
   })
 
   const deletedSessions = await prisma.session.deleteMany({ where: { expiresAt: { lt: now } } })

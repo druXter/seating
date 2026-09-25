@@ -6,8 +6,8 @@ import { canCreateEvents } from '../lib/permissions'
 export const dynamic = 'force-dynamic'
 
 /**
- * Einstieg in die Verwaltung. Noch ein Platzhalter: Raumpläne folgen mit Phase 1, Events mit
- * Phase 2 (siehe docs/KONZEPT.md Abschnitt 12).
+ * Einstieg in die Verwaltung. Raumpläne gibt es seit Phase 1, Events folgen mit Phase 2 (siehe
+ * docs/KONZEPT.md Abschnitt 12).
  */
 export default async function AdminPage() {
   const user = await requireUser('/admin')
@@ -20,10 +20,13 @@ export default async function AdminPage() {
           <p className="text-gray-700">Hallo {user.name || user.email}!</p>
           <p className="text-sm text-gray-600">
             {canCreateEvents(user)
-              ? 'Hier legst du bald Raumpläne und Events an und verwaltest die Buchungen.'
+              ? 'Hier legst du Raumpläne an – Events und Buchungen folgen.'
               : 'Hier siehst du bald die Events, die für dich freigegeben wurden.'}
           </p>
           <ul className="text-sm list-disc list-inside">
+            {canCreateEvents(user) && (
+              <li><Link href="/admin/plans" className="text-blue-700 hover:underline">Raumpläne</Link></li>
+            )}
             {user.role !== 'MODERATOR' && (
               <li><Link href="/admin/users" className="text-blue-700 hover:underline">Nutzer*innen verwalten</Link></li>
             )}

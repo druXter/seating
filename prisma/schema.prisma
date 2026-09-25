@@ -2,8 +2,8 @@
 // Kein eigener migrations-Ordner - wie im Abstimmungstool und in rsvp-app ausschließlich per
 // `npx prisma db push` synchronisiert (siehe README.md/Dockerfile).
 //
-// Phase 0 enthält nur die Konten-Tabellen (1:1 nach dem Abstimmungstool). Die fachlichen
-// Tabellen (FloorPlan, Event, Unit, Booking, Allocation, ...) folgen ab Phase 1, siehe
+// Konten-Tabellen 1:1 nach dem Abstimmungstool (Phase 0), Raumplan-Vorlagen (Phase 1). Die
+// übrigen fachlichen Tabellen (Event, Unit, Booking, Allocation, ...) folgen ab Phase 2, siehe
 // docs/KONZEPT.md Abschnitt 3.
 
 generator client {
@@ -51,6 +51,7 @@ model User {
 
   sessions   Session[]
   identities ExternalIdentity[]
+  floorPlans FloorPlan[]
 }
 
 // Server-seitige Session: das Cookie trägt nur den zufälligen Token, in der Datenbank
@@ -91,4 +92,34 @@ model LoginThrottle {
   key         String   @id
   count       Int
   windowStart DateTime
+}
+
+// Wiederverwendbarer Raumplan ("Festsaal", "Hörsaal M001"). Beim Anlegen eines Events wird der
+// Plan kopiert (Phase 2) - spätere Änderungen hier verändern keine laufenden Events.
+//
+// layout: das geprüfte JSON-Format aus app/lib/floorplan/schema.ts (vor JEDEM Schreiben mit
+// parseLayout geprüft). version: steigt bei jedem Speichern; der Editor schickt die Version mit,
+// auf der er aufbaut - passt sie nicht mehr (zweiter Tab, anderes Konto), wird nicht still
+// überschrieben, sondern ein Konflikt gemeldet.
+//
+// shared: als gemeinsame Vorlage angeboten - andere Creator dürfen den Plan ansehen und
+// duplizieren, aber nicht ändern (siehe app/lib/permissions.ts). ownerId ist nur null, wenn das
+// Konto trotz Umhängen beim Löschen verschwunden ist (SetNull als Sicherheitsnetz) - dann nur Admins.
+//
+// backgroundFile: zufälliger Dateiname in UPLOAD_DIR (nie ein Pfad), backgroundType der beim
+// Upload am Dateiinhalt erkannte MIME-Typ. Die Lage des Bilds steht in layout.background.
+model FloorPlan {
+  id             String   @id @default(cuid())
+  name           String
+  ownerId        String?
+  owner          User?    @relation(fields: [ownerId], references: [id], onDelete: SetNull)
+  shared         Boolean  @default(false)
+  layout         Json
+  version        Int      @default(1)
+  backgroundFile String?
+  backgroundType String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([ownerId])
 }
