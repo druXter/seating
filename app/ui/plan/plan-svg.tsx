@@ -32,8 +32,11 @@ const TABLE_FILL = '#f1f5f9'
 const NOT_BOOKABLE = '#cbd5e1'
 const SELECTED = '#2563eb'
 
-/** Zustand einer Einheit in einer Event-Ansicht. dimmed: passt nicht zur Gruppengröße, highlighted: passt. */
-export type UnitVisual = { state: UnitState; dimmed?: boolean; highlighted?: boolean }
+/**
+ * Zustand einer Einheit in einer Event-Ansicht. dimmed: passt nicht zur Gruppengröße, highlighted: passt.
+ * href: Tisch ist ein Link (Admin-Ansicht: zur Buchung bzw. zum Anlegen), linkLabel sein zugänglicher Name.
+ */
+export type UnitVisual = { state: UnitState; dimmed?: boolean; highlighted?: boolean; href?: string; linkLabel?: string }
 
 export const STATE_TEXT: Record<UnitState, string> = { free: 'frei', confirmed: 'belegt', held: 'reserviert', unavailable: 'nicht buchbar' }
 
@@ -180,10 +183,10 @@ function ElementShape({ element, selected, units }: { element: LayoutElement; se
       const fill = visual ? STATE_FILL[visual.state] : bookable ? TABLE_FILL : NOT_BOOKABLE
       const highlight = visual?.highlighted ? { stroke: SELECTED, strokeWidth: 8 } : outline
       const label = tableLabel(element)
-      return (
+      const shape = (
         <g
           opacity={visual?.dimmed ? 0.3 : 1} data-unit-key={visual ? element.id : undefined} data-state={visual?.state}
-          style={visual?.state === 'free' && !visual.dimmed ? { cursor: 'pointer' } : undefined}
+          style={(visual?.state === 'free' && !visual.dimmed) || visual?.href ? { cursor: 'pointer' } : undefined}
         >
           {visual && <title>{`${label} · ${element.seats} Plätze · ${STATE_TEXT[visual.state]}`}</title>}
           {seats.map((seat, index) => (
@@ -205,6 +208,7 @@ function ElementShape({ element, selected, units }: { element: LayoutElement; se
           )}
         </g>
       )
+      return visual?.href ? <a href={visual.href} aria-label={visual.linkLabel ?? label}>{shape}</a> : shape
     }
     case 'seat':
       return (

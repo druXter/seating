@@ -1,6 +1,9 @@
 // app/lib/mail.ts
 import nodemailer from 'nodemailer'
 import { APP_NAME } from './app'
+import { esc } from './mail-blocks'
+
+export { esc }
 
 // Gleicher Transporter-Aufbau wie in rsvp-app und im Abstimmungstool - laufen die Tools
 // über dasselbe Postfach, deckt der dort abgeschlossene AVV auch diesen Versand ab.
@@ -21,16 +24,6 @@ const transporter = nodemailer.createTransport({
 
 export function isMailConfigured(): boolean {
   return !!process.env.SMTP_HOST
-}
-
-/** Maskiert Text für die Verwendung in HTML (Mail-Inhalte enthalten u.a. frei wählbare Namen/Titel). */
-export function esc(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;')
 }
 
 function layout(heading: string, body: string, buttonLabel: string, link: string, footer: string): string {

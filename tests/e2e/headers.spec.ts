@@ -80,3 +80,12 @@ test('Föderations-Pfade: Referrer-Policy überschreibt die allgemeine Regel', a
   expect(h['referrer-policy']).toBe('no-referrer')
   expect(h['x-content-type-options']).toBe('nosniff')
 })
+
+test('Buchungsverwaltung (Phase 4): noindex, kein Caching, kein Einbetten - auch Export und Druckansicht', async ({ request }) => {
+  for (const path of ['/admin/events/x/bookings', '/admin/events/x/bookings/y', '/admin/events/x/bookings/new', '/admin/events/x/mail', '/admin/events/x/print', '/admin/events/x/export']) {
+    const h = await headersOf(request, path)
+    expect(h['x-robots-tag'], path).toBe('noindex, nofollow')
+    expect(h['cache-control'], path).toContain('no-store')
+    expect(h['content-security-policy'], path).toBe("frame-ancestors 'none'")
+  }
+})

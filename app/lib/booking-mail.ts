@@ -1,24 +1,28 @@
 // app/lib/booking-mail.ts
 import type { Event } from '@prisma/client'
-import { APP_NAME } from './app'
 import { baseUrl } from './base-url'
-import { esc, isMailConfigured, sendMail, type MailAttachment } from './mail'
+import { isMailConfigured, sendMail, type MailAttachment } from './mail'
+import { broadcastBlocks, detailRows, renderHtml, renderText, type Block } from './mail-blocks'
 import { prisma } from './prisma'
 import { buildIcs } from './ics'
-import { formatDateTime, formatRange } from './timezone'
+import { formatDateTime } from './timezone'
 import { bookingSecretsConfigured, manageToken } from './booking-tokens'
 import { selfEditDeadline } from './events/booking-rules'
 
 /**
  * Mails an Buchende (docs/KONZEPT.md Abschnitt 7). Jede Mail außer der Verifizierung enthält den
  * persönlichen Verwaltungslink; jede wird im MailLog protokolliert (auch gescheiterte).
- * Alle frei wählbaren Texte (Titel, Namen, Hinweise) werden im HTML-Teil maskiert.
+ * Aufbau und Maskierung: app/lib/mail-blocks.ts.
+ *
+ * Buchungen ohne E-Mail-Adresse (vom Admin angelegt, z.B. telefonisch) bekommen keine Mails - die
+ * Funktionen geben dann false zurück, ohne etwas zu protokollieren.
  */
 
-export type MailType = 'verify' | 'confirmed' | 'changed' | 'cancelled' | 'already-booked'
+export type MailType =
+  | 'verify' | 'confirmed' | 'changed' | 'admin-changed' | 'cancelled' | 'already-booked' | 'manage-link' | 'broadcast' | 'broadcast-test'
 
 type MailEvent = Pick<Event, 'id' | 'slug' | 'title' | 'location' | 'startsAt' | 'endsAt' | 'timezone' | 'replyTo' | 'mailNote' | 'selfEditHoursBefore'>
-type MailBooking = { id: string; name: string; email: string; partySize: number; manageTokenVersion: number; icsSequence: number }
+type MailBooking = { id: string; name: string; email: string | null; partySize: number; manageTokenVersion: number; icsSequence: number }
 
 export function manageUrl(booking: { id: string; manageTokenVersion: number }): string {
   return `${baseUrl()}/b/${booking.id}/${manageToken(booking.id, booking.manageTokenVersion)}`
@@ -28,52 +32,20 @@ export function verifyUrl(bookingId: string, token: string): string {
   return `${baseUrl()}/verify/${bookingId}/${token}`
 }
 
-type Block = { kind: 'p'; text: string } | { kind: 'rows'; rows: [string, string][] } | { kind: 'button'; label: string; href: string } | { kind: 'small'; text: string }
-
-function renderHtml(heading: string, blocks: Block[]): string {
-  const body = blocks.map(block => {
-    switch (block.kind) {
-      case 'p': return `<p>${esc(block.text).replace(/\n/g, '<br>')}</p>`
-      case 'small': return `<p style="font-size: 12px; color: #666;">${esc(block.text).replace(/\n/g, '<br>')}</p>`
-      case 'rows': return `<table style="border-collapse: collapse; margin: 16px 0;">${block.rows.map(([k, v]) =>
-        `<tr><td style="padding: 4px 12px 4px 0; color: #666; vertical-align: top;">${esc(k)}</td><td style="padding: 4px 0;">${esc(v)}</td></tr>`).join('')}</table>`
-      case 'button': return `<p style="text-align: center; margin: 30px 0;"><a href="${esc(block.href)}" style="display: inline-block; padding: 12px 24px; background-color: #2563eb; color: #fff; text-decoration: none; border-radius: 5px; font-weight: bold;">${esc(block.label)}</a></p>
-        <p style="font-size: 12px; color: #666;">Falls der Button nicht funktioniert, kopiere diesen Link in deinen Browser:<br>${esc(block.href)}</p>`
-    }
-  }).join('\n')
-  return `<div style="font-family: sans-serif; color: #333; max-width: 600px; margin: 0 auto;"><h2>${esc(heading)}</h2>${body}</div>`
-}
-
-function renderText(blocks: Block[]): string {
-  return blocks.map(block => {
-    switch (block.kind) {
-      case 'p': case 'small': return block.text
-      case 'rows': return block.rows.map(([k, v]) => `${k}: ${v}`).join('\n')
-      case 'button': return `${block.label}:\n${block.href}`
-    }
-  }).join('\n\n')
-}
-
-async function deliver(event: MailEvent, bookingId: string | null, type: MailType, to: string, subject: string, heading: string, blocks: Block[], attachments?: MailAttachment[]) {
-  const result = await sendMail(to, subject, `Hallo,\n\n${renderText(blocks)}\n\n-- \n${APP_NAME}`, renderHtml(heading, blocks), { replyTo: event.replyTo, attachments })
-  await prisma.mailLog.create({
-    data: { eventId: event.id, bookingId, type, recipient: to, status: result.ok ? 'sent' : 'failed', error: result.ok ? null : result.error }
-  })
+/**
+ * Verschickt und protokolliert. logId: bestehende MailLog-Zeile (Rundmail-Warteschlange) statt einer
+ * neuen aktualisieren.
+ */
+async function deliver(
+  event: MailEvent, bookingId: string | null, type: MailType, to: string | null, subject: string, heading: string, blocks: Block[],
+  options: { attachments?: MailAttachment[]; logId?: string } = {}
+) {
+  if (!to) return false
+  const result = await sendMail(to, subject, renderText(blocks), renderHtml(heading, blocks), { replyTo: event.replyTo, attachments: options.attachments })
+  const log = { status: result.ok ? 'sent' : 'failed', error: result.ok ? null : result.error }
+  if (options.logId) await prisma.mailLog.update({ where: { id: options.logId }, data: log })
+  else await prisma.mailLog.create({ data: { eventId: event.id, bookingId, type, recipient: to, ...log } })
   return result.ok
-}
-
-function details(event: MailEvent, booking: MailBooking, tableLabel: string): Block {
-  return {
-    kind: 'rows',
-    rows: [
-      ['Veranstaltung', event.title],
-      ['Wann', formatRange(event.startsAt, event.endsAt, event.timezone)],
-      ...(event.location ? [['Wo', event.location] as [string, string]] : []),
-      ['Tisch', tableLabel],
-      ['Personen', String(booking.partySize)],
-      ['Name', booking.name]
-    ]
-  }
 }
 
 function ics(event: MailEvent, booking: MailBooking, tableLabel: string, method: 'PUBLISH' | 'CANCEL'): MailAttachment {
@@ -104,7 +76,7 @@ function deadlineText(event: MailEvent): string {
 export async function sendVerifyMail(event: MailEvent, booking: MailBooking, tableLabel: string, token: string, code: string, expiresAt: Date) {
   return deliver(event, booking.id, 'verify', booking.email, `Bitte bestätige deine Reservierung – ${event.title}`, 'Bitte bestätige deine Reservierung', [
     { kind: 'p', text: `${tableLabel} ist bis ${formatDateTime(expiresAt, event.timezone)} für dich reserviert. Bitte bestätige deine E-Mail-Adresse, damit die Buchung gilt – sonst wird der Tisch danach wieder frei.` },
-    details(event, booking, tableLabel),
+    detailRows(event, booking, tableLabel),
     { kind: 'button', label: 'Buchung bestätigen', href: verifyUrl(booking.id, token) },
     { kind: 'p', text: `Oder gib auf der Buchungsseite diesen Code ein: ${code}` },
     { kind: 'small', text: 'Falls du nichts gebucht hast, ignoriere diese Mail einfach – die Reservierung verfällt dann von selbst.' }
@@ -114,30 +86,69 @@ export async function sendVerifyMail(event: MailEvent, booking: MailBooking, tab
 export async function sendConfirmedMail(event: MailEvent, booking: MailBooking, tableLabel: string) {
   return deliver(event, booking.id, 'confirmed', booking.email, `Buchung bestätigt – ${event.title}`, 'Deine Buchung ist bestätigt', [
     { kind: 'p', text: 'Vielen Dank – deine Buchung ist bestätigt.' },
-    details(event, booking, tableLabel),
+    detailRows(event, booking, tableLabel),
     ...(event.mailNote ? [{ kind: 'p' as const, text: event.mailNote }] : []),
     { kind: 'button', label: 'Buchung ansehen oder ändern', href: manageUrl(booking) },
     { kind: 'p', text: deadlineText(event) },
     { kind: 'small', text: `${CALENDAR_HINT} Bewahre diese Mail auf: Der Link ist dein persönlicher Zugang zur Buchung – gib ihn nicht weiter.` }
-  ], [ics(event, booking, tableLabel, 'PUBLISH')])
+  ], { attachments: [ics(event, booking, tableLabel, 'PUBLISH')] })
 }
 
-export async function sendChangedMail(event: MailEvent, booking: MailBooking, tableLabel: string, changes: string[]) {
-  return deliver(event, booking.id, 'changed', booking.email, `Buchung geändert – ${event.title}`, 'Deine Buchung wurde geändert', [
-    { kind: 'p', text: `Geändert: ${changes.join(', ')}.` },
-    details(event, booking, tableLabel),
+/**
+ * Änderung durch die Kund*in selbst oder durch Veranstalter*innen (byAdmin) - mit Gegenüberstellung
+ * alt -> neu (rows aus app/lib/events/booking-changes.ts) und aktualisierter Kalenderdatei.
+ */
+export async function sendChangedMail(event: MailEvent, booking: MailBooking, tableLabel: string, labels: string[], rows: [string, string][], byAdmin = false) {
+  const heading = byAdmin ? 'Die Veranstalter*innen haben deine Buchung geändert' : 'Deine Buchung wurde geändert'
+  return deliver(event, booking.id, byAdmin ? 'admin-changed' : 'changed', booking.email, `Buchung geändert – ${event.title}`, heading, [
+    { kind: 'p', text: `Geändert: ${labels.join(', ')}.` },
+    { kind: 'rows', rows },
+    { kind: 'p', text: 'So sieht deine Buchung jetzt aus:' },
+    detailRows(event, booking, tableLabel),
     { kind: 'button', label: 'Buchung ansehen oder ändern', href: manageUrl(booking) },
     { kind: 'p', text: deadlineText(event) },
     { kind: 'small', text: CALENDAR_HINT }
-  ], [ics(event, booking, tableLabel, 'PUBLISH')])
+  ], { attachments: [ics(event, booking, tableLabel, 'PUBLISH')] })
 }
 
-export async function sendCancelledMail(event: MailEvent, booking: MailBooking, tableLabel: string) {
+export async function sendCancelledMail(event: MailEvent, booking: MailBooking, tableLabel: string, byAdmin = false) {
   return deliver(event, booking.id, 'cancelled', booking.email, `Buchung storniert – ${event.title}`, 'Deine Buchung wurde storniert', [
-    { kind: 'p', text: 'Deine Buchung wurde storniert, der Tisch ist wieder frei.' },
-    details(event, booking, tableLabel),
+    { kind: 'p', text: byAdmin ? 'Die Veranstalter*innen haben deine Buchung storniert, der Tisch ist wieder frei.' : 'Deine Buchung wurde storniert, der Tisch ist wieder frei.' },
+    detailRows(event, booking, tableLabel),
+    ...(byAdmin ? [{ kind: 'p' as const, text: 'Bei Fragen antworte einfach auf diese Mail.' }] : []),
     { kind: 'small', text: 'Im Anhang findest du eine Kalenderdatei, die den Eintrag in deinem Kalender entfernt (sofern dein Kalender das unterstützt).' }
-  ], [ics(event, booking, tableLabel, 'CANCEL')])
+  ], { attachments: [ics(event, booking, tableLabel, 'CANCEL')] })
+}
+
+/** Neuer Verwaltungslink (Admin hat den alten ungültig gemacht). */
+export async function sendManageLinkMail(event: MailEvent, booking: MailBooking, tableLabel: string) {
+  return deliver(event, booking.id, 'manage-link', booking.email, `Neuer Link zu deiner Buchung – ${event.title}`, 'Neuer Link zu deiner Buchung', [
+    { kind: 'p', text: 'Die Veranstalter*innen haben den Link zu deiner Buchung erneuert. Der bisherige Link – auch der in einem früheren Kalendereintrag – funktioniert nicht mehr.' },
+    detailRows(event, booking, tableLabel),
+    { kind: 'button', label: 'Buchung ansehen oder ändern', href: manageUrl(booking) },
+    { kind: 'small', text: `${CALENDAR_HINT} Der Link ist dein persönlicher Zugang zur Buchung – gib ihn nicht weiter.` }
+  ], { attachments: [ics(event, booking, tableLabel, 'PUBLISH')] })
+}
+
+/**
+ * Eine Mail einer Rundmail (Warteschlange, app/lib/events/broadcast.ts). Den Verwaltungslink und die
+ * Kalenderdatei bekommen nur bestätigte Buchungen.
+ */
+export async function sendBroadcastMail(
+  event: MailEvent, booking: MailBooking & { status: string }, tableLabel: string,
+  content: { subject: string; body: string; includeIcs: boolean }, logId: string
+) {
+  const confirmed = booking.status === 'CONFIRMED'
+  return deliver(event, booking.id, 'broadcast', booking.email, content.subject, event.title,
+    broadcastBlocks(event, booking, tableLabel, content.body, confirmed ? manageUrl(booking) : null),
+    { logId, attachments: confirmed && content.includeIcs ? [ics(event, booking, tableLabel, 'PUBLISH')] : undefined })
+}
+
+/** Testversand einer Rundmail an das eigene Konto - mit Beispieldaten statt einer echten Buchung. */
+export async function sendBroadcastTestMail(event: MailEvent, to: string, content: { subject: string; body: string }) {
+  const sample = { name: 'Erika Beispiel', partySize: 4 }
+  return deliver(event, null, 'broadcast-test', to, `[Test] ${content.subject}`, event.title,
+    broadcastBlocks(event, sample, 'Tisch 1', content.body, `${baseUrl()}/b/beispiel/persoenlicher-link`))
 }
 
 /**

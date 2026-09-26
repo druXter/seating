@@ -64,6 +64,8 @@ export default defineConfig({
       VERIFY_CODE_SECRET: process.env.VERIFY_CODE_SECRET!,
       MANAGE_LINK_SECRET: process.env.MANAGE_LINK_SECRET!,
       MANAGE_LINK_SECRET_PREVIOUS: process.env.MANAGE_LINK_SECRET_PREVIOUS!,
+      // Rundmail-Warteschlange zügig abarbeiten (100 ms Pause statt 2 s).
+      BROADCAST_MAILS_PER_MINUTE: '600',
       TZ: 'Europe/Berlin'
     }
   }

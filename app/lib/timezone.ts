@@ -77,3 +77,8 @@ export function formatRange(start: Date, end: Date, timeZone: string = DEFAULT_T
   }
   return `${formatDateTime(start, timeZone)} bis ${formatDateTime(end, timeZone)}`
 }
+
+/** Kurz für Listen: "12.12.2026, 19:00" */
+export function formatShort(date: Date, timeZone: string = DEFAULT_TIMEZONE): string {
+  return `${dayKey(date, timeZone)}, ${formatTime(date, timeZone)}`
+}

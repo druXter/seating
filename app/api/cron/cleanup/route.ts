@@ -1,8 +1,9 @@
-import { NextResponse } from 'next/server'
+import { NextResponse, after } from 'next/server'
 import { prisma } from '../../../lib/prisma'
 import { safeEqual } from '../../../lib/permissions'
 import { deleteUpload } from '../../../lib/uploads'
 import { expireStaleBookings } from '../../../lib/events/booking'
+import { failStuckBroadcastMails, processBroadcastQueue } from '../../../lib/events/broadcast'
 
 // Suite-weit einheitliche Fristen (siehe suite-kit README "Betrieb"), damit die
 // Datenschutzerklärungen aller Tools dieselben Zeiträume nennen können.
@@ -16,7 +17,7 @@ const ENDED_BOOKING_RETENTION_DAYS = 30
  * DSGVO), gleiches Muster wie im Abstimmungstool und in rsvp-app. Läuft idempotent, einmal
  * täglich reicht.
  *
- * Stand Phase 3:
+ * Stand Phase 4:
  * 0. Setzt abgelaufene Reservierungen (PENDING/OFFERED nach expiresAt) auf EXPIRED und gibt ihre
  *    Tische frei (beim Lesen zählen sie ohnehin schon nicht mehr), und löscht abgelaufene und
  *    stornierte Buchungen ENDED_BOOKING_RETENTION_DAYS nach ihrer letzten Änderung (samt MailLog/AuditLog).
@@ -27,6 +28,8 @@ const ENDED_BOOKING_RETENTION_DAYS = 30
  *    Raumpläne oder Events gehören (wie im Abstimmungstool bei Abstimmungen).
  * 3. Räumt Technisches auf: abgelaufene Sitzungen, abgelaufene Einladungs-/Reset-Links,
  *    veraltete Drossel-Zähler.
+ * 4. Rundmails: Zeilen, die nach einem Neustart in "sending" hängen, gelten als gescheitert (nicht
+ *    doppelt schicken); was noch in der Warteschlange steht, wird nach der Antwort weiter verschickt.
  *
  */
 export async function GET(request: Request) {
@@ -68,8 +71,12 @@ export async function GET(request: Request) {
   await prisma.loginThrottle.deleteMany({ where: staleThrottle })
   await prisma.bookingThrottle.deleteMany({ where: staleThrottle })
 
+  const stuckMails = await failStuckBroadcastMails(now)
+  after(() => processBroadcastQueue())
+
   return NextResponse.json({
     expiredBookings,
+    stuckMails,
     deletedBookings: deletedBookings.count,
     deletedEvents: deletedEvents.count,
     deletedUsers: deletedUsers.count,

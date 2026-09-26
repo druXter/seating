@@ -5,8 +5,9 @@ import { requireUser } from '../../../lib/auth'
 import { baseUrl } from '../../../lib/base-url'
 import { loadPlan } from '../../../lib/floorplan/store'
 import { loadEventOr404, loadUnitStates } from '../../../lib/events/store'
-import { countStates, HOLDING_STATUSES } from '../../../lib/events/occupancy'
-import { formatDateTime, formatRange, utcToZonedInput } from '../../../lib/timezone'
+import { countStates } from '../../../lib/events/occupancy'
+import { activeWhere } from '../../../lib/events/booking-tx'
+import { formatRange, utcToZonedInput } from '../../../lib/timezone'
 import { deleteEvent, removeEventBackground, shareEvent, unshareEvent } from '../actions'
 import { EventSettingsForm, ResyncForm } from '../event-forms'
 import PlanSvg, { type UnitVisual } from '../../../ui/plan/plan-svg'
@@ -32,17 +33,12 @@ export default async function EventPage({ params, searchParams }: { params: Prom
   const { units, states } = await loadUnitStates(event.id, now)
   const counts = countStates(units, states, 'TABLE')
   const bookableTables = units.filter(u => u.kind === 'TABLE' && u.bookable).length
-  const visuals = new Map<string, UnitVisual>([...states].map(([key, state]) => [key, { state }]))
 
-  // Aktive Buchungen (bestätigt oder noch gültig reserviert) - Verwaltung folgt mit Phase 4.
+  // Aktive Buchungen (bestätigt oder noch gültig reserviert) - für die Links im Plan und die Warnung beim Löschen.
   const [bookings, shares, sourcePlan] = await Promise.all([
     prisma.booking.findMany({
-      where: { eventId: event.id, OR: [{ status: 'CONFIRMED' }, { status: { in: [...HOLDING_STATUSES] }, expiresAt: { gt: now } }] },
-      orderBy: { createdAt: 'asc' },
-      select: {
-        id: true, name: true, email: true, phone: true, partySize: true, note: true, status: true, expiresAt: true, createdAt: true,
-        allocations: { select: { unit: { select: { label: true } } } }
-      }
+      where: { eventId: event.id, ...activeWhere(now) },
+      select: { id: true, name: true, allocations: { select: { unit: { select: { key: true } } } } }
     }),
     event.level === 'owner'
       ? prisma.eventAccess.findMany({ where: { eventId: event.id }, include: { user: { select: { email: true } } }, orderBy: { createdAt: 'asc' } })
@@ -51,6 +47,16 @@ export default async function EventPage({ params, searchParams }: { params: Prom
   ])
 
   const activeBookings = bookings.length
+  // Klick auf einen Tisch: belegt -> zur Buchung, frei -> Buchung anlegen (Konzept Abschnitt 8).
+  const bookingByUnit = new Map(bookings.flatMap(b => b.allocations.map(a => [a.unit.key, b] as const)))
+  const tableLabels = new Map(units.map(u => [u.key, u.label]))
+  const visuals = new Map<string, UnitVisual>([...states].map(([key, state]) => {
+    const booking = bookingByUnit.get(key)
+    const label = tableLabels.get(key) ?? key
+    if (booking) return [key, { state, href: `/admin/events/${event.id}/bookings/${booking.id}`, linkLabel: `${label}: Buchung von ${booking.name}` }]
+    if (state === 'free' || state === 'unavailable') return [key, { state, href: `/admin/events/${event.id}/bookings/new?table=${key}`, linkLabel: `${label}: Buchung anlegen` }]
+    return [key, { state }]
+  }))
   const publicUrl = `${baseUrl()}/${event.slug}`
   const backgroundUrl = event.backgroundFile ? `/admin/events/${event.id}/background?v=${event.layoutVersion}-${event.backgroundFile.slice(0, 8)}` : null
   const tz = event.timezone
@@ -106,47 +112,15 @@ export default async function EventPage({ params, searchParams }: { params: Prom
           {sourcePlan && <ResyncForm eventId={event.id} layoutVersion={event.layoutVersion} planName={sourcePlan.name} />}
         </div>
 
-        <div className="bg-white rounded-lg shadow p-4 space-y-3">
-          <h2 className="font-bold">Buchungen ({activeBookings})</h2>
-          {bookings.length === 0 ? (
-            <p className="text-sm text-gray-600">Noch keine Buchungen.</p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-left border-b">
-                    <th scope="col" className="py-1 pr-3">Tisch</th>
-                    <th scope="col" className="py-1 pr-3">Name</th>
-                    <th scope="col" className="py-1 pr-3">Kontakt</th>
-                    <th scope="col" className="py-1 pr-3">Personen</th>
-                    <th scope="col" className="py-1">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {bookings.map(booking => (
-                    <tr key={booking.id} className="border-b last:border-0 align-top">
-                      <td className="py-1 pr-3">{booking.allocations.map(a => a.unit.label).join(', ') || '–'}</td>
-                      <td className="py-1 pr-3">
-                        {booking.name}
-                        {booking.note && <span className="block text-xs text-gray-600 whitespace-pre-line">{booking.note}</span>}
-                      </td>
-                      <td className="py-1 pr-3">
-                        {booking.email}
-                        {booking.phone && <span className="block text-xs text-gray-600">{booking.phone}</span>}
-                      </td>
-                      <td className="py-1 pr-3">{booking.partySize}</td>
-                      <td className="py-1">
-                        {booking.status === 'CONFIRMED'
-                          ? 'bestätigt'
-                          : `unbestätigt bis ${formatDateTime(booking.expiresAt!, tz).replace(/^.*, /, '')}`}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-          <p className="text-xs text-gray-600">Nur zur Ansicht – Ändern, Verschieben und Stornieren durch Veranstalter*innen folgt.</p>
+        <div className="bg-white rounded-lg shadow p-4 space-y-2">
+          <h2 className="font-bold">Buchungen ({activeBookings} aktiv)</h2>
+          <p className="text-sm space-x-4">
+            <Link href={`/admin/events/${event.id}/bookings`} className="text-blue-700 hover:underline">Buchungen verwalten</Link>
+            <Link href={`/admin/events/${event.id}/bookings/new`} className="text-blue-700 hover:underline">Buchung anlegen</Link>
+            <Link href={`/admin/events/${event.id}/mail`} className="text-blue-700 hover:underline">Rundmail</Link>
+            <Link href={`/admin/events/${event.id}/print`} className="text-blue-700 hover:underline">Druckansicht</Link>
+          </p>
+          <p className="text-xs text-gray-600">Im Plan führt ein Klick auf einen belegten Tisch zur Buchung, auf einen freien zum Anlegen einer Buchung.</p>
         </div>
 
         <div className="grid gap-4 md:grid-cols-2 items-start">
@@ -187,7 +161,7 @@ export default async function EventPage({ params, searchParams }: { params: Prom
               <div className="bg-white rounded-lg shadow p-4 space-y-3">
                 <h2 className="font-bold">Freigaben</h2>
                 <p className="text-xs text-gray-600">
-                  Freigegebene Konten können das Event bearbeiten (Einstellungen, Plan, später Buchungen) – aber nicht löschen
+                  Freigegebene Konten können das Event bearbeiten (Einstellungen, Plan, Buchungen) – aber nicht löschen
                   und nicht weiter freigeben.
                 </p>
                 {shares.length > 0 && (
@@ -217,7 +191,7 @@ export default async function EventPage({ params, searchParams }: { params: Prom
                 <h2 className="font-bold">Event löschen</h2>
                 <p className="text-xs text-gray-600">
                   Löscht das Event mit Plan, Buchungen und Freigaben endgültig.
-                  {activeBookings > 0 && ` Es hat ${activeBookings} aktive Buchung${activeBookings === 1 ? '' : 'en'} – die Buchenden werden nicht benachrichtigt.`}
+                  {activeBookings > 0 && ` Es hat ${activeBookings} aktive Buchung${activeBookings === 1 ? '' : 'en'} – die Buchenden werden nicht benachrichtigt. Wer Bescheid bekommen soll: vorher eine Rundmail schicken oder die Buchungen einzeln mit Mail stornieren.`}
                 </p>
                 <ConfirmForm
                   action={deleteEvent}

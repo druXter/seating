@@ -180,9 +180,9 @@ export async function createEventRecord(ownerId: string | null, options: {
   })
 }
 
-/** Buchung mit Belegung (Phase 2 kann noch nicht buchen - die Tests legen Buchungen direkt an). */
+/** Buchung mit Belegung direkt in der Datenbank (email: null = ohne Adresse, wie vom Admin angelegt). */
 export async function createBooking(eventId: string, unitKeys: string[], options: {
-  status?: BookingStatus; expiresAt?: Date | null; partySize?: number; name?: string; email?: string
+  status?: BookingStatus; expiresAt?: Date | null; partySize?: number; name?: string; email?: string | null; note?: string
 } = {}) {
   const units = await prisma.unit.findMany({ where: { eventId, key: { in: unitKeys } } })
   return prisma.booking.create({
@@ -191,7 +191,8 @@ export async function createBooking(eventId: string, unitKeys: string[], options
       status: options.status ?? 'CONFIRMED',
       source: 'PUBLIC',
       name: options.name ?? 'Test Person',
-      email: options.email ?? uniqueEmail('gast'),
+      email: options.email === undefined ? uniqueEmail('gast') : options.email,
+      note: options.note ?? null,
       partySize: options.partySize ?? 4,
       expiresAt: options.expiresAt ?? null,
       allocations: { create: units.map(unit => ({ eventId, unitId: unit.id })) }

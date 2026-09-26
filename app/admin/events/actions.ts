@@ -185,8 +185,9 @@ export async function unshareEvent(formData: FormData) {
 
 /**
  * Löscht das Event samt Einheiten, Buchungen, Belegungen und Freigaben (Cascade) und das
- * Hintergrundbild. Nur owner. Buchende werden (noch) nicht benachrichtigt - das kommt mit der
- * Buchungsverwaltung (Phase 4); die Seite warnt deshalb ausdrücklich vor aktiven Buchungen.
+ * Hintergrundbild. Nur owner. Buchende werden nicht benachrichtigt; die Seite warnt deshalb
+ * ausdrücklich vor aktiven Buchungen und verweist auf Rundmail bzw. Storno mit Mail (Phase 4). Ein
+ * gesammeltes "Event absagen" ist bewusst nicht Teil von Phase 4 (siehe docs/KONZEPT.md Abschnitt 12).
  */
 export async function deleteEvent(formData: FormData) {
   const user = await requireUser('/admin/events')

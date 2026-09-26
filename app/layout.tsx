@@ -25,7 +25,7 @@ export default function RootLayout({
           <AccountNav />
         </Suspense>
         <div className="grow">{children}</div>
-        <footer className="text-center text-xs text-gray-500 py-4">
+        <footer className="print:hidden text-center text-xs text-gray-500 py-4">
           <Link href="/impressum" className="hover:underline">Impressum</Link>
           {" · "}
           <Link href="/datenschutz" className="hover:underline">Datenschutz</Link>

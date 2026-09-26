@@ -1,10 +1,12 @@
 // app/lib/events/booking.ts
 import { randomBytes } from 'node:crypto'
-import { Prisma, type Booking, type Event } from '@prisma/client'
+import type { Booking, Event } from '@prisma/client'
 import { prisma } from '../prisma'
 import { CODE_MAX_ATTEMPTS, codeMatches, hashVerifyToken, ipHash, manageTokenValid, newVerifyCode, newVerifyToken } from '../booking-tokens'
 import { sendAlreadyBookedMail, sendCancelledMail, sendChangedMail, sendConfirmedMail, sendVerifyMail } from '../booking-mail'
 import { HOLDING_STATUSES, tableFits } from './occupancy'
+import { auditDiff, calendarRelevant, changeLabels, changeRows, diffBooking } from './booking-changes'
+import { activeWhere, audit, isUniqueViolation, lockEvent, releaseStaleHolds, tableSeatsTaken } from './booking-tx'
 import { MAX_PENDING_PER_IP, canSelfEdit, type ContactFields, type ReservationInput } from './booking-rules'
 
 /**
@@ -15,41 +17,6 @@ import { MAX_PENDING_PER_IP, canSelfEdit, type ContactFields, type ReservationIn
  * Doppelbuchung verhindert der Unique-Index Allocation(eventId, unitId), nicht eine vorherige
  * Abfrage: Kommt eine zweite Anfrage gleichzeitig, scheitert ihr Einfügen (P2002).
  */
-
-type Tx = Prisma.TransactionClient
-
-export type Actor = 'customer' | 'system'
-
-async function audit(db: Tx | typeof prisma, entry: { eventId: string; bookingId: string; actor: Actor | string; action: string; diff?: Prisma.InputJsonValue }) {
-  await db.auditLog.create({ data: { ...entry, diff: entry.diff ?? {} } })
-}
-
-function isUniqueViolation(error: unknown): boolean {
-  return error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002'
-}
-
-/**
- * SQLite erlaubt nur einen Schreiber gleichzeitig, sperrt bei einer "deferred" Transaktion aber erst
- * beim ersten Schreiben. Diese Anweisung schreibt als ERSTES - damit sehen die folgenden Prüfungen
- * (eine Buchung pro E-Mail, Obergrenze pro IP) einen festen Stand, und zwei gleichzeitige Anfragen
- * können nicht beide an ihnen vorbeikommen.
- */
-async function lockEvent(tx: Tx, eventId: string) {
-  await tx.$executeRaw`UPDATE "Event" SET "id" = "id" WHERE "id" = ${eventId}`
-}
-
-/** Abgelaufene Holds auf den angegebenen Einheiten auf EXPIRED setzen und ihre Allocations löschen (Konzept Abschnitt 5, Schritt 1). */
-async function releaseStaleHolds(tx: Tx, eventId: string, unitIds: string[], now: Date) {
-  const stale = await tx.booking.findMany({
-    where: { eventId, status: { in: [...HOLDING_STATUSES] }, expiresAt: { lte: now }, allocations: { some: { unitId: { in: unitIds } } } },
-    select: { id: true }
-  })
-  if (stale.length === 0) return
-  const ids = stale.map(b => b.id)
-  await tx.allocation.deleteMany({ where: { bookingId: { in: ids } } })
-  await tx.booking.updateMany({ where: { id: { in: ids } }, data: { status: 'EXPIRED', pendingIpHash: null, verifyTokenHash: null, verifyCodeHmac: null } })
-  for (const id of ids) await audit(tx, { eventId, bookingId: id, actor: 'system', action: 'expired' })
-}
 
 /** Unauffällige Schein-id für die Antwort, wenn nichts reserviert wurde (siehe reserveTable). */
 function decoyId(): string {
@@ -89,16 +56,10 @@ export async function reserveTable(event: Event, input: ReservationInput, ip: st
     outcome = await prisma.$transaction(async tx => {
       await lockEvent(tx, event.id)
       await releaseStaleHolds(tx, event.id, [unit.id], now)
-      // Plätze dieses Tisches (gemischte Belegung): im Modus TABLE nie einzeln belegt, trotzdem prüfen.
-      const seatTaken = await tx.allocation.count({
-        where: { eventId: event.id, unit: { tableKey: unit.key }, booking: { OR: [{ status: 'CONFIRMED' }, { status: { in: [...HOLDING_STATUSES] }, expiresAt: { gt: now } }] } }
-      })
-      if (seatTaken > 0) return { kind: 'taken' as const }
+      if (await tableSeatsTaken(tx, event.id, unit.key, now)) return { kind: 'taken' as const }
 
       if (event.oneBookingPerEmail) {
-        const existing = await tx.booking.findFirst({
-          where: { eventId: event.id, email: input.email, OR: [{ status: 'CONFIRMED' }, { status: { in: [...HOLDING_STATUSES] }, expiresAt: { gt: now } }] }
-        })
+        const existing = await tx.booking.findFirst({ where: { eventId: event.id, email: input.email, ...activeWhere(now) } })
         if (existing) return { kind: 'duplicate' as const, existing }
       }
       const pendingFromIp = await tx.booking.count({ where: { eventId: event.id, pendingIpHash: pendingIp, status: 'PENDING', expiresAt: { gt: now } } })
@@ -278,28 +239,18 @@ export async function changeBooking(
     return { ok: false, errors: [`${target.label} passt nicht zu ${change.partySize} ${change.partySize === 1 ? 'Person' : 'Personen'}.`] }
   }
 
-  const labels: string[] = []
-  const diff: Record<string, { from: unknown; to: unknown }> = {}
-  const track = (field: string, label: string, from: unknown, to: unknown) => {
-    if (from !== to) {
-      labels.push(label)
-      diff[field] = { from, to }
-    }
-  }
-  track('name', 'Name', managed.name, change.name)
-  track('phone', 'Telefon', managed.phone, change.phone)
-  track('note', 'Anmerkung', managed.note, change.note)
-  track('partySize', 'Personenzahl', managed.partySize, change.partySize)
-  track('table', 'Tisch', managed.table?.key ?? null, target.key)
-  if (labels.length === 0) return { ok: true, changed: false }
+  const changes = diffBooking(
+    { name: managed.name, phone: managed.phone, note: managed.note, partySize: managed.partySize, tableKey: managed.table?.key ?? null },
+    { ...change, tableKey: target.key }
+  )
+  if (changes.length === 0) return { ok: true, changed: false }
 
-  // Name/Telefon/Anmerkung stehen nicht in der Kalenderdatei - nur Personenzahl und Tisch zählen
-  // die SEQUENCE hoch. Eine neue .ics geht trotzdem mit (mit unveränderter Sequenz harmlos).
-  const calendarRelevant = 'partySize' in diff || 'table' in diff
+  // Eine neue .ics geht immer mit, die SEQUENCE steigt aber nur bei Personenzahl/Tisch.
   try {
-    await prisma.$transaction(async tx => {
+    const taken = await prisma.$transaction(async tx => {
       if (target.id !== managed.table?.id) {
         await releaseStaleHolds(tx, event.id, [target.id], now)
+        if (await tableSeatsTaken(tx, event.id, target.key, now, managed.id)) return true
         await tx.allocation.deleteMany({ where: { bookingId: managed.id } })
         await tx.allocation.create({ data: { eventId: event.id, unitId: target.id, bookingId: managed.id } })
       }
@@ -307,18 +258,21 @@ export async function changeBooking(
         where: { id: managed.id },
         data: {
           name: change.name, phone: change.phone, note: change.note, partySize: change.partySize,
-          ...(calendarRelevant ? { icsSequence: { increment: 1 } } : {})
+          ...(calendarRelevant(changes) ? { icsSequence: { increment: 1 } } : {})
         }
       })
-      await audit(tx, { eventId: event.id, bookingId: managed.id, actor: 'customer', action: 'changed', diff: diff as Prisma.InputJsonValue })
+      await audit(tx, { eventId: event.id, bookingId: managed.id, actor: 'customer', action: 'changed', diff: auditDiff(changes) })
+      return false
     })
+    if (taken) return { ok: false, errors: [`${target.label} wurde gerade vergeben. Bitte wähle einen anderen Tisch.`] }
   } catch (error) {
     if (isUniqueViolation(error)) return { ok: false, errors: [`${target.label} wurde gerade vergeben. Bitte wähle einen anderen Tisch.`] }
     throw error
   }
 
   const updated = await prisma.booking.findUniqueOrThrow({ where: { id: managed.id } })
-  await sendChangedMail(event, updated, target.label, labels)
+  const labelOf = (key: string) => key === target.key ? target.label : key === managed.table?.key ? managed.table.label : key
+  await sendChangedMail(event, updated, target.label, changeLabels(changes), changeRows(changes, labelOf))
   return { ok: true, changed: true }
 }
 

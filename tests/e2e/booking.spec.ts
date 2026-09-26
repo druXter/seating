@@ -3,7 +3,7 @@ import { expect, test, type Page } from '@playwright/test'
 import { TEST_CRON_SECRET } from '../../playwright.config'
 import { manageToken } from '../../app/lib/booking-tokens'
 import {
-  captureAction, createAccount, createBooking, createEventRecord, login, manageLinkOf, prisma, readForm, replayAction, sha256,
+  captureAction, createAccount, createBooking, createEventRecord, manageLinkOf, prisma, readForm, replayAction, sha256,
   submitForm, tablesLayout, uniqueEmail, uniqueIp, verifyLinkOf
 } from './helpers'
 import { REJECTED_DOMAIN, mailsTo, waitForMail } from './mail-server'
@@ -362,23 +362,7 @@ test('Verwaltungslink nach der Änderungsfrist: nur Anzeige, Aktionen nachgespie
   expect((await prisma.booking.findUniqueOrThrow({ where: { id: booking.id } })).partySize).toBe(6)
 })
 
-test('Veranstalter*innen sehen die Buchungen, Öffentlichkeit nicht', async ({ page, browser }) => {
-  const owner = await createAccount('CREATOR')
-  const event = await createEventRecord(owner.id, { status: 'OPEN', layout: tablesLayout([8, 8]) })
-  await createBooking(event.id, ['t1'], { status: 'CONFIRMED', name: 'Lieselotte Beispiel', email: 'liese@example.test', partySize: 7 })
-
-  await login(page, owner.email)
-  await page.goto(`/admin/events/${event.id}`)
-  const row = page.getByRole('row').filter({ hasText: 'Lieselotte Beispiel' })
-  await expect(row).toContainText('liese@example.test')
-  await expect(row).toContainText('bestätigt')
-  await expect(page.getByRole('heading', { name: 'Buchungen (1)' })).toBeVisible()
-
-  const visitor = await browser.newPage()
-  const html = await (await visitor.goto(`/${event.slug}`))!.text()
-  expect(html).not.toContain('Lieselotte')
-  expect(html).not.toContain('liese@')
-})
+// Buchungsliste für Veranstalter*innen: tests/e2e/admin-bookings.spec.ts
 
 test('Cron löscht abgelaufene und stornierte Buchungen nach 30 Tagen, bestätigte bleiben', async ({ request }) => {
   const event = await openEvent()

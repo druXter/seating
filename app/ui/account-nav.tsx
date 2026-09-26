@@ -16,7 +16,7 @@ export default async function AccountNav() {
   const user = await getCurrentUser()
 
   return (
-    <nav aria-label="Konto" className="max-w-4xl mx-auto w-full flex items-center justify-end gap-4 px-4 py-3 text-sm text-gray-600">
+    <nav aria-label="Konto" className="print:hidden max-w-4xl mx-auto w-full flex items-center justify-end gap-4 px-4 py-3 text-sm text-gray-600">
       {user ? (
         <>
           <Link href="/admin" className="hover:text-gray-900">Verwaltung</Link>

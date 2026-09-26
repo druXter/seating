@@ -3,9 +3,9 @@
 // `npx prisma db push` synchronisiert (siehe README.md/Dockerfile).
 //
 // Konten-Tabellen 1:1 nach dem Abstimmungstool (Phase 0), Raumplan-Vorlagen (Phase 1), Events mit
-// Einheiten und Freigaben sowie der Kern von Buchung/Belegung (Phase 2), siehe docs/KONZEPT.md
-// Abschnitt 3. Felder kommen mit der Phase, die sie nutzt (Verifizierung, Verwaltungslink, ...
-// mit Phase 3) - mit `db push` kostet das Nachziehen nichts.
+// Einheiten und Freigaben sowie der Kern von Buchung/Belegung (Phase 2), Verifizierung, Verwaltungslink
+// und Protokolle (Phase 3), Buchungsverwaltung und Rundmail (Phase 4), siehe docs/KONZEPT.md
+// Abschnitt 3. Felder kommen mit der Phase, die sie nutzt - mit `db push` kostet das Nachziehen nichts.
 
 generator client {
   provider = "prisma-client-js"
@@ -55,6 +55,7 @@ model User {
   floorPlans   FloorPlan[]
   events       Event[]
   eventAccess  EventAccess[]
+  broadcasts   Broadcast[]
 }
 
 // Server-seitige Session: das Cookie trägt nur den zufälligen Token, in der Datenbank
@@ -210,6 +211,7 @@ model Event {
   shares      EventAccess[]
   mailLogs    MailLog[]
   auditLogs   AuditLog[]
+  broadcasts  Broadcast[]
 
   @@index([ownerId])
   @@index([endsAt])
@@ -277,6 +279,10 @@ enum BookingSource {
 //
 // Verwaltungslink: nicht gespeichert, sondern HMAC(MANAGE_LINK_SECRET, id:manageTokenVersion) -
 // "Link neu erzeugen" erhöht die Version (app/lib/booking-tokens.ts).
+//
+// email: nur bei source = ADMIN leer (telefonische Reservierung ohne Adresse) - solche Buchungen sind
+// direkt bestätigt und bekommen keine Mails. adminNote: interne Notiz der Veranstalter*innen, nie in
+// Mails, auf der Verwaltungsseite oder öffentlich sichtbar.
 model Booking {
   id          String        @id @default(cuid())
   eventId     String
@@ -284,10 +290,11 @@ model Booking {
   status      BookingStatus
   source      BookingSource
   name        String
-  email       String
+  email       String?
   partySize   Int
   phone       String?
   note        String?
+  adminNote   String?
   expiresAt   DateTime?
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
@@ -334,24 +341,54 @@ model Allocation {
 
 // Jede verschickte (oder gescheiterte) Buchungsmail - für Rückfragen ("ich habe nichts bekommen").
 // Verschwindet mit Buchung bzw. Event.
+//
+// status: sent | failed, bei Rundmails zusätzlich die Warteschlange queued -> sending -> sent |
+// failed | skipped (Buchung inzwischen nicht mehr aktiv). claimedAt: seit wann ein Worker die Zeile
+// verschickt - bleibt eine Zeile in "sending" hängen (Neustart mitten im Versand), setzt der Cron sie
+// auf failed statt sie noch einmal zu schicken (siehe app/lib/events/broadcast.ts).
 model MailLog {
-  id        String   @id @default(cuid())
-  eventId   String
-  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  bookingId String?
-  booking   Booking? @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  type      String
-  recipient String
-  status    String
-  error     String?
-  createdAt DateTime @default(now())
+  id          String     @id @default(cuid())
+  eventId     String
+  event       Event      @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  bookingId   String?
+  booking     Booking?   @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  broadcastId String?
+  broadcast   Broadcast? @relation(fields: [broadcastId], references: [id], onDelete: Cascade)
+  type        String
+  recipient   String
+  status      String
+  error       String?
+  claimedAt   DateTime?
+  createdAt   DateTime   @default(now())
 
   @@index([eventId])
   @@index([bookingId])
+  @@index([broadcastId])
+  @@index([status])
+}
+
+// Rundmail an die Buchenden eines Events (Konzept Abschnitt 7): Einzelmails mit dem jeweils eigenen
+// Verwaltungslink, verschickt über eine einfache Warteschlange (die Empfänger stehen als MailLog-Zeilen
+// mit status "queued"). Der Text wird erst beim Versand mit den aktuellen Buchungsdaten kombiniert.
+model Broadcast {
+  id          String    @id @default(cuid())
+  eventId     String
+  event       Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  subject     String
+  body        String
+  includeIcs  Boolean   @default(false)
+  createdById String?
+  createdBy   User?     @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt   DateTime  @default(now())
+  mails       MailLog[]
+
+  @@index([eventId])
 }
 
 // Wer hat wann was an einer Buchung geändert (Konzept Abschnitt 8). actor: Konto-id, "customer"
-// oder "system". diff: JSON mit alten/neuen Werten. Angezeigt ab Phase 4.
+// oder "system". diff: JSON mit alten/neuen Werten (Tische als stabiler key). bookingId null: Eintrag
+// zum Event selbst (endgültig gelöschte Buchung - dann ohne Personendaten -, Rundmail).
+// Angezeigt im Admin-Bereich (app/lib/events/audit-text.ts).
 model AuditLog {
   id        String   @id @default(cuid())
   eventId   String
