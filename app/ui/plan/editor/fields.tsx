@@ -1,4 +1,4 @@
-// app/admin/plans/[id]/editor/fields.tsx
+// app/ui/plan/editor/fields.tsx
 'use client'
 
 import { useId, type KeyboardEvent } from 'react'

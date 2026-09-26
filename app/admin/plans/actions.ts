@@ -10,6 +10,7 @@ import { canCreatePlans } from '../../lib/permissions'
 import { copyUpload, deleteUpload } from '../../lib/uploads'
 import { loadPlan } from '../../lib/floorplan/store'
 import { LIMITS, emptyLayout, parseExport, parseLayout } from '../../lib/floorplan/schema'
+import type { SaveResult } from '../../lib/floorplan/editor-state'
 
 // Die Berechtigung prüft JEDE Aktion selbst (über loadPlan -> planAccess), nie nur die Seite.
 
@@ -93,7 +94,7 @@ export async function duplicatePlan(formData: FormData) {
   redirect(`/admin/plans/${copy.id}`)
 }
 
-/** Löscht einen Plan samt Hintergrundbild. Laufende Events sind nicht betroffen (sie haben ab Phase 2 eine Kopie). */
+/** Löscht einen Plan samt Hintergrundbild. Events sind nicht betroffen - sie haben eine eigene Kopie (auch des Bilds). */
 export async function deletePlan(formData: FormData) {
   const user = await requireUser('/admin/plans')
   const plan = await loadPlan(formString(formData, 'planId', 50), user)
@@ -130,10 +131,6 @@ export async function removeBackground(formData: FormData) {
   await deleteUpload(record?.backgroundFile)
   redirect(`/admin/plans/${plan.id}?background=removed`)
 }
-
-export type SaveResult =
-  | { ok: true; version: number }
-  | { ok: false; reason: 'conflict' | 'invalid' | 'forbidden'; errors?: string[] }
 
 /**
  * Speichert den Plan aus dem Editor. `baseVersion` ist die Version, auf der der Editor

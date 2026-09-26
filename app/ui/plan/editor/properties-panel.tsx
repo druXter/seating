@@ -1,11 +1,11 @@
-// app/admin/plans/[id]/editor/properties-panel.tsx
+// app/ui/plan/editor/properties-panel.tsx
 'use client'
 
 import type { Dispatch, ReactNode } from 'react'
-import type { EditorAction, ElementPatch } from '../../../../lib/floorplan/editor-state'
-import { STATIC_LABELS } from '../../../../lib/floorplan/factory'
-import { LIMITS, STATIC_KINDS, type Layout, type LayoutElement, type SeatBlockElement } from '../../../../lib/floorplan/schema'
-import { elementUnits } from '../../../../lib/floorplan/units'
+import type { EditorAction, ElementPatch } from '../../../lib/floorplan/editor-state'
+import { STATIC_LABELS } from '../../../lib/floorplan/factory'
+import { LIMITS, STATIC_KINDS, type Layout, type LayoutElement, type SeatBlockElement } from '../../../lib/floorplan/schema'
+import { elementUnits } from '../../../lib/floorplan/units'
 import { CheckboxField, NumberField, SelectField, TextField } from './fields'
 
 const TYPE_LABELS: Record<LayoutElement['type'], string> = { table: 'Tisch', seat: 'Stuhl', seatBlock: 'Reihenblock', static: 'Objekt' }

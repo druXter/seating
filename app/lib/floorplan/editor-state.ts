@@ -187,3 +187,12 @@ function keepExisting(selection: string[], layout: Layout): string[] {
   const ids = new Set(layout.elements.map(e => e.id))
   return selection.filter(id => ids.has(id))
 }
+
+/**
+ * Antwort der Speicher-Aktionen (Vorlage: savePlanLayout, Event: saveEventLayout).
+ * occupied: nur bei Events - die Änderung würde eine belegte Einheit entfernen, verkleinern oder
+ * sperren (siehe app/lib/events/layout-change.ts).
+ */
+export type SaveResult =
+  | { ok: true; version: number }
+  | { ok: false; reason: 'conflict' | 'invalid' | 'forbidden' | 'occupied'; errors?: string[] }

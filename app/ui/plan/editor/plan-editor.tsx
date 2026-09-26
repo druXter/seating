@@ -1,15 +1,14 @@
-// app/admin/plans/[id]/editor/plan-editor.tsx
+// app/ui/plan/editor/plan-editor.tsx
 'use client'
 
 import { useEffect, useEffectEvent, useReducer, useRef, useState, useTransition, type PointerEvent } from 'react'
-import { editorReducer, initEditor, isDirty, normalizeRotation } from '../../../../lib/floorplan/editor-state'
-import { STATIC_LABELS, type NewElementKind } from '../../../../lib/floorplan/factory'
-import { localSize, snap, toWorld, type Point } from '../../../../lib/floorplan/geometry'
-import { EXPORT_FORMAT, STATIC_KINDS, parseLayout, type Layout, type StaticKind } from '../../../../lib/floorplan/schema'
-import { summarize } from '../../../../lib/floorplan/units'
-import { savePlanLayout } from '../../actions'
-import PlanSvg from '../../../../ui/plan/plan-svg'
-import Notice from '../../../../ui/notice'
+import { editorReducer, initEditor, isDirty, normalizeRotation, type SaveResult } from '../../../lib/floorplan/editor-state'
+import { STATIC_LABELS, type NewElementKind } from '../../../lib/floorplan/factory'
+import { localSize, snap, toWorld, type Point } from '../../../lib/floorplan/geometry'
+import { EXPORT_FORMAT, STATIC_KINDS, parseLayout, type Layout, type StaticKind } from '../../../lib/floorplan/schema'
+import { summarize } from '../../../lib/floorplan/units'
+import PlanSvg from '../plan-svg'
+import Notice from '../../notice'
 import PropertiesPanel, { elementTitle } from './properties-panel'
 
 /**
@@ -19,6 +18,10 @@ import PropertiesPanel, { elementTitle } from './properties-panel'
  *
  * Gespeichert wird ausdrücklich (Button oder Strg+S). Der Server prüft den Plan erneut und
  * überschreibt nie einen Stand, den inzwischen jemand anderes gespeichert hat (Versionsprüfung).
+ *
+ * Genutzt für Vorlagen und für den Plan eines Events - `save` ist die jeweilige Server Action, an
+ * die id gebunden (savePlanLayout bzw. saveEventLayout). Beim Event lehnt der Server zusätzlich
+ * Änderungen an belegten Einheiten ab (reason 'occupied').
  */
 
 type View = { x: number; y: number; width: number; height: number }
@@ -59,12 +62,12 @@ const TABLE_TOOLS: { label: string; kind: NewElementKind }[] = [
   { label: 'Reihenblock', kind: { type: 'seatBlock' } }
 ]
 
-export default function PlanEditor({ planId, planName, initialLayout, initialVersion, backgroundUrl }: {
-  planId: string
-  planName: string
+export default function PlanEditor({ name: planName, initialLayout, initialVersion, backgroundUrl, save: saveLayout }: {
+  name: string
   initialLayout: Layout
   initialVersion: number
   backgroundUrl: string | null
+  save: (baseVersion: number, layout: Layout) => Promise<SaveResult>
 }) {
   const [state, dispatch] = useReducer(editorReducer, initialLayout, initEditor)
   const [version, setVersion] = useState(initialVersion)
@@ -120,7 +123,7 @@ export default function PlanEditor({ planId, planName, initialLayout, initialVer
       return
     }
     startSaving(async () => {
-      const result = await savePlanLayout(planId, version, snapshot)
+      const result = await saveLayout(version, snapshot)
       if (result.ok) {
         setVersion(result.version)
         dispatch({ type: 'saved', layout: snapshot })
@@ -129,6 +132,8 @@ export default function PlanEditor({ planId, planName, initialLayout, initialVer
         setStatus({ kind: 'conflict' })
       } else if (result.reason === 'invalid') {
         setStatus({ kind: 'error', message: 'Der Server hat den Plan abgelehnt:', errors: result.errors })
+      } else if (result.reason === 'occupied') {
+        setStatus({ kind: 'error', message: 'Nicht gespeichert – die Änderung betrifft belegte Tische oder Plätze:', errors: result.errors })
       } else {
         setStatus({ kind: 'error', message: 'Keine Berechtigung (mehr) für diesen Plan. Bist du noch angemeldet?' })
       }
