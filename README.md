@@ -13,11 +13,11 @@ Fachliche Grundlage und Fahrplan: [docs/KONZEPT.md](docs/KONZEPT.md).
 | --- | --- | --- |
 | 0 | Gerüst, Admin-Login, Kontoverwaltung, Sicherheits-Header, Docker, Tests | ✅ umgesetzt |
 | 1 | Raumplan-Editor, Vorlagen, Import/Export, Hintergrundbild | ✅ umgesetzt |
-| 2 | Events mit Plan-Snapshot, öffentliche Planansicht | offen |
+| 2 | Events mit Plan-Snapshot, Freigaben, öffentliche Planansicht mit Belegung | ✅ umgesetzt |
 | 3 | Tischbuchung mit Verifizierung, `.ics`, Verwaltungslink | offen |
 | 4–8 | Buchungsverwaltung, Warteliste, Modi `SEAT`/`ASSIGNED`, rsvp-app, Föderation | offen |
 
-Bisher gibt es also Konten und Raumpläne für Veranstalter\*innen – Events und Buchen folgen.
+Bisher gibt es Konten, Raumpläne und Events mit öffentlicher Planansicht – das Buchen selbst folgt mit Phase 3.
 
 ## Konten
 
@@ -33,7 +33,7 @@ Gleiche Rollen wie im Abstimmungstool und in rsvp-app, aber eigenständig vergeb
 | **CREATOR** | eigene Events und Raumpläne anlegen und verwalten, mit anderen teilen, Moderator\*innen einladen |
 | **MODERATOR** | legt nichts selbst an, bearbeitet nur freigegebene Events (z. B. das Brautpaar die eigene Hochzeit) |
 
-Die Freigabe einzelner Events an Konten (analog zum Teilen von Abstimmungen) kommt mit Phase 2.
+Einzelne Events lassen sich weiteren Konten freigeben (analog zum Teilen von Abstimmungen), siehe [Events](#events).
 
 ### Erstes Konto und weitere Konten
 
@@ -54,7 +54,7 @@ geht nur per `create-user.js`.
 ## Raumpläne
 
 Unter `/admin/plans` legen Creator und Admins wiederverwendbare Raumpläne an (Moderator\*innen nicht). Ein Plan ist eine
-**Vorlage**: Beim Anlegen eines Events (Phase 2) wird er kopiert, spätere Änderungen verändern keine laufenden Events.
+**Vorlage**: Beim Anlegen eines Events wird er kopiert, spätere Änderungen verändern keine laufenden Events.
 
 * **Elemente:** Tische (rund, rechteckig, oval; Plätze werden automatisch rundherum verteilt, einzelne Seiten
   abschaltbar), einzelne Stühle, Reihenblöcke (Reihen × Plätze, Gänge, weggelassene Plätze, Krümmung, Beschriftung A/B/…
@@ -77,6 +77,46 @@ Unter `/admin/plans` legen Creator und Admins wiederverwendbare Raumpläne an (M
   Inhalt erkannt (kein SVG). Gespeichert in `UPLOAD_DIR` (Standard `data/uploads`), ausgeliefert nur an Konten mit
   Zugriff auf den Plan, mit `nosniff` und `Content-Security-Policy: sandbox`. Nicht Teil des Exports.
 
+## Events
+
+Unter `/admin/events` legen Creator und Admins Events an, Moderator\*innen sehen dort die ihnen freigegebenen.
+
+* **Anlegen** aus einem Raumplan (eigene oder gemeinsame Vorlage): Titel, Adresse (Vorschlag aus dem Titel), Beginn,
+  Ende, Ort, Beschreibung. Plan **und** Hintergrundbild werden kopiert. Neue Events sind ein Entwurf.
+* **Modus:** vorerst nur „Tischbuchung für Gruppen“ (`TABLE`, Zugang `OPEN`). Einzelplätze und Sitzordnung
+  erscheinen im Formular als „folgt“, der Server lehnt sie ab.
+* **Status:** Entwurf und Archiviert sind öffentlich nicht sichtbar (404), Konten mit Zugriff sehen eine Vorschau.
+  Veröffentlicht und Geschlossen sind sichtbar, Geschlossen ohne Buchungsmöglichkeit.
+* **Einstellungen:** Adresse (Slug; reservierte Namen und vergebene Adressen werden abgelehnt), Zeiten in der Zeitzone
+  des Events (vorerst immer Europe/Berlin, gespeichert in UTC), Buchungszeitraum, **Mindestbelegung** eines Tisches
+  in % (50 = ein 8er-Tisch ab 4 Personen).
+* **Plan des Events** ist eine eigene Kopie und im selben Editor bearbeitbar. Sobald Tische belegt sind, lehnt der
+  Server ab, sie zu löschen, unter die belegte Personenzahl zu verkleinern oder auf „nicht buchbar“ zu setzen;
+  Umbenennen und Verschieben geht immer. Zusätzlich verhindert die Datenbank das Löschen belegter Einheiten.
+  „Plan aus Vorlage neu übernehmen“ holt den aktuellen Stand der Vorlage mit denselben Prüfungen.
+* **Einheiten:** Jeder Tisch und Platz steht mit seinem stabilen Schlüssel in der Tabelle `Unit` und wird bei jedem
+  Speichern abgeglichen. Belegt ist eine Einheit durch eine bestätigte Buchung oder eine unbestätigte, deren Frist
+  noch läuft – Abgelaufenes zählt schon beim Lesen nicht. Buchungen selbst entstehen erst ab Phase 3.
+* **Freigaben:** Besitzer\*in oder Admin gibt das Event per E-Mail-Adresse einem bestehenden Konto frei. Freigegebene
+  Konten dürfen alles außer löschen und weiter freigeben. Admins sehen alle Events.
+* **Löschen:** nur Besitzer\*in oder Admin, mit Warnung bei aktiven Buchungen.
+
+### Öffentliche Eventseite
+
+`https://plaetze.deine-domain.de/<adresse>` zeigt Titel, Zeit, Ort, Beschreibung und den Plan mit Belegung:
+
+* Zoom und Verschieben (Maus: ziehen, Strg + Mausrad; Handy: zwei Finger – ein Finger scrollt weiter die Seite),
+  Knöpfe für +, − und „Ganzer Plan“.
+* „Wie viele Personen seid ihr?“ hebt passende freie Tische hervor und blendet die anderen ab (inkl.
+  Mindestbelegung); die Auswertung passiert nur im Browser.
+* Zustand nie nur über Farbe: belegt ist schraffiert, dazu Text am Tisch, Legende und eine **Tischliste** als
+  gleichwertige Alternative.
+* Öffentlich gibt es nur „frei / belegt / nicht buchbar“ – nie Namen, Adressen oder den Unterschied zwischen
+  bestätigt und unbestätigt.
+* Die Seite ist **per iFrame einbettbar** (wie in rsvp-app, `frame-ancestors *`) und nicht indexiert (`noindex`).
+  Die Header werden beim Build festgeschrieben: Wer nur bestimmte Seiten einbetten lassen will, ändert
+  `EMBEDDABLE` in `next.config.ts` und baut neu.
+
 ## Sicherheit
 
 Übernommen aus dem Abstimmungstool (Referenzimplementierung der Suite, siehe README von `suite-kit`):
@@ -96,11 +136,12 @@ Unter `/admin/plans` legen Creator und Admins wiederverwendbare Raumpläne an (M
 * **Berechtigungen** prüft jede Server Action selbst, nie nur die Oberfläche. Server Actions prüfen zusätzlich den
   Origin (CSRF, Next.js-Standard).
 * **Header** (`next.config.ts`): `nosniff`, `Referrer-Policy`, `Permissions-Policy`, HSTS für alle Seiten.
-  Login, Konto, Verwaltung, Reset- und Verwaltungslinks zusätzlich `frame-ancestors 'none'`, `X-Frame-Options: DENY`,
-  `X-Robots-Tag: noindex` und `Cache-Control: no-store`; Seiten mit Einmal-Werten in der URL `Referrer-Policy:
-  no-referrer`. Die Reihenfolge der Regeln ist wichtig (die spätere gewinnt) und in der Datei kommentiert – ab Phase 2
-  werden öffentliche Eventseiten gezielt einbettbar.
-* **Reservierte Adressen:** Events liegen später unter `/<slug>`. Alle Pfade des Tools stehen in `app/lib/slugs.ts`;
+  Alle Seiten außer den öffentlichen Eventseiten `frame-ancestors 'none'` und `X-Frame-Options: DENY`; Login, Konto,
+  Verwaltung, Reset- und Verwaltungslinks zusätzlich `X-Robots-Tag: noindex` und `Cache-Control: no-store`; Seiten
+  mit Einmal-Werten in der URL `Referrer-Policy: no-referrer`; Hintergrundbilder `sandbox`. Die Reihenfolge der
+  Regeln ist wichtig (die spätere gewinnt, ein Header lässt sich nur überschreiben, nicht entfernen) und in der Datei
+  kommentiert. Neue einteilige Seiten des Tools brauchen dort einen Eintrag, sonst wären sie einbettbar.
+* **Reservierte Adressen:** Events liegen unter `/<slug>`. Alle Pfade des Tools stehen in `app/lib/slugs.ts`;
   ein Test schlägt fehl, sobald eine neue Route dort fehlt.
 
 ## Automatische Löschung
@@ -109,12 +150,11 @@ Ein externer Scheduler (z. B. Uptime Kuma) ruft **einmal täglich** auf:
 
 `GET https://plaetze.deine-domain.de/api/cron/cleanup?secret=<CRON_SECRET>`
 
-Ein leeres oder fehlendes `CRON_SECRET` lässt niemanden durch. Derzeit gelöscht werden: Konten nach 2 Jahren ohne
-Anmeldung (Admin-Konten und Konten, denen noch Raumpläne gehören, ausgenommen), abgelaufene Sitzungen,
-Einladungs-/Reset-Links und Drossel-Zähler. Wird ein Konto von Hand gelöscht, gehen seine Raumpläne an den löschenden
-Admin über. Mit den
-Buchungen kommen die Fristen aus dem Konzept dazu (Events 18 Monate nach Ende, abgelaufene/stornierte Buchungen nach
-30 Tagen).
+Ein leeres oder fehlendes `CRON_SECRET` lässt niemanden durch. Derzeit gelöscht werden: Events 18 Monate nach ihrem
+Ende (samt Plan, Bild, Freigaben und Buchungen), Konten nach 2 Jahren ohne Anmeldung (Admin-Konten und Konten, denen
+noch Raumpläne oder Events gehören, ausgenommen), abgelaufene Sitzungen, Einladungs-/Reset-Links und Drossel-Zähler.
+Wird ein Konto von Hand gelöscht, gehen seine Raumpläne und Events an den löschenden Admin über. Mit Phase 3 kommen
+die Fristen für Buchungen dazu (abgelaufene/stornierte nach 30 Tagen).
 
 ## Setup
 
@@ -132,7 +172,8 @@ Es gibt keinen `migrations`-Ordner – wie in den anderen Tools der Suite aussch
 
 ```bash
 npm test            # Unit-Tests (vitest): Passwort, Drossel-IP, Formular-Helfer, Slugs, Cron-Secret,
-                    # Raumplan-Format, Geometrie, Schlüssel, Editor-Zustand, Bilderkennung
+                    # Raumplan-Format, Geometrie, Schlüssel, Editor-Zustand, Bilderkennung, Zeitzonen,
+                    # Event-Rechte, Belegung, Plan-Änderungen, Event-Formular
 npm run test:e2e    # Playwright gegen eine frisch gebaute Instanz auf http://127.0.0.1:3701
 ```
 
@@ -145,7 +186,12 @@ E-Mail und 21. pro IP, erfundene `X-Forwarded-For`-Einträge, 30 gleichzeitige V
 Positivkontrolle**, dass derselbe POST als berechtigtes Konto wirkt. Für Raumpläne außerdem: Anlegen, Import/Export
 (auch ungültige Dateien und HTML in Beschriftungen), Editor per Werkzeugleiste, Tastatur und Maus, Versionskonflikt mit
 zwei Tabs, nachgespielte Speicher-Aufrufe fremder Konten, Freigabe als Vorlage, Bild-Upload (SVG, getarnte Dateien,
-Übergröße, fremde Herkunft) und die Header der Bildauslieferung.
+Übergröße, fremde Herkunft) und die Header der Bildauslieferung. Für Events: Anlegen mit Snapshot, Adresse
+(reserviert, ungültig, vergeben), Einstellungen, Schutz belegter Tische im Editor und in nachgespielten
+Speicher-Aufrufen, abgelaufene Reservierungen, Übernahme aus der Vorlage, Freigaben (Moderator\*in mit und ohne
+Freigabe, kein Löschen/Weiterfreigeben), fremde Konten, Löschen mit Cascade, Umhängen beim Kontolöschen, Löschfrist;
+öffentlich: 404 für Entwurf/Archiv, Vorschau, **keine Namen oder Adressen im ausgelieferten HTML**,
+Gruppengrößen-Filter, Bild nur bei sichtbarem Event, einbettbare Eventseite ohne `X-Frame-Options`.
 
 Voraussetzung: Chromium für Playwright (`npx playwright install chromium`, einmalig).
 

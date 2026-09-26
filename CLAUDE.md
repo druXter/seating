@@ -82,5 +82,8 @@ Alle Regeln aus dem suite-kit-README gelten. Zusätzlich für Seating:
   tatsächlich ausgelieferten Header prüfen, nicht den Code.
 * Öffentliche Eventseiten evtl. einbettbar halten (wie rsvp-app); `frame-ancestors 'none'` nur für Admin, Login,
   Verwaltungslink-Seiten.
-* Playwright: gefälschte POSTs erst nach frischem Seitenaufruf bauen (sonst fehlt `$ACTION_ID`).
+* Playwright: gefälschte POSTs erst nach frischem Seitenaufruf bauen (sonst fehlt `$ACTION_ID`); Formulare mit
+  `useActionState` tragen stattdessen `$ACTION_REF_…` (`readForm` akzeptiert beide).
+* Dateien namens `layout.ts`, `page.ts`, `route.ts`, `error.ts` … sind **überall unter `app/`** Next-Konventionsdateien,
+  auch in `app/lib/` – `app/lib/events/layout.ts` brach den Build. Solche Namen dort vermeiden.
 * `TRUST_PROXY_HOPS` messen, nicht raten.

@@ -43,7 +43,12 @@ Der Admin kann in **allen** Modi Buchungen anlegen, verschieben, ändern und lö
 * Beim Anlegen eines Events wird die Vorlage **kopiert** (Snapshot). Spätere Änderungen an der Vorlage verändern keine
   laufenden Events – sonst könnten gebuchte Tische verschwinden.
 * Der Event-Plan ist danach separat bearbeitbar. Sobald Buchungen existieren, prüft der **Server**: belegte Einheiten
-  dürfen nicht gelöscht und nicht unter die belegte Kapazität verkleinert werden. Umbenennen und Verschieben geht immer.
+  dürfen nicht gelöscht, nicht unter die belegte Kapazität verkleinert und nicht auf „nicht buchbar“ gesetzt werden
+  (Letzteres ergänzt in Phase 2). Umbenennen und Verschieben geht immer. Umgesetzt in `app/lib/events/save-layout.ts`
+  (eine Transaktion: Version prüfen, abgelaufene Holds verfallen lassen, prüfen, Units abgleichen); zusätzlich
+  verhindert die Datenbank das Löschen einer belegten Einheit (`Allocation.unit` mit `onDelete: NoAction`).
+* „Plan aus Vorlage neu übernehmen“ (Phase 2): holt Plan und Hintergrundbild der Vorlage erneut, mit denselben
+  Prüfungen. Nur für Konten, die die Vorlage selbst sehen dürfen.
 
 ### Elemente
 
@@ -85,6 +90,12 @@ reicht für die zu erwartende Elementzahl (ein paar hundert).
 * Status nicht nur über Farbe (zusätzlich Muster/Symbol + Text), Legende.
 * **Listenansicht** als gleichwertige Alternative ("Tisch 5 · 8 Plätze · frei") – für Barrierefreiheit und kleine
   Bildschirme.
+* Umgesetzt in Phase 2 (`app/[slug]`): Zoom/Pan mit „kooperativen“ Gesten (ein Finger scrollt die Seite, zwei Finger
+  zoomen/verschieben, Maus zieht, Strg + Mausrad zoomt). Öffentlich nur frei / belegt / nicht buchbar – bestätigt und
+  unbestätigt sehen gleich aus. Entwurf und Archiv ergeben 404, Konten mit Zugriff sehen eine Vorschau.
+* **Einbettbar** per iFrame wie in rsvp-app (`frame-ancestors *`, kein `X-Frame-Options`), nicht indexiert
+  (`noindex`). Fest im Code, weil Next.js die Header beim Build festschreibt – eine Env-Variable würde im Container
+  nicht greifen. Alle übrigen Seiten bleiben `frame-ancestors 'none'`.
 
 ---
 
@@ -92,6 +103,10 @@ reicht für die zu erwartende Elementzahl (ein paar hundert).
 
 Pseudo-Schema, Feldnamen englisch. Konten-Tabellen (`User`, `Session`, `ExternalIdentity`, `LoginThrottle`) wie in der
 Referenzimplementierung (Abstimmungstool).
+
+Felder kommen mit der Phase, die sie nutzt (umgesetzt: `FloorPlan` in Phase 1; `Event` mit den Feldern für
+Anzeige, Status, Buchungszeitraum und `minFillRatio`, `EventAccess`, `Unit`, `Booking`/`Allocation` im Kern in
+Phase 2 – Verifizierung, Verwaltungslink, Telefon usw. folgen mit Phase 3/4).
 
 ```text
 FloorPlan        id, name, ownerId?, shared (bool), layout (JSON), version (int, für Konflikterkennung),
@@ -110,7 +125,11 @@ Event            id, slug (unique), title, description, location,
                  requirePhone (bool),
                  waitlistEnabled (bool), offerTtlHours,   -- Warteliste, siehe Abschnitt 5
                  layout (JSON, Snapshot), layoutVersion,
+                 backgroundFile?, backgroundType?,   -- eigene Kopie des Bilds der Vorlage
+                 ownerId?, sourcePlanId?     -- Besitz (wie FloorPlan) und "aus Vorlage X" (nur Info)
                  rsvpLink (JSON?)            -- Verknüpfung zu rsvp-app, siehe Abschnitt 9
+
+EventAccess      id, eventId, userId, createdAt   UNIQUE(eventId, userId)   -- Freigabe, analog PollAccess
 
 Unit             id, eventId, key, kind (TABLE|SEAT), label,
                  tableKey?  (Platz gehört zu Tisch), capacity (Tisch) | 1 (Platz),
@@ -357,7 +376,9 @@ Empfang der Platzierung, Anzeige beim Einlass, Benachrichtigung bei Absage/Ände
 * Konten gibt es nur für Veranstalter*innen/Admins. Buchende haben kein Konto.
 * **Rollen wie im Abstimmungstool** (entschieden, siehe Abschnitt 13 Nr. 9): `ADMIN` (alles), `CREATOR` (eigene Events
   und Raumpläne, Moderator*innen einladen), `MODERATOR` (nur freigegebene Events). Die Freigabe pro Event
-  (`EventAccess`, analog `PollAccess`) kommt mit Phase 2; die Kontoverwaltung (`/admin/users`) gibt es seit Phase 0.
+  (`EventAccess`, analog `PollAccess`) gibt es seit Phase 2: Besitzer*in oder Admin gibt einem bestehenden Konto frei,
+  freigegebene Konten dürfen alles außer löschen und weiter freigeben (`eventLevel` in `app/lib/permissions.ts`).
+  Die Kontoverwaltung (`/admin/users`) gibt es seit Phase 0.
 * Föderation nach `suite-kit` (Endpunkte, Env wie im suite-kit-README). Für Seating sinnvoll: andere Tools als
   `SUITE_IDPS` mit `autoProvision: false`, `mapAdminRole` aus.
 * Ob mehrere Admins pro Event mit unterschiedlichen Rechten nötig sind, siehe offene Entscheidungen.
@@ -370,7 +391,7 @@ Zusätzliche Env-Variablen (neben denen der Suite): `DATABASE_URL`, `SMTP_*`, `M
 `MANAGE_LINK_SECRET`, `MANAGE_LINK_SECRET_PREVIOUS`, `VERIFY_CODE_SECRET`, ggf. `RSVP_*` für den Vertrag mit rsvp-app,
 optional `TURNSTILE_*`.
 
-* Löschfristen suite-weit: Inhalte 18 Monate nach Eventende, Konten nach 2 Jahren ohne Anmeldung (Admins ausgenommen).
+* Löschfristen suite-weit: Inhalte 18 Monate nach Eventende (Events seit Phase 2 im Cron), Konten nach 2 Jahren ohne Anmeldung (Admins ausgenommen).
   Abgelaufene/stornierte Buchungen deutlich früher entfernen (Vorschlag: 30 Tage).
 * Datensparsamkeit: Telefon nur, wenn pro Event verlangt. Datenschutzhinweis auf der Buchungsseite. Kein Tracking.
 * Öffentliche Plan-Ansicht zeigt nur "belegt", **nie Namen** – außer der Admin aktiviert es ausdrücklich
@@ -384,7 +405,7 @@ optional `TURNSTILE_*`.
 | --- | --- |
 | 0 | Gerüst nach Vorbild Abstimmungstool: Next.js, DB, Docker, Admin-Login, Sicherheits-Header, `suite-kit` als Abhängigkeit, README |
 | 1 | Raumplan: Datenformat, Editor (Tische, Plätze, statische Objekte, Reihen-Generator), Vorlagen, Import/Export |
-| 2 | Events: Anlegen mit Plan-Snapshot, Slug-Routing, öffentliche Planansicht mit Belegung (noch ohne Buchung) |
+| 2 | Events: Anlegen mit Plan-Snapshot, Slug-Routing, öffentliche Planansicht mit Belegung (noch ohne Buchung), Freigaben – in der Oberfläche nur Modus `TABLE` + Zugang `OPEN` |
 | 3 | Tischbuchung `TABLE`+`OPEN`: Reservierung, Verifizierung, Verfall, Bestätigung, `.ics`, Verwaltungslink |
 | 4 | Admin-Buchungsverwaltung: Verschieben, Ändern, Löschen, Änderungsmails, Rundmail, erneute Verifizierung, Audit, Export |
 | 4b | Warteliste mit Nachrück-Angebot (Abschnitt 5) |

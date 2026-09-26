@@ -3,8 +3,9 @@ import Link from 'next/link'
 
 // ENTWURF: Beschreibt, was dieses Tool tatsächlich speichert und verarbeitet. Er ersetzt keine
 // Rechtsberatung - vor dem Einsatz mit Externen bitte einmal prüfen lassen und bei jeder
-// Änderung der Datenverarbeitung mitpflegen. Stand: Phase 1 (Konten der Veranstalter*innen,
-// Raumpläne mit Hintergrundbildern). Mit Phase 3 kommen Buchungen dazu (Name, E-Mail, ggf. Telefon,
+// Änderung der Datenverarbeitung mitpflegen. Stand: Phase 2 (Konten der Veranstalter*innen,
+// Raumpläne mit Hintergrundbildern, Events mit öffentlicher Planansicht und Freigaben). Mit Phase 3
+// kommen Buchungen dazu (Name, E-Mail, ggf. Telefon,
 // Gruppengröße, Verifizierung, Buchungsmails mit .ics, Verwaltungslink, Löschfristen für
 // Buchungen) - dann hier ergänzen, siehe docs/KONZEPT.md Abschnitt 11.
 //
@@ -72,7 +73,7 @@ export default function DatenschutzPage() {
         </div>
 
         <div>
-          <h2 className="font-bold text-lg">4. Raumpläne und hochgeladene Bilder</h2>
+          <h2 className="font-bold text-lg">4. Raumpläne, Veranstaltungen und hochgeladene Bilder</h2>
           <p className="mt-2">
             Veranstalter*innen können Raumpläne anlegen und optional ein Bild (z.B. einen Grundriss) als Hintergrund
             hochladen. Gespeichert werden der Plan, sein Name, das Konto, dem er gehört, und das Bild als Datei auf unserem
@@ -84,6 +85,16 @@ export default function DatenschutzPage() {
             Raumpläne sollen keine personenbezogenen Daten enthalten; bitte lade keine Bilder hoch, auf denen Personen oder
             Namen zu sehen sind. Ein Plan bleibt gespeichert, bis er gelöscht wird; mit dem Löschen verschwindet auch das
             Bild. Wird ein Konto gelöscht, gehen seine Raumpläne an eine*n Administrator*in über.
+          </p>
+          <p className="mt-2">
+            Für eine Veranstaltung speichern wir Titel, Adresse der Veranstaltungsseite, Beschreibung, Ort, Zeiten und
+            Einstellungen, eine Kopie des Raumplans (mit Bild), das Konto, dem sie gehört, und die Konten, für die sie
+            freigegeben wurde. Veröffentlichte Veranstaltungsseiten sind für alle abrufbar, die den Link kennen (auch
+            eingebettet auf anderen Webseiten), werden aber nicht für Suchmaschinen freigegeben. Sie zeigen im Plan und
+            in der Tischliste nur, ob ein Tisch <strong>frei oder belegt</strong> ist – nie, wer ihn gebucht hat.
+            Die Angabe „Wie viele Personen seid ihr?“ zum Hervorheben passender Tische wird nur in deinem Browser
+            ausgewertet und nicht an uns übertragen. Wird ein Konto gelöscht, gehen seine Veranstaltungen an eine*n
+            Administrator*in über.
           </p>
         </div>
 
@@ -138,7 +149,8 @@ export default function DatenschutzPage() {
           <h2 className="font-bold text-lg">9. Speicherdauer</h2>
           <p className="mt-2">
             Ein Konto wird automatisch gelöscht, wenn du dich <strong>2 Jahre</strong> lang nicht mehr angemeldet
-            hast und dir keine Raumpläne mehr gehören - inklusive Sitzungen. Administrator-Konten sind von dieser
+            hast und dir keine Raumpläne und Veranstaltungen mehr gehören - inklusive Sitzungen und Freigaben.
+            Administrator-Konten sind von dieser
             automatischen Löschung ausgenommen.
             Unabhängig davon kannst du jederzeit unter der oben genannten Adresse um frühere Löschung deines Kontos
             bitten.
@@ -146,6 +158,10 @@ export default function DatenschutzPage() {
           <p className="mt-2">
             Sitzungen laufen nach 30 Tagen ab, Einladungs- und Reset-Links nach 7 Tagen bzw. 1 Stunde und werden dann
             entfernt. Drossel-Zähler siehe Punkt 5.
+          </p>
+          <p className="mt-2">
+            Veranstaltungen werden <strong>18 Monate nach ihrem Ende</strong> automatisch gelöscht, samt Raumplan, Bild,
+            Freigaben und allen zugehörigen Buchungen.
           </p>
         </div>
 
