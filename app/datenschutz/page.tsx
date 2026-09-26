@@ -3,11 +3,9 @@ import Link from 'next/link'
 
 // ENTWURF: Beschreibt, was dieses Tool tatsächlich speichert und verarbeitet. Er ersetzt keine
 // Rechtsberatung - vor dem Einsatz mit Externen bitte einmal prüfen lassen und bei jeder
-// Änderung der Datenverarbeitung mitpflegen. Stand: Phase 2 (Konten der Veranstalter*innen,
-// Raumpläne mit Hintergrundbildern, Events mit öffentlicher Planansicht und Freigaben). Mit Phase 3
-// kommen Buchungen dazu (Name, E-Mail, ggf. Telefon,
-// Gruppengröße, Verifizierung, Buchungsmails mit .ics, Verwaltungslink, Löschfristen für
-// Buchungen) - dann hier ergänzen, siehe docs/KONZEPT.md Abschnitt 11.
+// Änderung der Datenverarbeitung mitpflegen. Stand: Phase 3 (Konten der Veranstalter*innen,
+// Raumpläne mit Hintergrundbildern, Events mit öffentlicher Planansicht und Freigaben, Tischbuchung
+// ohne Konto mit Mail-Bestätigung, Verwaltungslink, Buchungsmails mit .ics und Löschfristen).
 //
 // Liest Verantwortlichen- und Infrastruktur-Angaben zur Laufzeit aus der (nicht
 // versionierten) .env, analog zu app/impressum/page.tsx - force-dynamic verhindert, dass
@@ -99,10 +97,37 @@ export default function DatenschutzPage() {
         </div>
 
         <div>
-          <h2 className="font-bold text-lg">5. Schutz vor Missbrauch (Drosselung)</h2>
+          <h2 className="font-bold text-lg">5. Buchen eines Tisches (ohne Konto)</h2>
+          <p className="mt-2">
+            Wenn du einen Tisch buchst, speichern wir deinen <strong>Namen</strong>, deine{' '}
+            <strong>E-Mail-Adresse</strong>, die <strong>Personenzahl</strong>, den gewählten Tisch, eine optionale
+            Anmerkung und – nur wenn du sie angibst oder die Veranstaltung sie verlangt – deine{' '}
+            <strong>Telefonnummer</strong>, dazu die Zeitpunkte von Buchung, Bestätigung, Änderungen und Stornierung.
+            Rechtsgrundlage ist die Durchführung der Buchung (Art. 6 Abs. 1 lit. b DSGVO).
+          </p>
+          <p className="mt-2">
+            Die Buchung gilt erst, wenn du deine E-Mail-Adresse per Link oder 6-stelligem Code bestätigst. Link und Code
+            speichern wir nur als Hash bzw. mit einem geheimen Schlüssel verrechnet und löschen sie mit der Bestätigung.
+            Bis dahin ist der Tisch kurz für dich reserviert (voreingestellt 30 Minuten); ohne Bestätigung verfällt die
+            Reservierung. Solange sie unbestätigt ist, speichern wir außerdem einen Hash deiner IP-Adresse, um die Zahl
+            gleichzeitiger Reservierungen zu begrenzen – er wird mit der Bestätigung oder dem Verfall gelöscht.
+          </p>
+          <p className="mt-2">
+            Deine Angaben sehen nur die Veranstalter*innen dieser Veranstaltung (die Konten, die sie verwalten). Auf der
+            öffentlichen Seite erscheint dein Tisch nur als „belegt“ – ohne Namen. Mit dem persönlichen Link aus der
+            Bestätigungsmail kannst du deine Buchung ansehen, ändern und stornieren; wer diesen Link hat, kann das
+            ebenfalls – gib ihn deshalb nicht weiter. Welche Mails wir dir geschickt haben und welche Änderungen es an
+            der Buchung gab, protokollieren wir (Art, Zeitpunkt, Empfängeradresse, Zustellstatus bzw. alte und neue
+            Werte), um Rückfragen beantworten zu können.
+          </p>
+        </div>
+
+        <div>
+          <h2 className="font-bold text-lg">6. Schutz vor Missbrauch (Drosselung)</h2>
           <p className="mt-2">
             Um das Erraten von Passwörtern und das massenhafte Auslösen von Mails zu verhindern, zählen wir
-            fehlgeschlagene Anmeldeversuche und Passwort-Reset-Anfragen. Dazu wird deine{' '}
+            fehlgeschlagene Anmeldeversuche, Passwort-Reset-Anfragen, Reservierungen, Code-Eingaben und angeforderte
+            Bestätigungsmails. Dazu wird deine{' '}
             <strong>IP-Adresse</strong> ausgelesen und zusammen mit der eingegebenen E-Mail-Adresse{' '}
             <strong>nur als nicht umkehrbarer Hash</strong> für ein kurzes Zeitfenster (15 Minuten bzw. 1 Stunde)
             gespeichert; veraltete Zähler werden nach spätestens 24 Stunden entfernt. Rechtsgrundlage ist unser
@@ -111,15 +136,18 @@ export default function DatenschutzPage() {
         </div>
 
         <div>
-          <h2 className="font-bold text-lg">6. E-Mails</h2>
+          <h2 className="font-bold text-lg">7. E-Mails</h2>
           <p className="mt-2">
-            Wir verschicken E-Mails nur für Kontofunktionen: die Einladung zu einem neuen Konto und den auf Wunsch
-            angeforderten Passwort-Reset. Werbung oder Newsletter gibt es nicht.
+            Wir verschicken E-Mails nur für Kontofunktionen (Einladung zu einem neuen Konto, auf Wunsch angeforderter
+            Passwort-Reset) und für deine Buchung: die Bitte um Bestätigung (mit Link und Code), die Bestätigung mit
+            Kalenderdatei und persönlichem Link, Änderungen und Stornierungen sowie einen Hinweis, falls mit deiner
+            Adresse erneut gebucht werden sollte. Antworten auf Buchungsmails gehen an die Veranstalter*innen, sofern sie
+            eine Antwortadresse hinterlegt haben. Werbung oder Newsletter gibt es nicht.
           </p>
         </div>
 
         <div>
-          <h2 className="font-bold text-lg">7. Cookies</h2>
+          <h2 className="font-bold text-lg">8. Cookies</h2>
           <p className="mt-2">
             Wir setzen ausschließlich technisch notwendige Cookies ein (Art. 6 Abs. 1 lit. b/f DSGVO, § 25 Abs. 2 Nr. 2
             TDDDG) - eine Einwilligung ist dafür nicht erforderlich. Es gibt keine Tracking-, Analyse- oder
@@ -132,9 +160,9 @@ export default function DatenschutzPage() {
         </div>
 
         <div>
-          <h2 className="font-bold text-lg">8. Empfänger und Auftragsverarbeiter</h2>
+          <h2 className="font-bold text-lg">9. Empfänger und Auftragsverarbeiter</h2>
           <p className="mt-2">
-            <strong>E-Mail-Versand:</strong> Einladungs- und Passwort-Reset-Mails versenden wir über den
+            <strong>E-Mail-Versand:</strong> Einladungs-, Passwort-Reset- und Buchungsmails versenden wir über den
             E-Mail-Server <code>{smtpHost}</code>. Mit dem Betreiber dieses Servers besteht, soweit es sich um einen
             externen Anbieter handelt, ein Vertrag zur Auftragsverarbeitung nach Art. 28 DSGVO.
           </p>
@@ -146,7 +174,7 @@ export default function DatenschutzPage() {
         </div>
 
         <div>
-          <h2 className="font-bold text-lg">9. Speicherdauer</h2>
+          <h2 className="font-bold text-lg">10. Speicherdauer</h2>
           <p className="mt-2">
             Ein Konto wird automatisch gelöscht, wenn du dich <strong>2 Jahre</strong> lang nicht mehr angemeldet
             hast und dir keine Raumpläne und Veranstaltungen mehr gehören - inklusive Sitzungen und Freigaben.
@@ -157,16 +185,21 @@ export default function DatenschutzPage() {
           </p>
           <p className="mt-2">
             Sitzungen laufen nach 30 Tagen ab, Einladungs- und Reset-Links nach 7 Tagen bzw. 1 Stunde und werden dann
-            entfernt. Drossel-Zähler siehe Punkt 5.
+            entfernt. Drossel-Zähler siehe Punkt 6.
           </p>
           <p className="mt-2">
             Veranstaltungen werden <strong>18 Monate nach ihrem Ende</strong> automatisch gelöscht, samt Raumplan, Bild,
             Freigaben und allen zugehörigen Buchungen.
           </p>
+          <p className="mt-2">
+            Verfallene und stornierte Buchungen löschen wir <strong>30 Tage</strong> nach ihrer letzten Änderung, samt
+            Mail- und Änderungsprotokoll. Bestätigte Buchungen bleiben bis zur Löschung der Veranstaltung gespeichert
+            (siehe oben) – oder bis die Veranstalter*innen sie früher löschen.
+          </p>
         </div>
 
         <div>
-          <h2 className="font-bold text-lg">10. Deine Rechte</h2>
+          <h2 className="font-bold text-lg">11. Deine Rechte</h2>
           <p className="mt-2">
             Du hast das Recht auf Auskunft (Art. 15 DSGVO), Berichtigung (Art. 16 DSGVO), Löschung (Art. 17 DSGVO),
             Einschränkung der Verarbeitung (Art. 18 DSGVO), Datenübertragbarkeit (Art. 20 DSGVO) und Widerspruch (Art.
@@ -180,7 +213,7 @@ export default function DatenschutzPage() {
         </div>
 
         <div>
-          <h2 className="font-bold text-lg">11. Datensicherheit</h2>
+          <h2 className="font-bold text-lg">12. Datensicherheit</h2>
           <p className="mt-2">
             Die Übertragung erfolgt verschlüsselt (TLS/HTTPS). Anmelde-Cookies sind <code>httpOnly</code> gesetzt und
             damit per JavaScript nicht auslesbar. Passwörter, Sitzungs-Tokens und Einmal-Links werden nur als Hash

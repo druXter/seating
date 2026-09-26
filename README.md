@@ -14,10 +14,12 @@ Fachliche Grundlage und Fahrplan: [docs/KONZEPT.md](docs/KONZEPT.md).
 | 0 | Gerüst, Admin-Login, Kontoverwaltung, Sicherheits-Header, Docker, Tests | ✅ umgesetzt |
 | 1 | Raumplan-Editor, Vorlagen, Import/Export, Hintergrundbild | ✅ umgesetzt |
 | 2 | Events mit Plan-Snapshot, Freigaben, öffentliche Planansicht mit Belegung | ✅ umgesetzt |
-| 3 | Tischbuchung mit Verifizierung, `.ics`, Verwaltungslink | offen |
+| 3 | Tischbuchung mit Verifizierung, Verfall, `.ics`, Verwaltungslink | ✅ umgesetzt |
 | 4–8 | Buchungsverwaltung, Warteliste, Modi `SEAT`/`ASSIGNED`, rsvp-app, Föderation | offen |
 
-Bisher gibt es Konten, Raumpläne und Events mit öffentlicher Planansicht – das Buchen selbst folgt mit Phase 3.
+Tische lassen sich online buchen (Modus `TABLE`, Zugang `OPEN`). Die Verwaltung von Buchungen durch
+Veranstalter\*innen (verschieben, ändern, stornieren, Rundmail) folgt mit Phase 4 – bis dahin gibt es auf der Event-Seite
+eine Buchungsliste nur zum Lesen.
 
 ## Konten
 
@@ -101,6 +103,10 @@ Unter `/admin/events` legen Creator und Admins Events an, Moderator\*innen sehen
   Konten dürfen alles außer löschen und weiter freigeben. Admins sehen alle Events.
 * **Löschen:** nur Besitzer\*in oder Admin, mit Warnung bei aktiven Buchungen.
 
+* **Buchungs-Einstellungen:** Reservierung ohne Bestätigung (Standard 30 Minuten, 5–1440), Selbst ändern bis
+  N Stunden vor Beginn (Standard 24, 0 = bis Beginn), eine Buchung pro E-Mail-Adresse (Standard an),
+  Telefon verpflichtend, Antwortadresse (Reply-To) und Hinweis für die Bestätigungsmail.
+
 ### Öffentliche Eventseite
 
 `https://plaetze.deine-domain.de/<adresse>` zeigt Titel, Zeit, Ort, Beschreibung und den Plan mit Belegung:
@@ -113,9 +119,37 @@ Unter `/admin/events` legen Creator und Admins Events an, Moderator\*innen sehen
   gleichwertige Alternative.
 * Öffentlich gibt es nur „frei / belegt / nicht buchbar“ – nie Namen, Adressen oder den Unterschied zwischen
   bestätigt und unbestätigt.
+* **Buchen** (wenn veröffentlicht, im Buchungszeitraum, vor Beginn, mit SMTP und Secrets): Tisch im Plan antippen oder
+  in der Liste „Buchen“ wählen, Name, E-Mail, ggf. Telefon, Personenzahl (zweimal), Anmerkung, Datenschutzhinweis.
+  Der Tisch ist sofort reserviert, bis die Frist abläuft; bestätigt wird per Link aus der Mail (Seite mit Button – ein
+  bloßer Aufruf bestätigt nichts, weil Mail-Scanner Links vorab öffnen) oder per 6-stelligem Code auf der Seite.
+  Danach kommt die Bestätigungsmail mit `.ics` und persönlichem **Verwaltungslink** (`/b/<id>/<token>`): bis zur
+  Änderungsfrist Name, Telefon, Anmerkung, Personenzahl und Tisch ändern oder stornieren, jeweils mit Mail und
+  aktualisierter Kalenderdatei. Die E-Mail-Adresse ist nicht änderbar.
 * Die Seite ist **per iFrame einbettbar** (wie in rsvp-app, `frame-ancestors *`) und nicht indexiert (`noindex`).
   Die Header werden beim Build festgeschrieben: Wer nur bestimmte Seiten einbetten lassen will, ändert
   `EMBEDDABLE` in `next.config.ts` und baut neu.
+
+### Buchung: Regeln und Schutz
+
+* **Doppelbuchung** verhindert der Unique-Index `Allocation(eventId, unitId)`, nicht eine vorherige Abfrage. Buchen läuft
+  in einer Transaktion (abgelaufene Reservierungen auf dem Tisch freigeben, einfügen, Konflikt abfangen: „wurde gerade
+  vergeben“). Ein Test schickt 8 gleichzeitige Anfragen auf denselben Tisch – genau eine gewinnt.
+* **Tokens** (`app/lib/booking-tokens.ts`): Bestätigungslink 32 Byte Zufall, gespeichert nur als SHA-256; Code
+  6 Ziffern, gespeichert als HMAC mit `VERIFY_CODE_SECRET` (nie als reiner Hash), höchstens 5 Versuche (atomar gezählt);
+  Verwaltungslink = HMAC mit `MANAGE_LINK_SECRET` aus Buchungs-id und Version, nicht gespeichert, bei Schlüsselwechsel
+  gilt `MANAGE_LINK_SECRET_PREVIOUS` weiter. Alle Vergleiche mit konstanter Laufzeit.
+* **Erneut senden** erzeugt neuen Link und Code, setzt die Versuche zurück, verlängert die Reservierung aber nicht.
+* **Eine Buchung pro Adresse:** Die Seite antwortet genauso wie bei einer neuen Reservierung (sie verrät nicht, wer schon
+  gebucht hat); stattdessen bekommt die Adresse einen Hinweis mit dem Link zur bestehenden Buchung.
+* **Drosselung** (eigene Tabelle `BookingThrottle`): Reservieren 10 pro IP und 5 pro E-Mail je Stunde, Code-Eingabe 30
+  pro IP je 15 Minuten, erneut senden 3 pro Buchung und 10 pro IP je Stunde; höchstens 3 gleichzeitig unbestätigte
+  Reservierungen pro IP und Event.
+* **Mailversand gescheitert:** Die Reservierung wird sofort wieder freigegeben – kein Tisch hängt an einer Mail, die nie
+  ankommt. Jede Mail steht im `MailLog`, jede Änderung im `AuditLog` (angezeigt ab Phase 4).
+* **Ohne SMTP oder ohne Secrets** (je mindestens 32 Zeichen) ist das Buchen abgeschaltet – kein unsicherer Rückfall.
+* **Absender** ist immer `SMTP_FROM` (pro Event frei wählbare Absender würden SPF/DMARC verletzen), pro Event gibt es ein
+  Reply-To.
 
 ## Sicherheit
 
@@ -137,7 +171,7 @@ Unter `/admin/events` legen Creator und Admins Events an, Moderator\*innen sehen
   Origin (CSRF, Next.js-Standard).
 * **Header** (`next.config.ts`): `nosniff`, `Referrer-Policy`, `Permissions-Policy`, HSTS für alle Seiten.
   Alle Seiten außer den öffentlichen Eventseiten `frame-ancestors 'none'` und `X-Frame-Options: DENY`; Login, Konto,
-  Verwaltung, Reset- und Verwaltungslinks zusätzlich `X-Robots-Tag: noindex` und `Cache-Control: no-store`; Seiten
+  Verwaltung, Reset-, Bestätigungs- und Verwaltungslinks zusätzlich `X-Robots-Tag: noindex` und `Cache-Control: no-store`; Seiten
   mit Einmal-Werten in der URL `Referrer-Policy: no-referrer`; Hintergrundbilder `sandbox`. Die Reihenfolge der
   Regeln ist wichtig (die spätere gewinnt, ein Header lässt sich nur überschreiben, nicht entfernen) und in der Datei
   kommentiert. Neue einteilige Seiten des Tools brauchen dort einen Eintrag, sonst wären sie einbettbar.
@@ -150,11 +184,12 @@ Ein externer Scheduler (z. B. Uptime Kuma) ruft **einmal täglich** auf:
 
 `GET https://plaetze.deine-domain.de/api/cron/cleanup?secret=<CRON_SECRET>`
 
-Ein leeres oder fehlendes `CRON_SECRET` lässt niemanden durch. Derzeit gelöscht werden: Events 18 Monate nach ihrem
-Ende (samt Plan, Bild, Freigaben und Buchungen), Konten nach 2 Jahren ohne Anmeldung (Admin-Konten und Konten, denen
+Ein leeres oder fehlendes `CRON_SECRET` lässt niemanden durch. Der Aufruf setzt abgelaufene Reservierungen auf
+„verfallen“ und gibt ihre Tische frei (beim Anzeigen zählen sie ohnehin schon nicht mehr). Gelöscht werden: verfallene
+und stornierte Buchungen 30 Tage nach ihrer letzten Änderung (samt Mail- und Änderungsprotokoll), Events 18 Monate nach
+ihrem Ende (samt Plan, Bild, Freigaben und Buchungen), Konten nach 2 Jahren ohne Anmeldung (Admin-Konten und Konten, denen
 noch Raumpläne oder Events gehören, ausgenommen), abgelaufene Sitzungen, Einladungs-/Reset-Links und Drossel-Zähler.
-Wird ein Konto von Hand gelöscht, gehen seine Raumpläne und Events an den löschenden Admin über. Mit Phase 3 kommen
-die Fristen für Buchungen dazu (abgelaufene/stornierte nach 30 Tagen).
+Wird ein Konto von Hand gelöscht, gehen seine Raumpläne und Events an den löschenden Admin über.
 
 ## Setup
 
@@ -173,7 +208,8 @@ Es gibt keinen `migrations`-Ordner – wie in den anderen Tools der Suite aussch
 ```bash
 npm test            # Unit-Tests (vitest): Passwort, Drossel-IP, Formular-Helfer, Slugs, Cron-Secret,
                     # Raumplan-Format, Geometrie, Schlüssel, Editor-Zustand, Bilderkennung, Zeitzonen,
-                    # Event-Rechte, Belegung, Plan-Änderungen, Event-Formular
+                    # Event-Rechte, Belegung, Plan-Änderungen, Event-Formular, .ics (Faltung, Escaping),
+                    # Buchungs-Tokens (HMAC, Rotation), Buchungsregeln
 npm run test:e2e    # Playwright gegen eine frisch gebaute Instanz auf http://127.0.0.1:3701
 ```
 
@@ -191,7 +227,17 @@ zwei Tabs, nachgespielte Speicher-Aufrufe fremder Konten, Freigabe als Vorlage, 
 Speicher-Aufrufen, abgelaufene Reservierungen, Übernahme aus der Vorlage, Freigaben (Moderator\*in mit und ohne
 Freigabe, kein Löschen/Weiterfreigeben), fremde Konten, Löschen mit Cascade, Umhängen beim Kontolöschen, Löschfrist;
 öffentlich: 404 für Entwurf/Archiv, Vorschau, **keine Namen oder Adressen im ausgelieferten HTML**,
-Gruppengrößen-Filter, Bild nur bei sichtbarem Event, einbettbare Eventseite ohne `X-Frame-Options`.
+Gruppengrößen-Filter, Bild nur bei sichtbarem Event, einbettbare Eventseite ohne `X-Frame-Options`. Für Buchungen:
+kompletter Ablauf per Link und per Code, GET bestätigt nicht, 5 falsche Codes sperren, erneut senden ohne
+Verlängerung, Verfall, 8 gleichzeitige Anfragen auf einen Tisch, eine Buchung pro Adresse ohne Hinweis auf der Seite,
+Obergrenze und Drosselung pro IP, gescheiterter Mailversand, Regeln (Mindestbelegung, Zeitraum, erfundene Tische),
+Verwaltungslink (falscher Token, Rotation, Ändern, Tischwechsel auf belegten Tisch, Frist, Storno), `.ics` in den Mails,
+Löschfristen.
+
+Mails fängt ein Test-SMTP ab (`tests/e2e/mail-server.ts`, Pakete `smtp-server` und `mailparser`, nur für die Tests), der
+sie als `.eml` in `data/test-mails` ablegt; Empfänger unter `@nomail.test` lehnt er ab (gescheiterter Versand). Zur
+Sichtprüfung eignet sich Mailpit (`docker run --rm -p 127.0.0.1:1025:1025 -p 127.0.0.1:8025:8025 axllent/mailpit`, dann
+`SMTP_HOST=127.0.0.1 SMTP_PORT=1025`).
 
 Voraussetzung: Chromium für Playwright (`npx playwright install chromium`, einmalig).
 
@@ -224,9 +270,11 @@ Siehe `.env.example` (mit Erklärungen). Kurzüberblick:
 | `BASE_URL` | öffentliche Adresse ohne Slash – für Links in Mails, später auch Kennung in der Suite |
 | `TRUST_PROXY_HOPS` | Anzahl eigener Reverse Proxys (für die IP der Drosselung) |
 | `CRON_SECRET` | Schutz des Aufräum-Endpunkts |
-| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` | Mailversand (Phase 0 optional, ab Phase 3 nötig) |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` | Mailversand – ohne ist die Online-Buchung abgeschaltet |
+| `VERIFY_CODE_SECRET` | HMAC für Bestätigungscodes (mind. 32 Zeichen) |
+| `MANAGE_LINK_SECRET`, `MANAGE_LINK_SECRET_PREVIOUS` | Ableitung der Verwaltungslinks, vorheriges für Schlüsselwechsel (mind. 32 Zeichen) |
 | `IMPRESSUM_*` | Angaben für Impressum und Datenschutzerklärung |
 | `UPLOAD_DIR` | optional: Ablage hochgeladener Bilder (Standard `data/uploads` im Arbeitsverzeichnis) |
 
-Später kommen dazu: `MANAGE_LINK_SECRET(_PREVIOUS)` (Phase 3), `RSVP_*` (Phase 7), `SUITE_*` (Phase 8), optional
+Später kommen dazu: `RSVP_*` (Phase 7), `SUITE_*` (Phase 8), optional
 `TURNSTILE_*`.

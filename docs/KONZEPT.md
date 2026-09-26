@@ -106,7 +106,9 @@ Referenzimplementierung (Abstimmungstool).
 
 Felder kommen mit der Phase, die sie nutzt (umgesetzt: `FloorPlan` in Phase 1; `Event` mit den Feldern für
 Anzeige, Status, Buchungszeitraum und `minFillRatio`, `EventAccess`, `Unit`, `Booking`/`Allocation` im Kern in
-Phase 2 – Verifizierung, Verwaltungslink, Telefon usw. folgen mit Phase 3/4).
+Phase 2; Buchungs-Einstellungen, Verifizierung, Verwaltungslink, `MailLog`, `AuditLog`, `BookingThrottle` in
+Phase 3; `adminNote`, `externalRef` und die Warteliste folgen mit ihren Phasen). Zusätzlich zum
+Entwurf: `Event.replyTo`, `Event.mailNote`, `Booking.pendingIpHash`.
 
 ```text
 FloorPlan        id, name, ownerId?, shared (bool), layout (JSON), version (int, für Konflikterkennung),
@@ -195,6 +197,25 @@ Regeln:
 
 Die Modi `SEAT` und Zugang `RSVP` nutzen denselben Ablauf mit anderer Einheit bzw. ohne Schritt 4–5.
 
+Umgesetzt in Phase 3 (`app/lib/events/booking.ts`), mit diesen Festlegungen:
+
+* Standardwerte: `pendingTtlMinutes` 30 (5–1440), `selfEditHoursBefore` 24, `oneBookingPerEmail` an. Buchbar bis
+  `bookingClosesAt` bzw. spätestens bis Beginn.
+* Drosselung (eigene Tabelle `BookingThrottle`): Reservieren 10/IP und 5/E-Mail je Stunde, Code 30/IP je 15 Minuten,
+  erneut senden 3/Buchung und 10/IP je Stunde; höchstens 3 gleichzeitig unbestätigte Reservierungen pro IP und Event
+  (`Booking.pendingIpHash`, SHA-256 der IP, nur bis zur Bestätigung bzw. zum Verfall).
+* **Mailversand gescheitert:** Die Reservierung wird sofort freigegeben (`EXPIRED`), sonst hinge ein Tisch an einer Mail,
+  die nie ankommt. Ohne SMTP oder ohne Secrets ist das Buchen ganz abgeschaltet.
+* Nach dem Reservieren zeigt die Seite Frist, Code-Feld und „erneut senden“ als Ergebnis der Server Action (ohne
+  Cookie); nach dem Neuladen geht es über die Mail weiter.
+* **`oneBookingPerEmail` ohne Hinweis auf der Seite:** Hat die Adresse schon eine aktive Buchung, wird nichts reserviert,
+  die Seite antwortet aber wie bei Erfolg (mit Schein-id), und die Adresse bekommt eine Mail mit dem Link zur bestehenden
+  Buchung. Bewusst hingenommene Restrisiken: Wer danach den Plan neu lädt, sieht den Tisch weiter frei; bei der
+  Schein-id sperrt die Code-Eingabe nach 5 Versuchen nicht. Beides verrät nur mit Aufwand, dass eine Adresse gebucht hat.
+* Selbständerung über den Verwaltungslink: Name, Telefon, Anmerkung, Personenzahl (im Rahmen der Tischregeln) und
+  Tisch (Auswahl aus eigenem und freien Tischen, Wechsel in einer Transaktion mit demselben Unique-Index), Storno.
+* Veranstalter*innen sehen bis Phase 4 eine Buchungsliste nur zum Lesen auf der Event-Seite.
+
 ---
 
 ## 5. Nebenläufigkeit und Verfall
@@ -209,6 +230,8 @@ Die Modi `SEAT` und Zugang `RSVP` nutzen denselben Ablauf mit anderer Einheit bz
 * Belegt gilt eine Einheit, wenn sie eine Allocation hat, deren Buchung `CONFIRMED` ist oder `PENDING` mit
   `expiresAt > now`. Abgelaufenes wird also schon **beim Lesen** ignoriert; der Cron räumt nur auf.
 * Cron `/api/cron/cleanup` (wie in der Suite): abgelaufene `PENDING` → `EXPIRED`, Löschfristen umsetzen.
+* Die optionale Info-Mail beim Verfall wird **nicht** verschickt (entschieden in Phase 3): Wer nicht bestätigt, hat
+  meist kein Interesse mehr, und jede zusätzliche Mail an eine womöglich falsche Adresse ist unnötig.
 * Erneutes Senden der Verifizierung (Kund*in oder Admin): neuer Token/Code, alter wird ungültig, Versuchszähler auf 0.
   **Durch die Kund*in verlängert es den Verfall nicht** – sonst ließe sich ein Tisch durch wiederholtes Anfordern
   beliebig lange blockieren. Der Admin kann beim erneuten Senden wählen, ob `expiresAt` neu gesetzt wird (Phase 4).
@@ -264,7 +287,9 @@ HMAC sorgt dafür, dass gleiche Codes verschiedener Buchungen verschieden ausseh
 Secret entwertet nur gerade offene Codes, der Verifizierungslink funktioniert weiter. Der Verifizierungslink selbst
 bleibt ein reiner SHA-256-Hash – bei 32 Byte Zufall ist Zurückrechnen ausgeschlossen.
 
-URL-Form: `/b/<bookingId>/<token>`. Vergleich mit konstanter Laufzeit. Verwaltungsseite mit
+URL-Form: `/b/<bookingId>/<token>`, Verifizierungslink `/verify/<bookingId>/<token>`. Vergleich mit konstanter
+Laufzeit. Secrets müssen mindestens 32 Zeichen lang sein; fehlt eins, ist das Buchen abgeschaltet (umgesetzt in
+Phase 3, `app/lib/booking-tokens.ts`). Verwaltungsseite mit
 `Cache-Control: no-store`, `Referrer-Policy: no-referrer`, `X-Robots-Tag: noindex`, `frame-ancestors 'none'`.
 
 ---
@@ -283,17 +308,26 @@ URL-Form: `/b/<bookingId>/<token>`. Vergleich mit konstanter Laufzeit. Verwaltun
 | Nachrück-Angebot (mit Frist) | Wartende*r | – |
 | Angebot verfallen | Wartende*r | – |
 | Rundmail | gefilterte Buchende | optional aktuelle `.ics` |
+| Hinweis „bereits gebucht“ (`oneBookingPerEmail`, Phase 3) | Adresse mit bestehender Buchung | – |
 
 * Jede Mail enthält den persönlichen Verwaltungslink (außer der Verifizierungsmail).
 * Admin-Änderungen: Checkbox "Kund*in benachrichtigen", standardmäßig an.
 * **Rundmail:** Einzelmails (kein BCC), damit jede*r den eigenen Link bekommt. Empfängerfilter (bestätigt / auch
   unbestätigt / einzelne Tische), Vorschau, Testversand an sich selbst, Versand gedrosselt über eine einfache
   Warteschlange, Ergebnis im `MailLog`.
-* HTML + Klartext-Teil; Absender und Reply-To konfigurierbar pro Event.
+* HTML + Klartext-Teil. **Abweichung (Phase 3):** Pro Event konfigurierbar ist nur das Reply-To (`Event.replyTo`), dazu
+  ein freier Hinweis in der Bestätigungsmail (`Event.mailNote`). Der Absender bleibt `SMTP_FROM` – ein pro Event frei
+  wählbarer Absender würde SPF/DMARC verletzen und im Spam landen.
+* Jede Mail steht im `MailLog` (auch gescheiterte), jede Änderung an einer Buchung im `AuditLog` (geschrieben ab
+  Phase 3, angezeigt ab Phase 4).
 
 `.ics`-Details:
 
-* `UID: booking-<id>@<host>` – stabil über alle Änderungen, `SEQUENCE` aus `Booking.icsSequence`.
+* `UID: booking-<id>@<host>` – stabil über alle Änderungen, `SEQUENCE` aus `Booking.icsSequence`. Die Sequenz steigt
+  bei Änderungen, die im Kalendereintrag stehen (Personenzahl, Tisch), und beim Storno – nicht bei Name, Telefon oder
+  Anmerkung.
+* Eigener kleiner Generator (`app/lib/ics.ts`) statt einer Bibliothek; geprüft mit Unit-Tests und dem Python-Parser
+  `icalendar`.
 * `METHOD:PUBLISH` (kein `REQUEST` – sonst behandeln Clients es als Einladung mit Antwort an den Organisator);
   Storno mit `METHOD:CANCEL` und `STATUS:CANCELLED`.
 * `DESCRIPTION` mit Tisch/Plätzen, Personenzahl und Verwaltungslink, zusätzlich `URL:`.
@@ -406,7 +440,7 @@ optional `TURNSTILE_*`.
 | 0 | Gerüst nach Vorbild Abstimmungstool: Next.js, DB, Docker, Admin-Login, Sicherheits-Header, `suite-kit` als Abhängigkeit, README |
 | 1 | Raumplan: Datenformat, Editor (Tische, Plätze, statische Objekte, Reihen-Generator), Vorlagen, Import/Export |
 | 2 | Events: Anlegen mit Plan-Snapshot, Slug-Routing, öffentliche Planansicht mit Belegung (noch ohne Buchung), Freigaben – in der Oberfläche nur Modus `TABLE` + Zugang `OPEN` |
-| 3 | Tischbuchung `TABLE`+`OPEN`: Reservierung, Verifizierung, Verfall, Bestätigung, `.ics`, Verwaltungslink |
+| 3 | Tischbuchung `TABLE`+`OPEN`: Reservierung, Verifizierung, Verfall, Bestätigung, `.ics`, Verwaltungslink (umgesetzt, Buchungsliste für Veranstalter*innen nur zum Lesen) |
 | 4 | Admin-Buchungsverwaltung: Verschieben, Ändern, Löschen, Änderungsmails, Rundmail, erneute Verifizierung, Audit, Export |
 | 4b | Warteliste mit Nachrück-Angebot (Abschnitt 5) |
 | 5 | Modus `SEAT` (Kino/Winterball) |

@@ -84,6 +84,10 @@ Alle Regeln aus dem suite-kit-README gelten. Zusätzlich für Seating:
   Verwaltungslink-Seiten.
 * Playwright: gefälschte POSTs erst nach frischem Seitenaufruf bauen (sonst fehlt `$ACTION_ID`); Formulare mit
   `useActionState` tragen stattdessen `$ACTION_REF_…` (`readForm` akzeptiert beide).
+  Formulare, die erst im Browser entstehen (z. B. Buchungsformular nach der Tischwahl), mit `captureAction` mitschneiden
+  und mit `replayAction` nachspielen – React benennt die Felder dort `_1_<name>`.
+* E2E-Mails: Test-SMTP aus `tests/e2e/mail-server.ts` (`waitForMail`); Empfänger `@nomail.test` werden abgelehnt,
+  um gescheiterten Versand zu testen.
 * Dateien namens `layout.ts`, `page.ts`, `route.ts`, `error.ts` … sind **überall unter `app/`** Next-Konventionsdateien,
   auch in `app/lib/` – `app/lib/events/layout.ts` brach den Build. Solche Namen dort vermeiden.
 * `TRUST_PROXY_HOPS` messen, nicht raten.
