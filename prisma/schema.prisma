@@ -2,9 +2,10 @@
 // Kein eigener migrations-Ordner - wie im Abstimmungstool und in rsvp-app ausschließlich per
 // `npx prisma db push` synchronisiert (siehe README.md/Dockerfile).
 //
-// Konten-Tabellen 1:1 nach dem Abstimmungstool (Phase 0), Raumplan-Vorlagen (Phase 1). Die
-// übrigen fachlichen Tabellen (Event, Unit, Booking, Allocation, ...) folgen ab Phase 2, siehe
-// docs/KONZEPT.md Abschnitt 3.
+// Konten-Tabellen 1:1 nach dem Abstimmungstool (Phase 0), Raumplan-Vorlagen (Phase 1), Events mit
+// Einheiten und Freigaben sowie der Kern von Buchung/Belegung (Phase 2), siehe docs/KONZEPT.md
+// Abschnitt 3. Felder kommen mit der Phase, die sie nutzt (Verifizierung, Verwaltungslink, ...
+// mit Phase 3) - mit `db push` kostet das Nachziehen nichts.
 
 generator client {
   provider = "prisma-client-js"
@@ -19,7 +20,7 @@ datasource db {
 // ADMIN sieht/verwaltet alle Events, Raumpläne und Konten. CREATOR legt eigene Events und
 // Raumpläne an und teilt sie mit anderen Konten. MODERATOR legt nichts selbst an, sondern
 // bearbeitet ausschließlich ihm freigegebene Events (z.B. das Brautpaar für die eigene
-// Hochzeit). Die Freigabe pro Event (EventAccess, analog PollAccess) kommt mit Phase 2.
+// Hochzeit). Die Freigabe pro Event steht in EventAccess (analog PollAccess).
 enum Role {
   ADMIN
   CREATOR
@@ -49,9 +50,11 @@ model User {
   resetTokenHash      String?   @unique
   resetTokenExpiresAt DateTime?
 
-  sessions   Session[]
-  identities ExternalIdentity[]
-  floorPlans FloorPlan[]
+  sessions     Session[]
+  identities   ExternalIdentity[]
+  floorPlans   FloorPlan[]
+  events       Event[]
+  eventAccess  EventAccess[]
 }
 
 // Server-seitige Session: das Cookie trägt nur den zufälligen Token, in der Datenbank
@@ -95,7 +98,7 @@ model LoginThrottle {
 }
 
 // Wiederverwendbarer Raumplan ("Festsaal", "Hörsaal M001"). Beim Anlegen eines Events wird der
-// Plan kopiert (Phase 2) - spätere Änderungen hier verändern keine laufenden Events.
+// Plan kopiert (Event.layout) - spätere Änderungen hier verändern keine laufenden Events.
 //
 // layout: das geprüfte JSON-Format aus app/lib/floorplan/schema.ts (vor JEDEM Schreiben mit
 // parseLayout geprüft). version: steigt bei jedem Speichern; der Editor schickt die Version mit,
@@ -120,6 +123,170 @@ model FloorPlan {
   backgroundType String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+  events         Event[]
 
   @@index([ownerId])
+}
+
+// Wer bucht was (docs/KONZEPT.md Abschnitt 1). Phase 2 bietet in der Oberfläche nur TABLE + OPEN an;
+// die übrigen Werte stehen schon hier, damit spätere Phasen das Schema nicht umbauen müssen.
+enum EventMode {
+  TABLE
+  SEAT
+  ASSIGNED
+}
+
+enum BookingAccess {
+  OPEN
+  RSVP
+  NONE
+}
+
+// DRAFT und ARCHIVED sind öffentlich nicht sichtbar (404), OPEN und CLOSED schon - CLOSED nur
+// ohne Buchungsmöglichkeit.
+enum EventStatus {
+  DRAFT
+  OPEN
+  CLOSED
+  ARCHIVED
+}
+
+// Eine Veranstaltung unter /<slug>. layout ist eine KOPIE der Vorlage (sourcePlanId nur zur
+// Information, "aus Vorlage X") - geprüft wie FloorPlan.layout, mit layoutVersion als
+// Konfliktschutz beim Speichern. Aus layout abgeleitet steht jede buchbare Einheit zusätzlich in
+// Unit (abgeglichen bei jedem Speichern, siehe app/lib/events/save-layout.ts).
+//
+// Zeiten in UTC; timezone bestimmt Eingabe und Anzeige (vorerst immer Europe/Berlin).
+// minFillRatio: Mindestbelegung eines Tisches (0.5 = 8er-Tisch ab 4 Personen), null = keine.
+// ownerId: wie bei FloorPlan, SetNull nur als Sicherheitsnetz (beim Löschen eines Kontos werden
+// Events umgehängt).
+model Event {
+  id              String        @id @default(cuid())
+  slug            String        @unique
+  title           String
+  description     String        @default("")
+  location        String        @default("")
+  startsAt        DateTime
+  endsAt          DateTime
+  timezone        String        @default("Europe/Berlin")
+  mode            EventMode     @default(TABLE)
+  access          BookingAccess @default(OPEN)
+  status          EventStatus   @default(DRAFT)
+  bookingOpensAt  DateTime?
+  bookingClosesAt DateTime?
+  minFillRatio    Float?
+  layout          Json
+  layoutVersion   Int           @default(1)
+  backgroundFile  String?
+  backgroundType  String?
+  ownerId         String?
+  owner           User?         @relation(fields: [ownerId], references: [id], onDelete: SetNull)
+  sourcePlanId    String?
+  sourcePlan      FloorPlan?    @relation(fields: [sourcePlanId], references: [id], onDelete: SetNull)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  units       Unit[]
+  bookings    Booking[]
+  allocations Allocation[]
+  shares      EventAccess[]
+
+  @@index([ownerId])
+  @@index([endsAt])
+}
+
+// Freigabe eines Events an ein weiteres Konto (analog PollAccess im Abstimmungstool): darf alles
+// außer löschen und weiter freigeben (siehe eventLevel in app/lib/permissions.ts).
+model EventAccess {
+  id        String   @id @default(cuid())
+  eventId   String
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([eventId, userId])
+  @@index([userId])
+}
+
+enum UnitKind {
+  TABLE
+  SEAT
+}
+
+// Buchbare Einheit eines Events, abgeleitet aus Event.layout (app/lib/floorplan/units.ts). key ist
+// stabil und wird nie neu vergeben; Buchungen referenzieren die Einheit, nie das Label.
+// tableKey: Platz gehört zu diesem Tisch (gemischte Belegung verhindern).
+model Unit {
+  id          String       @id @default(cuid())
+  eventId     String
+  event       Event        @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  key         String
+  kind        UnitKind
+  label       String
+  tableKey    String?
+  capacity    Int
+  bookable    Boolean
+  allocations Allocation[]
+
+  @@unique([eventId, key])
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  EXPIRED
+  WAITLISTED
+  OFFERED
+}
+
+enum BookingSource {
+  PUBLIC
+  RSVP
+  ADMIN
+}
+
+// Kern einer Buchung (Phase 2: nur, was Belegungsanzeige und Plan-Prüfung brauchen). Verifizierung,
+// Verwaltungslink, Telefon, Anmerkungen usw. kommen mit Phase 3/4 (docs/KONZEPT.md Abschnitt 3).
+// expiresAt nur bei PENDING/OFFERED: Danach gilt die Buchung schon beim Lesen als verfallen.
+model Booking {
+  id          String        @id @default(cuid())
+  eventId     String
+  event       Event         @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  status      BookingStatus
+  source      BookingSource
+  name        String
+  email       String
+  partySize   Int
+  expiresAt   DateTime?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  cancelledAt DateTime?
+  allocations Allocation[]
+
+  @@index([eventId, status])
+  @@index([eventId, email])
+}
+
+// Belegung einer Einheit durch eine Buchung. DER Unique-Index (eventId, unitId) ist die Garantie
+// gegen Doppelbuchung - nicht eine vorherige Abfrage (docs/KONZEPT.md Abschnitt 5). eventId steht
+// redundant hier, damit der Index pro Event greift.
+//
+// unit: NoAction - eine belegte Einheit lässt sich auch auf Datenbankebene nicht löschen (SQLite
+// prüft NO ACTION erst am Ende der Anweisung, das Löschen eines ganzen Events per Cascade geht
+// also weiterhin). Verfallene Buchungen verlieren ihre Allocations (siehe app/lib/events/save-layout.ts).
+model Allocation {
+  id           String  @id @default(cuid())
+  eventId      String
+  event        Event   @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  unitId       String
+  unit         Unit    @relation(fields: [unitId], references: [id], onDelete: NoAction)
+  bookingId    String
+  booking      Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  attendeeName String?
+
+  @@unique([eventId, unitId])
+  @@index([bookingId])
+  @@index([unitId])
 }

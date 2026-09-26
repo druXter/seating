@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { canCreateEvents, safeEqual } from '../../app/lib/permissions'
+import { canCreateEvents, eventLevel, safeEqual } from '../../app/lib/permissions'
 import type { CurrentUser } from '../../app/lib/auth'
 
 describe('safeEqual', () => {
@@ -17,5 +17,18 @@ describe('canCreateEvents', () => {
     expect(canCreateEvents(user('ADMIN'))).toBe(true)
     expect(canCreateEvents(user('CREATOR'))).toBe(true)
     expect(canCreateEvents(user('MODERATOR'))).toBe(false)
+  })
+})
+
+describe('eventLevel', () => {
+  const user = (role: CurrentUser['role'], id = 'u1'): CurrentUser => ({ id, email: 'a@b.de', name: null, role, hasPassword: true })
+  it('Besitzer*in und Admin sind owner, Freigabe ergibt moderator, sonst nichts', () => {
+    expect(eventLevel(user('CREATOR'), { ownerId: 'u1' }, false)).toBe('owner')
+    expect(eventLevel(user('ADMIN', 'x'), { ownerId: 'u1' }, false)).toBe('owner')
+    expect(eventLevel(user('ADMIN', 'x'), { ownerId: null }, false)).toBe('owner')
+    expect(eventLevel(user('MODERATOR', 'm'), { ownerId: 'u1' }, true)).toBe('moderator')
+    expect(eventLevel(user('CREATOR', 'c'), { ownerId: 'u1' }, true)).toBe('moderator')
+    expect(eventLevel(user('CREATOR', 'c'), { ownerId: 'u1' }, false)).toBeNull()
+    expect(eventLevel(user('MODERATOR', 'm'), { ownerId: null }, false)).toBeNull()
   })
 })

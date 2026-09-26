@@ -1,7 +1,7 @@
 // app/lib/slugs.ts
 
 /**
- * Öffentliche Eventseiten liegen direkt unter /<slug> (Phase 2). Jeder Pfad, den das Tool
+ * Öffentliche Eventseiten liegen direkt unter /<slug> (app/[slug]). Jeder Pfad, den das Tool
  * selbst belegt, muss deshalb als Slug gesperrt sein - sonst könnte ein Event z.B. "admin"
  * heißen und mit dem Admin-Bereich kollidieren (und die Header-Regeln in next.config.ts
  * durcheinanderbringen). tests/unit/slugs.test.ts prüft, dass jedes Routen-Verzeichnis unter
@@ -38,4 +38,25 @@ export function validateSlug(slug: string): string | null {
   }
   if (RESERVED_SLUGS.has(slug)) return 'Diese Adresse ist für das Tool selbst reserviert.'
   return null
+}
+
+const TRANSLITERATION: Record<string, string> = { ä: 'ae', ö: 'oe', ü: 'ue', ß: 'ss' }
+
+/**
+ * Vorschlag für die Adresse aus dem Titel ("Winterball 2026" -> "winterball-2026"). Nur ein
+ * Vorschlag im Formular - geprüft wird immer mit validateSlug. Reservierte Namen bekommen "-event"
+ * angehängt, damit der Vorschlag gleich verwendbar ist.
+ */
+export function suggestSlug(title: string): string {
+  let slug = title
+    .toLowerCase()
+    .replace(/[äöüß]/g, char => TRANSLITERATION[char])
+    .normalize('NFKD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+  if (slug.length > SLUG_MAX_LENGTH) slug = slug.slice(0, SLUG_MAX_LENGTH).replace(/-[^-]*$/, '') || slug.slice(0, SLUG_MAX_LENGTH)
+  slug = slug.replace(/-+$/, '')
+  if (RESERVED_SLUGS.has(slug)) slug = `${slug}-event`
+  return slug.length >= SLUG_MIN_LENGTH ? slug : ''
 }

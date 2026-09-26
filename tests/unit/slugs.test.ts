@@ -1,7 +1,7 @@
 import { existsSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { RESERVED_SLUGS, validateSlug } from '../../app/lib/slugs'
+import { RESERVED_SLUGS, suggestSlug, validateSlug } from '../../app/lib/slugs'
 
 const APP_DIR = join(__dirname, '../../app')
 const PUBLIC_DIR = join(__dirname, '../../public')
@@ -47,6 +47,32 @@ describe('validateSlug', () => {
   it('lehnt reservierte Namen ab', () => {
     for (const slug of ['admin', 'api', 'login', 'verify', 'plans', 'impressum', 'datenschutz', 'reset-password']) {
       expect(validateSlug(slug), slug).toMatch(/reserviert/)
+    }
+  })
+})
+
+describe('suggestSlug', () => {
+  it('macht aus Titeln gültige Adressen', () => {
+    expect(suggestSlug('Winterball 2026')).toBe('winterball-2026')
+    expect(suggestSlug('  Sommerfest – Grüße aus Köln!  ')).toBe('sommerfest-gruesse-aus-koeln')
+    expect(suggestSlug('Straßenfest')).toBe('strassenfest')
+    expect(suggestSlug('Café Crème')).toBe('cafe-creme')
+    expect(suggestSlug('Admin')).toBe('admin-event')
+    expect(suggestSlug('!')).toBe('')
+    expect(suggestSlug('x')).toBe('')
+  })
+
+  it('kürzt lange Titel an einer Wortgrenze', () => {
+    const slug = suggestSlug('Das ist ein sehr langer Titel für ein Event mit ganz vielen Wörtern darin')
+    expect(slug.length).toBeLessThanOrEqual(60)
+    expect(slug.endsWith('-')).toBe(false)
+    expect(validateSlug(slug)).toBeNull()
+  })
+
+  it('jeder nicht leere Vorschlag ist gültig', () => {
+    for (const title of ['Winterball 2026', 'Ümläute & Co.', 'a b', '2026', 'Login', '---Test---']) {
+      const slug = suggestSlug(title)
+      if (slug) expect(validateSlug(slug), title).toBeNull()
     }
   })
 })
