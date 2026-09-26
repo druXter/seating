@@ -2,14 +2,15 @@
 import Link from 'next/link'
 import { getCurrentUser } from '../lib/auth'
 import { logoutUser } from '../auth-actions'
+import LoginLink from './login-link'
 
 /**
  * Konto-Leiste im Seitenkopf. Nur Anzeige: Sie entscheidet nichts über Zugriffe (das
  * tun die Seiten und Server Actions selbst) - ein Layout wird bei der Navigation nicht
  * neu geprüft und darf deshalb keine Schutzfunktion haben.
  *
- * Buchende haben kein Konto. Auf öffentlichen Eventseiten (ab Phase 2) erscheint die
- * Leiste deshalb nur für eingeloggte Veranstalter*innen - siehe dort.
+ * Buchende haben kein Konto. Auf öffentlichen Eventseiten erscheint die Leiste deshalb nur für
+ * eingeloggte Veranstalter*innen (siehe login-link.tsx).
  */
 export default async function AccountNav() {
   const user = await getCurrentUser()
@@ -19,6 +20,7 @@ export default async function AccountNav() {
       {user ? (
         <>
           <Link href="/admin" className="hover:text-gray-900">Verwaltung</Link>
+          <Link href="/admin/events" className="hover:text-gray-900">Events</Link>
           {user.role !== 'MODERATOR' && <Link href="/admin/plans" className="hover:text-gray-900">Raumpläne</Link>}
           {user.role !== 'MODERATOR' && <Link href="/admin/users" className="hover:text-gray-900">Nutzer*innen</Link>}
           <Link href="/account" className="hover:text-gray-900">{user.name || user.email}</Link>
@@ -27,7 +29,7 @@ export default async function AccountNav() {
           </form>
         </>
       ) : (
-        <Link href="/login" className="hover:text-gray-900">Anmelden</Link>
+        <LoginLink />
       )}
     </nav>
   )

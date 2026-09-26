@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { createAccount, createEventRecord, uniqueSlug } from './helpers'
 
 // Prüft die Header-Regeln aus next.config.ts - insbesondere die Reihenfolge (spätere Regel
 // gewinnt): sensible Bereiche müssen ihre strengeren Werte behalten.
@@ -12,13 +13,39 @@ async function headersOf(request: import('@playwright/test').APIRequestContext, 
 }
 
 test('allgemeine Sicherheits-Header auf jeder Seite', async ({ request }) => {
-  for (const path of [...PUBLIC, ...PRIVATE, '/gibt-es-nicht']) {
+  for (const path of [...PUBLIC, ...PRIVATE, '/gibt-es-nicht', '/admin/events', '/b/x/y']) {
     const h = await headersOf(request, path)
     expect(h['x-content-type-options'], path).toBe('nosniff')
     expect(h['strict-transport-security'], path).toBe('max-age=31536000')
     expect(h['permissions-policy'], path).toContain('camera=()')
+  }
+})
+
+test('kein Einbetten außer auf Eventseiten - auch nicht für einteilige Seiten des Tools', async ({ request }) => {
+  for (const path of [...PUBLIC, ...PRIVATE, '/admin/events', '/admin/events/new', '/b/x/y', '/api/cron/cleanup']) {
+    const h = await headersOf(request, path)
     expect(h['content-security-policy'], path).toContain("frame-ancestors 'none'")
     expect(h['x-frame-options'], path).toBe('DENY')
+  }
+})
+
+test('öffentliche Eventseiten sind einbettbar (wie in rsvp-app), aber nicht indexiert', async ({ request }) => {
+  const owner = await createAccount('CREATOR')
+  const event = await createEventRecord(owner.id, { slug: uniqueSlug('einbettbar'), status: 'OPEN' })
+  const response = await request.get(`/${event.slug}`)
+  expect(response.status()).toBe(200)
+  const h = response.headers()
+  expect(h['content-security-policy']).toBe('frame-ancestors *')
+  // X-Frame-Options kennt kein "erlaubt" - er darf hier gar nicht erst gesetzt sein.
+  expect(h['x-frame-options']).toBeUndefined()
+  expect(h['x-content-type-options']).toBe('nosniff')
+  expect(await response.text()).toContain('<meta name="robots" content="noindex, nofollow"/>')
+})
+
+test('Hintergrundbilder: Sandbox-CSP auf allen drei Pfaden', async ({ request }) => {
+  for (const path of ['/admin/plans/x/background', '/admin/events/x/background', `/${uniqueSlug()}/background`]) {
+    const h = await headersOf(request, path)
+    expect(h['content-security-policy'], path).toBe("default-src 'none'; sandbox; frame-ancestors 'none'")
   }
 })
 

@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { APP_NAME } from './lib/app'
 
 /**
- * Startseite. Buchende kommen über den Link zu ihrem Event (/<slug>, ab Phase 2) und sehen
+ * Startseite. Buchende kommen über den Link zu ihrem Event (/<slug>) und sehen
  * diese Seite normalerweise nie - sie verrät deshalb bewusst keine Liste von Events.
  */
 export default function HomePage() {
