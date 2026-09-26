@@ -14,6 +14,9 @@ import { publicState } from '../lib/events/occupancy'
 import { STATUS_LABELS } from '../lib/events/settings'
 import Notice from '../ui/notice'
 import EventPlan, { type PublicTable } from './event-plan'
+import SeatBooking from './seat-booking'
+import { seatPickerData } from '../lib/events/places'
+import { largestTogether } from '../lib/events/seat-rules'
 
 export const dynamic = 'force-dynamic'
 
@@ -47,12 +50,13 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 
 /** Hinweis über dem Plan: ob und wie gebucht werden kann. */
 function bookingState(event: Parameters<typeof bookingWindow>[0] & { selfEditHoursBefore: number }, now: Date): { open: boolean; message: string } {
+  const what = event.mode === 'SEAT' ? 'Wähle freie Plätze und reserviere sie' : 'Wähle einen freien Tisch und reserviere ihn'
   const window = bookingWindow(event, now)
   if (!window.open) return { open: false, message: window.message }
   if (!bookingAvailable()) return { open: false, message: 'Die Online-Buchung ist gerade nicht möglich. Bitte versuche es später noch einmal.' }
   return {
     open: true,
-    message: `Wähle einen freien Tisch und reserviere ihn. Nach der Bestätigung per Mail kannst du deine Buchung bis ${formatDateTime(selfEditDeadline(event), event.timezone)} selbst ändern oder stornieren.`
+    message: `${what}. Nach der Bestätigung per Mail kannst du deine Buchung bis ${formatDateTime(selfEditDeadline(event), event.timezone)} selbst ändern oder stornieren.`
   }
 }
 
@@ -70,6 +74,8 @@ export default async function EventPublicPage({ params }: { params: Promise<{ sl
     .filter(unit => unit.kind === 'SEAT' && unit.tableKey !== null)
     .map(unit => ({ key: unit.key, tableKey: unit.tableKey as string }))
   const booking = bookingState(event, now)
+  // Modus SEAT: Plätze statt Tische (nur Schlüssel, Beschriftung, Zustand - keine Angaben zu Buchungen).
+  const seatData = event.mode === 'SEAT' ? await seatPickerData(event, now) : null
   const backgroundUrl = event.backgroundFile ? `/${event.slug}/background?v=${event.backgroundFile.slice(0, 8)}` : null
 
   return (
@@ -92,6 +98,18 @@ export default async function EventPublicPage({ params }: { params: Promise<{ sl
         <Notice tone="info">{booking.message}</Notice>
 
         <div className="bg-white p-4 sm:p-6 rounded-lg shadow">
+          {seatData ? (
+            <SeatBooking
+              layout={event.layout}
+              backgroundUrl={backgroundUrl}
+              title={`Raumplan ${event.title}`}
+              seats={seatData.seats}
+              groups={seatData.groups}
+              maxSeats={event.maxSeatsPerBooking}
+              largestGroup={largestTogether(seatData.groups, new Set(seatData.seats.filter(s => s.state !== 'unavailable').map(s => s.key)))}
+              booking={{ eventId: event.id, open: booking.open, requirePhone: event.requirePhone, waitlist: event.waitlistEnabled }}
+            />
+          ) : (
           <EventPlan
             layout={event.layout}
             backgroundUrl={backgroundUrl}
@@ -101,6 +119,7 @@ export default async function EventPublicPage({ params }: { params: Promise<{ sl
             title={`Raumplan ${event.title}`}
             booking={{ eventId: event.id, open: booking.open, requirePhone: event.requirePhone, waitlist: event.waitlistEnabled }}
           />
+          )}
         </div>
       </div>
     </main>

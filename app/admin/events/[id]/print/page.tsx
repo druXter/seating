@@ -4,15 +4,16 @@ import { prisma } from '../../../../lib/prisma'
 import { requireUser } from '../../../../lib/auth'
 import { loadEventOr404 } from '../../../../lib/events/store'
 import { activeWhere } from '../../../../lib/events/booking-tx'
-import { byLabel, effectiveStatus } from '../../../../lib/events/admin-rules'
+import { effectiveStatus } from '../../../../lib/events/admin-rules'
+import { describePlaces } from '../../../../lib/events/places'
 import { formatRange } from '../../../../lib/timezone'
 import PrintButton from '../../../../ui/print-button'
 
 export const dynamic = 'force-dynamic'
 
 /**
- * Druckansicht (docs/KONZEPT.md Abschnitt 8): Tischliste für Einlass und Deko, mit ?view=cards
- * Tischkarten (eine pro belegtem Tisch, Umbruch nie mitten in einer Karte). Nur aktive Buchungen;
+ * Druckansicht (docs/KONZEPT.md Abschnitt 8): Tisch- bzw. Platzliste für Einlass und Deko, mit ?view=cards
+ * Tisch- bzw. Platzkarten (eine pro Buchung, Umbruch nie mitten in einer Karte). Nur aktive Buchungen;
  * unbestätigte sind markiert.
  */
 export default async function PrintPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ view?: string }> }) {
@@ -22,12 +23,19 @@ export default async function PrintPage({ params, searchParams }: { params: Prom
   const cards = (await searchParams).view === 'cards'
   const now = new Date()
 
-  const allocations = await prisma.allocation.findMany({
-    where: { eventId: event.id, booking: activeWhere(now) },
-    select: { unit: { select: { label: true } }, booking: { select: { id: true, name: true, partySize: true, note: true, status: true, expiresAt: true } } }
+  // Eine Zeile bzw. Karte pro Buchung - im Modus SEAT mit ihren Plätzen zusammengefasst.
+  const bookings = await prisma.booking.findMany({
+    where: { eventId: event.id, ...activeWhere(now), allocations: { some: {} } },
+    select: {
+      id: true, name: true, partySize: true, note: true, status: true, expiresAt: true,
+      allocations: { select: { unit: { select: { label: true, kind: true } } }, orderBy: { unit: { key: 'asc' } } }
+    }
   })
-  const rows = allocations.map(a => ({ label: a.unit.label, ...a.booking, open: effectiveStatus(a.booking, now) })).sort(byLabel)
+  const rows = bookings
+    .map(b => ({ ...b, label: describePlaces(b.allocations.map(a => a.unit)), sortKey: b.allocations[0]?.unit.label ?? '', open: effectiveStatus(b, now) }))
+    .sort((a, b) => a.sortKey.localeCompare(b.sortKey, 'de', { numeric: true }))
   const guests = rows.reduce((sum, r) => sum + r.partySize, 0)
+  const seatMode = event.mode === 'SEAT'
 
   return (
     <main className="bg-white py-6 px-4 print:p-0">
@@ -36,8 +44,8 @@ export default async function PrintPage({ params, searchParams }: { params: Prom
           <p className="text-sm space-x-4">
             <Link href={`/admin/events/${event.id}/bookings`} className="text-blue-700 hover:underline">Zurück zu den Buchungen</Link>
             {cards
-              ? <Link href={`/admin/events/${event.id}/print`} className="text-blue-700 hover:underline">Tischliste</Link>
-              : <Link href={`/admin/events/${event.id}/print?view=cards`} className="text-blue-700 hover:underline">Tischkarten</Link>}
+              ? <Link href={`/admin/events/${event.id}/print`} className="text-blue-700 hover:underline">{seatMode ? 'Platzliste' : 'Tischliste'}</Link>
+              : <Link href={`/admin/events/${event.id}/print?view=cards`} className="text-blue-700 hover:underline">{seatMode ? 'Platzkarten' : 'Tischkarten'}</Link>}
           </p>
           <PrintButton />
         </div>
@@ -47,23 +55,23 @@ export default async function PrintPage({ params, searchParams }: { params: Prom
             {rows.map(row => (
               <div key={row.id} className="border-2 border-gray-800 rounded p-6 text-center break-inside-avoid" data-testid="table-card">
                 <p className="text-sm text-gray-600">{event.title}</p>
-                <p className="text-3xl font-bold my-3">{row.label}</p>
+                <p className={`${seatMode ? 'text-xl' : 'text-3xl'} font-bold my-3`}>{row.label}</p>
                 <p className="text-xl">{row.name}</p>
                 <p className="text-sm text-gray-600">{row.partySize} {row.partySize === 1 ? 'Person' : 'Personen'}</p>
               </div>
             ))}
-            {rows.length === 0 && <p className="text-sm text-gray-600">Keine belegten Tische.</p>}
+            {rows.length === 0 && <p className="text-sm text-gray-600">Keine Buchungen.</p>}
           </div>
         ) : (
           <>
             <div>
-              <h1 className="text-2xl font-bold">{event.title} – Tischliste</h1>
-              <p className="text-sm text-gray-600">{formatRange(event.startsAt, event.endsAt, event.timezone)}{event.location && ` · ${event.location}`} · {rows.length} Tische, {guests} Personen</p>
+              <h1 className="text-2xl font-bold">{event.title} – {seatMode ? 'Platzliste' : 'Tischliste'}</h1>
+              <p className="text-sm text-gray-600">{formatRange(event.startsAt, event.endsAt, event.timezone)}{event.location && ` · ${event.location}`} · {seatMode ? `${rows.length} Buchungen` : `${rows.length} Tische`}, {guests} Personen</p>
             </div>
             <table className="w-full text-sm border-collapse">
               <thead>
                 <tr className="text-left border-b-2 border-gray-800">
-                  <th scope="col" className="py-1 pr-3">Tisch</th>
+                  <th scope="col" className="py-1 pr-3">{seatMode ? 'Plätze' : 'Tisch'}</th>
                   <th scope="col" className="py-1 pr-3">Name</th>
                   <th scope="col" className="py-1 pr-3">Personen</th>
                   <th scope="col" className="py-1 pr-3">Anmerkung</th>

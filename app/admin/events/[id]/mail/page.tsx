@@ -63,7 +63,7 @@ export default async function MailPage({ params, searchParams }: { params: Promi
         <div className="bg-white rounded-lg shadow p-4">
           <BroadcastForm
             eventId={event.id}
-            event={{ title: event.title, location: event.location, startsAt: event.startsAt, endsAt: event.endsAt, timezone: event.timezone }}
+            event={{ title: event.title, location: event.location, startsAt: event.startsAt, endsAt: event.endsAt, timezone: event.timezone, mode: event.mode }}
             recipients={recipients}
             tables={tables}
           />

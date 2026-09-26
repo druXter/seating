@@ -5,6 +5,9 @@ import { useActionState } from 'react'
 import { cancelBookingAction, changeBookingAction, type ManageState } from '../../../b/actions'
 import { BOOKING_LIMITS } from '../../../lib/events/booking-rules'
 import SubmitButton from '../../../ui/submit-button'
+import SeatPicker, { type PickerSeat } from '../../../ui/plan/seat-picker'
+import type { Layout } from '../../../lib/floorplan/schema'
+import type { SeatGroup } from '../../../lib/events/seat-rules'
 import Notice from '../../../ui/notice'
 
 function Errors({ state }: { state: ManageState }) {
@@ -18,6 +21,8 @@ const labelClass = 'block text-sm font-medium mb-1'
 export type ManageValues = {
   bookingId: string; token: string; name: string; phone: string; note: string; partySize: number; unitKey: string; requirePhone: boolean
   tables: { key: string; label: string; capacity: number }[]
+  /** Modus SEAT: Platzwahl statt Tisch und Personenzahl. */
+  seats?: { layout: Layout; backgroundUrl: string | null; seats: PickerSeat[]; groups: SeatGroup[]; initial: string[]; max: number }
 }
 
 export function ChangeForm({ values }: { values: ManageValues }) {
@@ -27,6 +32,13 @@ export function ChangeForm({ values }: { values: ManageValues }) {
       <input type="hidden" name="bookingId" value={values.bookingId} />
       <input type="hidden" name="token" value={values.token} />
       <Errors state={state} />
+      {values.seats && (
+        <SeatPicker
+          key={values.seats.initial.join(',')}
+          layout={values.seats.layout} backgroundUrl={values.seats.backgroundUrl} title="Plan mit deinen Plätzen" seats={values.seats.seats}
+          groups={values.seats.groups} initial={values.seats.initial} max={values.seats.max}
+        />
+      )}
       <div className="grid gap-3 sm:grid-cols-2">
         <div>
           <label htmlFor="manage-name" className={labelClass}>Name</label>
@@ -36,27 +48,33 @@ export function ChangeForm({ values }: { values: ManageValues }) {
           <label htmlFor="manage-phone" className={labelClass}>Telefon{values.requirePhone ? '' : ' (optional)'}</label>
           <input id="manage-phone" name="phone" type="tel" required={values.requirePhone} maxLength={BOOKING_LIMITS.phone} defaultValue={values.phone} className={input} />
         </div>
-        <div>
-          <label htmlFor="manage-party" className={labelClass}>Personen</label>
-          <input id="manage-party" name="partySize" type="number" inputMode="numeric" required min={1} defaultValue={values.partySize} className={input} />
-        </div>
-        <div>
-          <label htmlFor="manage-table" className={labelClass}>Tisch</label>
-          <select id="manage-table" name="unitKey" defaultValue={values.unitKey} className={input}>
-            {values.tables.map(table => (
-              <option key={table.key} value={table.key}>
-                {table.label} ({table.capacity} Plätze){table.key === values.unitKey ? ' – aktuell' : ''}
-              </option>
-            ))}
-          </select>
-        </div>
+        {!values.seats && (
+          <>
+            <div>
+              <label htmlFor="manage-party" className={labelClass}>Personen</label>
+              <input id="manage-party" name="partySize" type="number" inputMode="numeric" required min={1} defaultValue={values.partySize} className={input} />
+            </div>
+            <div>
+              <label htmlFor="manage-table" className={labelClass}>Tisch</label>
+              <select id="manage-table" name="unitKey" defaultValue={values.unitKey} className={input}>
+                {values.tables.map(table => (
+                  <option key={table.key} value={table.key}>
+                    {table.label} ({table.capacity} Plätze){table.key === values.unitKey ? ' – aktuell' : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </>
+        )}
       </div>
       <div>
         <label htmlFor="manage-note" className={labelClass}>Anmerkung (optional)</label>
         <textarea id="manage-note" name="note" maxLength={BOOKING_LIMITS.note} rows={2} defaultValue={values.note} className={input} />
       </div>
       <SubmitButton disabled={pending}>Änderungen speichern</SubmitButton>
-      <p className="text-xs text-gray-600">Zur Auswahl stehen dein Tisch und alle gerade freien Tische. Die E-Mail-Adresse lässt sich nicht ändern.</p>
+      <p className="text-xs text-gray-600">
+        {values.seats ? 'Zur Auswahl stehen deine Plätze und alle gerade freien.' : 'Zur Auswahl stehen dein Tisch und alle gerade freien Tische.'} Die E-Mail-Adresse lässt sich nicht ändern.
+      </p>
     </form>
   )
 }

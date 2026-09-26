@@ -53,7 +53,8 @@ export function renderText(blocks: Block[]): string {
   return `Hallo,\n\n${renderBlocksText(blocks)}\n\n-- \n${APP_NAME}`
 }
 
-export type DetailsEvent = { title: string; location: string; startsAt: Date; endsAt: Date; timezone: string }
+/** mode: Modus SEAT nennt die Plätze statt eines Tisches. */
+export type DetailsEvent = { title: string; location: string; startsAt: Date; endsAt: Date; timezone: string; mode?: string }
 export type DetailsBooking = { name: string; partySize: number }
 
 export function detailRows(event: DetailsEvent, booking: DetailsBooking, tableLabel: string): Block {
@@ -63,7 +64,7 @@ export function detailRows(event: DetailsEvent, booking: DetailsBooking, tableLa
       ['Veranstaltung', event.title],
       ['Wann', formatRange(event.startsAt, event.endsAt, event.timezone)],
       ...(event.location ? [['Wo', event.location] as [string, string]] : []),
-      ['Tisch', tableLabel],
+      [event.mode === 'SEAT' ? 'Plätze' : 'Tisch', tableLabel],
       ['Personen', String(booking.partySize)],
       ['Name', booking.name]
     ]

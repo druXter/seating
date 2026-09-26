@@ -1,5 +1,6 @@
 // app/lib/events/admin-rules.ts
-import type { BookingSource, BookingStatus } from '@prisma/client'
+import type { BookingSource, BookingStatus, EventMode } from '@prisma/client'
+import { formSeatKeys } from './seat-rules'
 import { formString, normalizeEmail } from '../form'
 import { holdsUnits } from './occupancy'
 import { parseContact, parsePartySize, type ContactFields } from './booking-rules'
@@ -94,17 +95,27 @@ function parseUnitKey(formData: FormData, errors: string[]): string {
   return unitKey
 }
 
-export type AdminChangeInput = ContactFields & { partySize: number; unitKey: string }
+/** unitKeys: im Modus TABLE genau ein Tisch, im Modus SEAT die gewählten Plätze. */
+export type AdminChangeInput = ContactFields & { partySize: number; unitKeys: string[] }
 
-/** Ändern-Formular: Kontakt (Telefon nie Pflicht - das entscheiden Veranstalter*innen), Personen, Tisch. */
-export function parseAdminChange(formData: FormData): { ok: true; input: AdminChangeInput } | { ok: false; errors: string[] } {
+/**
+ * Ändern-Formular: Kontakt (Telefon nie Pflicht - das entscheiden Veranstalter*innen), dazu TABLE
+ * Personen und Tisch, SEAT die Plätze (Personenzahl = Zahl der Plätze).
+ */
+export function parseAdminChange(formData: FormData, mode: EventMode = 'TABLE'): { ok: true; input: AdminChangeInput } | { ok: false; errors: string[] } {
   const errors: string[] = []
   const contact = parseContact(formData, false, errors)
+  if (mode === 'SEAT') {
+    const unitKeys = formSeatKeys(formData)
+    if (unitKeys.length === 0) errors.push('Bitte wähle mindestens einen Platz.')
+    if (errors.length > 0) return { ok: false, errors }
+    return { ok: true, input: { ...contact, partySize: unitKeys.length, unitKeys } }
+  }
   const partySize = parsePartySize(formString(formData, 'partySize', 5))
   if (partySize === null) errors.push('Bitte gib die Personenzahl an.')
   const unitKey = parseUnitKey(formData, errors)
   if (errors.length > 0 || partySize === null) return { ok: false, errors }
-  return { ok: true, input: { ...contact, partySize, unitKey } }
+  return { ok: true, input: { ...contact, partySize, unitKeys: [unitKey] } }
 }
 
 export type AdminCreateInput = AdminChangeInput & { email: string | null; confirm: 'direct' | 'verify'; notify: boolean; adminNote: string | null }
@@ -113,8 +124,8 @@ export type AdminCreateInput = AdminChangeInput & { email: string | null; confir
  * Buchung anlegen (z.B. telefonische Reservierung). E-Mail optional - ohne Adresse ist die Buchung
  * direkt bestätigt und bekommt keine Mails. "verify": Bestätigung per Mail wie bei einer Online-Buchung.
  */
-export function parseAdminCreate(formData: FormData): { ok: true; input: AdminCreateInput } | { ok: false; errors: string[] } {
-  const base = parseAdminChange(formData)
+export function parseAdminCreate(formData: FormData, mode: EventMode = 'TABLE'): { ok: true; input: AdminCreateInput } | { ok: false; errors: string[] } {
+  const base = parseAdminChange(formData, mode)
   const errors = base.ok ? [] : [...base.errors]
   const emailInput = formString(formData, 'email', 254)
   const email = emailInput ? normalizeEmail(emailInput) : null

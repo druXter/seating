@@ -9,7 +9,7 @@ import { bookingSecretsConfigured } from '../lib/booking-tokens'
 import { bookingAvailable, manageUrl } from '../lib/booking-mail'
 import { formatDeadline } from '../lib/timezone'
 import { bookingWindow, parseReservation, parseWaitlistEntry } from '../lib/events/booking-rules'
-import { confirmByCode, reserveTable, resendVerification } from '../lib/events/booking'
+import { confirmByCode, reservePlaces, resendVerification } from '../lib/events/booking'
 import { joinWaitlist, offerAfterResponse } from '../lib/events/waitlist'
 
 /**
@@ -20,7 +20,7 @@ import { joinWaitlist, offerAfterResponse } from '../lib/events/waitlist'
 
 export type ReserveState =
   | { step: 'form'; errors: string[] }
-  | { step: 'pending'; bookingId: string; tableLabel: string; expiresAtText: string; email: string }
+  | { step: 'pending'; bookingId: string; placeLabel: string; expiresAtText: string; email: string }
   | null
 
 export type WaitlistState =
@@ -51,22 +51,22 @@ export async function reserveAction(_previous: ReserveState, formData: FormData)
   const { event, message } = await bookableEvent(formString(formData, 'eventId', 50))
   if (!event) return { step: 'form', errors: [message ?? 'Buchung nicht möglich.'] }
 
-  const parsed = parseReservation(formData, event.requirePhone)
+  const parsed = parseReservation(formData, event.requirePhone, event.mode)
   if (!parsed.ok) return { step: 'form', errors: parsed.errors }
 
   const ip = await clientIp()
   if (!(await reserve(reserveRules(ip, parsed.input.email)))) return { step: 'form', errors: [BUSY] }
 
-  const result = await reserveTable(event, parsed.input, ip)
+  const result = await reservePlaces(event, parsed.input, ip)
   revalidatePath(`/${event.slug}`)
   switch (result.kind) {
     case 'reserved':
       return {
-        step: 'pending', bookingId: result.bookingId, tableLabel: result.tableLabel, email: result.email,
+        step: 'pending', bookingId: result.bookingId, placeLabel: result.placeLabel, email: result.email,
         expiresAtText: formatDeadline(result.expiresAt, event.timezone)
       }
     case 'taken':
-      return { step: 'form', errors: ['Dieser Tisch wurde gerade vergeben. Bitte wähle einen anderen – der Plan ist aktualisiert.'] }
+      return { step: 'form', errors: [event.mode === 'SEAT' ? 'Mindestens einer der Plätze wurde gerade vergeben. Bitte wähle neu – der Plan ist aktualisiert.' : 'Dieser Tisch wurde gerade vergeben. Bitte wähle einen anderen – der Plan ist aktualisiert.'] }
     case 'unfit':
       return { step: 'form', errors: [result.message] }
     case 'limit':

@@ -21,7 +21,8 @@ describe('bookingWindow', () => {
     expect(bookingWindow({ ...event, bookingClosesAt: at('2026-11-30T00:00:00Z') }, now).open).toBe(false)
     expect(bookingWindow({ ...event, status: 'CLOSED' }, now).open).toBe(false)
     expect(bookingWindow({ ...event, status: 'DRAFT' }, now).open).toBe(false)
-    expect(bookingWindow({ ...event, mode: 'SEAT' }, now).open).toBe(false)
+    expect(bookingWindow({ ...event, mode: 'SEAT' }, now).open).toBe(true)
+    expect(bookingWindow({ ...event, mode: 'ASSIGNED' }, now).open).toBe(false)
     expect(bookingWindow({ ...event, access: 'RSVP' }, now).open).toBe(false)
     expect(bookingWindow(event, at('2026-12-13T00:00:00Z'))).toEqual({ open: false, message: 'Diese Veranstaltung hat bereits stattgefunden.' })
   })
@@ -47,7 +48,7 @@ const valid = { name: '  Erika  Muster ', email: 'Erika@Example.DE', partySize: 
 describe('parseReservation', () => {
   it('übernimmt und normalisiert gültige Angaben', () => {
     const result = parseReservation(form(valid), false)
-    expect(result).toEqual({ ok: true, input: { name: 'Erika Muster', email: 'erika@example.de', partySize: 4, unitKey: 't12', phone: null, note: 'Rollstuhl\nPlatz' } })
+    expect(result).toEqual({ ok: true, input: { name: 'Erika Muster', email: 'erika@example.de', partySize: 4, unitKeys: ['t12'], phone: null, note: 'Rollstuhl\nPlatz' } })
   })
 
   it('verlangt übereinstimmende Personenzahl, Datenschutzhinweis, gültigen Tisch', () => {
@@ -60,5 +61,19 @@ describe('parseReservation', () => {
     expect(parseReservation(form(valid), true).ok).toBe(false)
     expect(parseReservation(form({ ...valid, phone: '+49 (0)261 123-456' }), true).ok).toBe(true)
     expect(parseReservation(form({ ...valid, phone: '<script>' }), false).ok).toBe(false)
+  })
+})
+
+describe('parseReservation im Modus SEAT', () => {
+  it('Plätze statt Tisch, Personenzahl = Zahl der Plätze, keine Kontrollangabe', () => {
+    const data = new FormData()
+    for (const [k, v] of Object.entries({ name: 'Erika', email: 'e@example.de', privacy: 'on' })) data.append(k, v)
+    for (const key of ['blk1-r1-s1', 'blk1-r1-s2', 't3-s4', 's5', 'blk1', 'x; drop']) data.append('unitKey', key)
+    expect(parseReservation(data, false, 'SEAT')).toEqual({
+      ok: true, input: { name: 'Erika', email: 'e@example.de', phone: null, note: null, partySize: 4, unitKeys: ['blk1-r1-s1', 'blk1-r1-s2', 't3-s4', 's5'] }
+    })
+    const none = new FormData()
+    for (const [k, v] of Object.entries({ name: 'Erika', email: 'e@example.de', privacy: 'on', unitKey: 't3' })) none.append(k, v)
+    expect(parseReservation(none, false, 'SEAT')).toEqual({ ok: false, errors: ['Bitte wähle mindestens einen Platz.'] })
   })
 })

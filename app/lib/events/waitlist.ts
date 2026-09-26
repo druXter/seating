@@ -5,11 +5,13 @@ import { prisma } from '../prisma'
 import { newVerifyCode, newVerifyToken } from '../booking-tokens'
 import { bookingAvailable, sendAlreadyBookedMail, sendConfirmedMail, sendWaitlistVerifyMail } from '../booking-mail'
 import { bookingWindow, type WaitlistInput } from './booking-rules'
-import { decoyId, tableOf, type ChangeResult, type ManagedBooking } from './booking'
+import { decoyId, PlacesTaken, type ChangeResult, type ManagedBooking } from './booking'
+import { describePlaces, seatContext, setAllocations } from './places'
+import { largestTogether, suggestSeats } from './seat-rules'
 import { audit, emailBlockingWhere, isUniqueViolation, lockEvent, releaseStaleHolds, tableSeatsTaken } from './booking-tx'
 import { loadUnitStates } from './store'
 import { processMailQueue } from './mail-queue'
-import { WAITLIST_VERIFY_HOURS, offerDeadline, planOffers, waitlistChoice } from './waitlist-rules'
+import { WAITLIST_VERIFY_HOURS, offerDeadline, planOffers, waitlistChoice, type WaitlistChoice } from './waitlist-rules'
 
 /**
  * Warteliste mit Nachrück-Angebot (docs/KONZEPT.md Abschnitt 5):
@@ -49,7 +51,9 @@ export type JoinResult =
  * (Schein-id), und die Adresse bekommt einen Hinweis.
  */
 export async function joinWaitlist(event: Event, input: WaitlistInput, now = new Date()): Promise<JoinResult> {
-  const choice = waitlistChoice(await tablesOf(event.id, now), input.partySize, event.minFillRatio, event.waitlistEnabled)
+  const choice = event.mode === 'SEAT'
+    ? await seatWaitlistChoice(event, input.partySize, now)
+    : waitlistChoice(await tablesOf(event.id, now), input.partySize, event.minFillRatio, event.waitlistEnabled)
   if (choice !== 'waitlist') return { kind: choice }
 
   const expiresAt = new Date(now.getTime() + WAITLIST_VERIFY_HOURS * 60 * 60 * 1000)
@@ -85,6 +89,59 @@ export async function joinWaitlist(event: Event, input: WaitlistInput, now = new
 }
 
 /**
+ * Modus SEAT: "free", wenn gerade N Plätze nebeneinander frei sind; "too-large", wenn mehr als
+ * maxSeatsPerBooking oder nirgends so viele Plätze nebeneinander liegen.
+ */
+async function seatWaitlistChoice(event: Event, partySize: number, now: Date): Promise<WaitlistChoice> {
+  const context = await seatContext(event, now)
+  const free = new Set([...context.states].filter(([, state]) => state === 'free').map(([key]) => key))
+  const bookable = new Set([...context.states].filter(([, state]) => state !== 'unavailable').map(([key]) => key))
+  if (suggestSeats(context.groups, free, partySize)) return 'free'
+  if (partySize > event.maxSeatsPerBooking || largestTogether(context.groups, bookable) < partySize) return 'too-large'
+  return event.waitlistEnabled ? 'waitlist' : 'off'
+}
+
+/**
+ * Modus SEAT: Angebote nur für N Plätze nebeneinander (Konzept Abschnitt 5) - der am längsten wartende
+ * Eintrag zuerst, jeweils der erste Treffer (seat-rules.ts, suggestSeats). Wer nicht zusammensitzen
+ * kann, wartet weiter; Veranstalter*innen können verstreute Plätze direkt zuweisen.
+ */
+async function offerSeats(event: Event, entries: { id: string; partySize: number; waitlistedAt: Date }[], now: Date): Promise<number> {
+  const context = await seatContext(event, now)
+  const free = new Set([...context.states].filter(([, state]) => state === 'free').map(([key]) => key))
+  const expiresAt = offerDeadline(now, event)
+  let made = 0
+  for (const entry of [...entries].sort((a, b) => a.waitlistedAt.getTime() - b.waitlistedAt.getTime())) {
+    const keys = suggestSeats(context.groups, free, entry.partySize)
+    if (!keys) continue
+    const places = keys.map(key => context.units.get(key)!)
+    try {
+      const done = await prisma.$transaction(async tx => {
+        await lockEvent(tx, event.id)
+        const updated = await tx.booking.updateMany({
+          where: { id: entry.id, status: 'WAITLISTED', emailVerifiedAt: { not: null } },
+          data: { status: 'OFFERED', expiresAt }
+        })
+        if (updated.count === 0) return false
+        if (!(await setAllocations(tx, event.id, entry.id, places, now))) throw new PlacesTaken()
+        const booking = await tx.booking.findUniqueOrThrow({ where: { id: entry.id }, select: { email: true } })
+        await audit(tx, { eventId: event.id, bookingId: entry.id, actor: 'system', action: 'offered', diff: { seats: describePlaces(places) } })
+        if (booking.email) await tx.mailLog.create({ data: { eventId: event.id, bookingId: entry.id, type: 'offer', recipient: booking.email, status: 'queued' } })
+        return true
+      })
+      if (done) {
+        made++
+        for (const key of keys) free.delete(key)
+      }
+    } catch (error) {
+      // Gleichzeitig vergeben: dieses Angebot entfällt, der nächste Anstoß holt es nach.
+      if (!isUniqueViolation(error) && !(error instanceof PlacesTaken)) throw error
+    }
+  }
+  return made
+}
+
+/**
  * Freie Tische an wartende Einträge anbieten (Zuteilung: waitlist-rules.ts, planOffers). Jedes Angebot
  * in einer eigenen Transaktion; ist der Tisch inzwischen weg oder der Eintrag nicht mehr auf der
  * Liste, wird es übersprungen - der nächste Anstoß holt es nach. Angebote gibt es nur, solange das
@@ -98,6 +155,7 @@ export async function offerWaitlist(eventId: string, now = new Date()): Promise<
     select: { id: true, partySize: true, waitlistedAt: true }
   })
   if (entries.length === 0) return 0
+  if (event.mode === 'SEAT') return offerSeats(event, entries.map(e => ({ ...e, waitlistedAt: e.waitlistedAt! })), now)
   const free = (await tablesOf(eventId, now)).filter(table => table.bookable && table.free)
   const offers = planOffers(free, entries.map(e => ({ ...e, waitlistedAt: e.waitlistedAt! })), event.minFillRatio)
 
@@ -154,8 +212,8 @@ export async function acceptOffer(managed: ManagedBooking, now = new Date()): Pr
   })
   if (updated.count === 0) return { ok: false, errors: ['Das Angebot ist leider abgelaufen, der Tisch geht an die nächste Gruppe.'] }
   await audit(prisma, { eventId: managed.eventId, bookingId: managed.id, actor: 'customer', action: 'offer-accepted' })
-  const [booking, table] = await Promise.all([prisma.booking.findUniqueOrThrow({ where: { id: managed.id } }), tableOf(managed.id)])
-  await sendConfirmedMail(managed.event, booking, table?.label ?? 'Tisch')
+  const booking = await prisma.booking.findUniqueOrThrow({ where: { id: managed.id } })
+  await sendConfirmedMail(managed.event, booking, managed.placeLabel)
   return { ok: true, changed: true }
 }
 

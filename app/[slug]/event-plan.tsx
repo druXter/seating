@@ -155,7 +155,7 @@ export default function EventPlan({ layout, backgroundUrl, tables, tableSeats, m
         <div ref={panelRef} className="border-2 border-blue-200 rounded-lg p-4 scroll-mt-4">
           {pendingReservation ? (
             <PendingPanel bookingId={pendingReservation.bookingId} resendHint="Die Reservierung verlängert sich dadurch nicht.">
-              <strong>{pendingReservation.tableLabel}</strong> ist bis {pendingReservation.expiresAtText} für dich reserviert. Wir haben eine Mail an{' '}
+              <strong>{pendingReservation.placeLabel}</strong> ist bis {pendingReservation.expiresAtText} für dich reserviert. Wir haben eine Mail an{' '}
               <strong>{pendingReservation.email}</strong> geschickt – bitte bestätige deine Adresse mit dem Link oder dem Code aus der Mail.
               Ohne Bestätigung wird der Tisch danach wieder frei.
             </PendingPanel>

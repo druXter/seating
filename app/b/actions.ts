@@ -6,6 +6,7 @@ import { revalidatePath } from 'next/cache'
 import { formString } from '../lib/form'
 import { bookingSecretsConfigured } from '../lib/booking-tokens'
 import { parseContact, parsePartySize } from '../lib/events/booking-rules'
+import { formSeatKeys } from '../lib/events/seat-rules'
 import { cancelBooking, changeBooking, loadManagedBooking } from '../lib/events/booking'
 import { acceptOffer, declineOffer, leaveWaitlist, offerAfterResponse } from '../lib/events/waitlist'
 
@@ -32,14 +33,18 @@ export async function changeBookingAction(_previous: ManageState, formData: Form
 
   const errors: string[] = []
   const contact = parseContact(formData, booking.event.requirePhone, errors)
-  const partySize = parsePartySize(formString(formData, 'partySize', 5))
-  if (partySize === null) errors.push('Bitte gib an, wie viele Personen ihr seid.')
-  const unitKey = formString(formData, 'unitKey', 40)
+  // Modus SEAT: die gewählten Plätze (Personenzahl = Zahl der Plätze); TABLE: Tisch und Personenzahl.
+  const seatMode = booking.event.mode === 'SEAT'
+  const unitKeys = seatMode ? formSeatKeys(formData) : [formString(formData, 'unitKey', 40)]
+  const partySize = seatMode ? unitKeys.length : parsePartySize(formString(formData, 'partySize', 5))
+  if (seatMode && unitKeys.length === 0) errors.push('Bitte wähle mindestens einen Platz.')
+  if (!seatMode && partySize === null) errors.push('Bitte gib an, wie viele Personen ihr seid.')
   if (errors.length > 0 || partySize === null) return { errors }
 
-  const result = await changeBooking(booking, { ...contact, partySize, unitKey })
+  const result = await changeBooking(booking, { ...contact, partySize, unitKeys })
   if (!result.ok) return { errors: result.errors }
-  if (unitKey !== booking.table?.key) offerAfterResponse(booking.eventId)
+  // Ein Tisch oder Plätze können frei geworden sein.
+  offerAfterResponse(booking.eventId)
   revalidatePath(`/${booking.event.slug}`)
   redirect(`${path}?${result.changed ? 'changed' : 'unchanged'}=1`)
 }

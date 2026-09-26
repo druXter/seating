@@ -2,6 +2,7 @@
 import type { BookingAccess, EventMode, EventStatus } from '@prisma/client'
 import { formString, normalizeEmail } from '../form'
 import { formatDateTime } from '../timezone'
+import { formSeatKeys } from './seat-rules'
 
 /** Reine Regeln für die öffentliche Buchung (docs/KONZEPT.md Abschnitt 4) - ohne Datenbank testbar. */
 
@@ -26,12 +27,12 @@ export type BookingWindow = { open: true } | { open: false; message: string }
 
 /**
  * Ist das Buchen gerade möglich? Selbst buchen lässt sich nur ein veröffentlichtes Event im Modus
- * TABLE mit Zugang OPEN, innerhalb des Buchungszeitraums und vor Beginn.
+ * TABLE oder SEAT mit Zugang OPEN, innerhalb des Buchungszeitraums und vor Beginn.
  */
 export function bookingWindow(event: EventWindow, now: Date): BookingWindow {
   if (event.endsAt <= now) return { open: false, message: 'Diese Veranstaltung hat bereits stattgefunden.' }
   if (event.status !== 'OPEN') return { open: false, message: 'Die Buchung ist geschlossen.' }
-  if (event.mode !== 'TABLE' || event.access !== 'OPEN') return { open: false, message: 'Für diese Veranstaltung ist keine Online-Buchung vorgesehen.' }
+  if ((event.mode !== 'TABLE' && event.mode !== 'SEAT') || event.access !== 'OPEN') return { open: false, message: 'Für diese Veranstaltung ist keine Online-Buchung vorgesehen.' }
   if (event.bookingOpensAt && event.bookingOpensAt > now) {
     return { open: false, message: `Buchen kannst du ab ${formatDateTime(event.bookingOpensAt, event.timezone)}.` }
   }
@@ -75,7 +76,8 @@ export function parsePartySize(value: string): number | null {
   return size >= 1 ? size : null
 }
 
-export type ReservationInput = ContactFields & { email: string; partySize: number; unitKey: string }
+/** unitKeys: im Modus TABLE genau ein Tisch, im Modus SEAT die gewählten Plätze. */
+export type ReservationInput = ContactFields & { email: string; partySize: number; unitKeys: string[] }
 export type WaitlistInput = ContactFields & { email: string; partySize: number }
 
 /**
@@ -98,16 +100,29 @@ function requirePrivacy(formData: FormData, errors: string[]) {
   if (formData.get('privacy') !== 'on') errors.push('Bitte bestätige, dass du den Datenschutzhinweis gelesen hast.')
 }
 
-/** Buchungsformular (Tisch gewählt). */
-export function parseReservation(formData: FormData, requirePhone: boolean): { ok: true; input: ReservationInput } | { ok: false; errors: string[] } {
+/**
+ * Buchungsformular. TABLE: ein Tisch, Personenzahl zweimal. SEAT: die gewählten Plätze (Feld unitKey
+ * mehrfach) - die Personenzahl IST die Zahl der Plätze, eine Kontrollangabe entfällt.
+ */
+export function parseReservation(formData: FormData, requirePhone: boolean, mode: EventMode = 'TABLE'): { ok: true; input: ReservationInput } | { ok: false; errors: string[] } {
   const errors: string[] = []
+  if (mode === 'SEAT') {
+    const contact = parseContact(formData, requirePhone, errors)
+    const email = normalizeEmail(formString(formData, 'email', 254))
+    if (!email) errors.push('Bitte gib eine gültige E-Mail-Adresse an.')
+    const unitKeys = formSeatKeys(formData)
+    if (unitKeys.length === 0) errors.push('Bitte wähle mindestens einen Platz.')
+    requirePrivacy(formData, errors)
+    if (errors.length > 0 || !email) return { ok: false, errors }
+    return { ok: true, input: { ...contact, email, partySize: unitKeys.length, unitKeys } }
+  }
   const person = parsePerson(formData, requirePhone, errors)
   const unitKey = formString(formData, 'unitKey', 40)
   if (!/^t[1-9][0-9]{0,5}$/.test(unitKey)) errors.push('Bitte wähle einen Tisch.')
   requirePrivacy(formData, errors)
 
   if (errors.length > 0 || !person.email || person.partySize === null) return { ok: false, errors }
-  return { ok: true, input: { ...person, email: person.email, partySize: person.partySize, unitKey } }
+  return { ok: true, input: { ...person, email: person.email, partySize: person.partySize, unitKeys: [unitKey] } }
 }
 
 /** Eintrag auf die Warteliste (ohne Tisch). */

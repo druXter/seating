@@ -35,7 +35,7 @@ describe('parseEventForm', () => {
   })
 
   it('lehnt noch nicht verfügbare Modi und unbekannte Status ab', () => {
-    const extras: Record<string, string>[] = [{ mode: 'SEAT' }, { mode: 'ASSIGNED' }, { mode: 'X' }, { status: 'DELETED' }]
+    const extras: Record<string, string>[] = [{ mode: 'ASSIGNED' }, { mode: 'X' }, { status: 'DELETED' }]
     for (const extra of extras) {
       expect(parseEventForm(form({ ...valid, ...extra })).ok, JSON.stringify(extra)).toBe(false)
     }
@@ -58,7 +58,7 @@ describe('parseEventForm', () => {
 })
 
 describe('Buchungs-Einstellungen', () => {
-  const settings = { pendingTtlMinutes: '45', selfEditHoursBefore: '0', oneBookingPerEmail: 'on', replyTo: ' Info@Verein.DE ', mailNote: 'Einlass 18:30', offerTtlHours: '12' }
+  const settings = { pendingTtlMinutes: '45', selfEditHoursBefore: '0', oneBookingPerEmail: 'on', replyTo: ' Info@Verein.DE ', mailNote: 'Einlass 18:30', offerTtlHours: '12', maxSeatsPerBooking: '6' }
 
   it('nur im Einstellungsformular - beim Anlegen null', () => {
     const created = parseEventForm(form(valid))
@@ -66,14 +66,14 @@ describe('Buchungs-Einstellungen', () => {
     const result = parseEventForm(form({ ...valid, ...settings }))
     expect(result.ok && result.booking).toEqual({
       pendingTtlMinutes: 45, selfEditHoursBefore: 0, oneBookingPerEmail: true, requirePhone: false, replyTo: 'info@verein.de', mailNote: 'Einlass 18:30',
-      waitlistEnabled: false, offerTtlHours: 12
+      waitlistEnabled: false, offerTtlHours: 12, maxSeatsPerBooking: 6
     })
     const withWaitlist = parseEventForm(form({ ...valid, ...settings, waitlistEnabled: 'on' }))
     expect(withWaitlist.ok && withWaitlist.booking && withWaitlist.booking.waitlistEnabled).toBe(true)
   })
 
   it('lehnt Werte außerhalb der Grenzen und ungültige Antwortadressen ab', () => {
-    for (const patch of [{ pendingTtlMinutes: '4' }, { pendingTtlMinutes: '1441' }, { selfEditHoursBefore: '-1' }, { selfEditHoursBefore: '337' }, { replyTo: 'keine-adresse' }, { offerTtlHours: '0' }, { offerTtlHours: '169' }]) {
+    for (const patch of [{ pendingTtlMinutes: '4' }, { pendingTtlMinutes: '1441' }, { selfEditHoursBefore: '-1' }, { selfEditHoursBefore: '337' }, { replyTo: 'keine-adresse' }, { offerTtlHours: '0' }, { offerTtlHours: '169' }, { maxSeatsPerBooking: '0' }, { maxSeatsPerBooking: '51' }]) {
       expect(parseEventForm(form({ ...valid, ...settings, ...patch })).ok, JSON.stringify(patch)).toBe(false)
     }
   })

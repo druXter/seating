@@ -13,6 +13,7 @@ import {
   adminAssignWaitlist, adminCancelBooking, adminChangeBooking, adminConfirmBooking, adminCorrectEmail, adminCreateBooking, adminDeleteBooking,
   adminRenewManageLink, adminResendVerification, adminSetNote, loadAdminBooking, type AdminResult
 } from '../../lib/events/admin-booking'
+import { formSeatKeys } from '../../lib/events/seat-rules'
 import { formFlag, parseAdminChange, parseAdminCreate, parseAdminNote, parseRecipientFilter, parseUpdatedAt } from '../../lib/events/admin-rules'
 import { queueBroadcast } from '../../lib/events/broadcast'
 import { processMailQueue } from '../../lib/events/mail-queue'
@@ -53,7 +54,7 @@ async function finish(event: { id: string; slug: string }, path: string, result:
 export async function changeBookingAdmin(_previous: BookingFormState, formData: FormData): Promise<BookingFormState> {
   const { user, event, booking, path } = await bookingContext(formData)
   if (!booking || !path) return { errors: [NOT_FOUND] }
-  const parsed = parseAdminChange(formData)
+  const parsed = parseAdminChange(formData, event.mode)
   if (!parsed.ok) return { errors: parsed.errors }
   const expected = parseUpdatedAt(formString(formData, 'updatedAt', 40))
   if (!expected) return { errors: ['Die Seite ist veraltet. Bitte lade sie neu.'] }
@@ -127,14 +128,16 @@ export async function renewManageLinkAdmin(_previous: BookingFormState, formData
 export async function assignWaitlistAdmin(_previous: BookingFormState, formData: FormData): Promise<BookingFormState> {
   const { user, event, booking, path } = await bookingContext(formData)
   if (!booking || !path) return { errors: [NOT_FOUND] }
-  const result = await adminAssignWaitlist(event, booking, formString(formData, 'unitKey', 40), formFlag(formData, 'notify'), user.id)
+  // Modus SEAT: Plätze (mehrfach), TABLE: ein Tisch.
+  const unitKeys = event.mode === 'SEAT' ? formSeatKeys(formData) : [formString(formData, 'unitKey', 40)]
+  const result = await adminAssignWaitlist(event, booking, unitKeys, formFlag(formData, 'notify'), user.id)
   if (!result.ok) return { errors: result.errors }
   return finish(event, path, result, 'assigned')
 }
 
 export async function createBookingAdmin(_previous: BookingFormState, formData: FormData): Promise<BookingFormState> {
   const { user, event } = await eventContext(formData)
-  const parsed = parseAdminCreate(formData)
+  const parsed = parseAdminCreate(formData, event.mode)
   if (!parsed.ok) return { errors: parsed.errors }
   const result = await adminCreateBooking(event, parsed.input, user.id)
   if (!result.ok || !result.bookingId) return { errors: result.ok ? [NOT_FOUND] : result.errors }

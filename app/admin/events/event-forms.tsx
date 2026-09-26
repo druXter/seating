@@ -8,6 +8,7 @@ import { suggestSlug, SLUG_MAX_LENGTH } from '../../lib/slugs'
 import { AVAILABLE_MODES, EVENT_LIMITS, MODE_LABELS, STATUS_HINTS, STATUS_LABELS } from '../../lib/events/settings'
 import { PENDING_TTL_RANGE, SELF_EDIT_HOURS_MAX } from '../../lib/events/booking-rules'
 import { OFFER_TTL_RANGE } from '../../lib/events/waitlist-rules'
+import { MAX_SEATS_RANGE } from '../../lib/events/seat-rules'
 import SubmitButton from '../../ui/submit-button'
 import Notice from '../../ui/notice'
 
@@ -43,6 +44,7 @@ export type EventFormValues = {
   requirePhone: boolean
   waitlistEnabled: boolean
   offerTtlHours: number
+  maxSeatsPerBooking: number
   replyTo: string
   mailNote: string
 }
@@ -214,6 +216,10 @@ export function EventSettingsForm({ eventId, values, baseUrl }: { eventId: strin
           <input type="checkbox" name="requirePhone" defaultChecked={values.requirePhone} className="mt-1" />
           <span>Telefonnummer verpflichtend</span>
         </label>
+        <div>
+          <label htmlFor="event-maxseats" className={labelClass}>Plätze pro Buchung höchstens (nur bei Einzelplätzen)</label>
+          <input id="event-maxseats" name="maxSeatsPerBooking" type="number" required min={MAX_SEATS_RANGE.min} max={MAX_SEATS_RANGE.max} defaultValue={values.maxSeatsPerBooking} className={input} />
+        </div>
         <label className="flex items-start gap-2 text-sm">
           <input type="checkbox" name="waitlistEnabled" defaultChecked={values.waitlistEnabled} className="mt-1" />
           <span>

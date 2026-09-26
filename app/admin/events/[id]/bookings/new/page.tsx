@@ -9,6 +9,8 @@ import { createBookingAdmin } from '../../../booking-actions'
 import ActionForm from '../../../../../ui/action-form'
 import Notice from '../../../../../ui/notice'
 import SubmitButton from '../../../../../ui/submit-button'
+import SeatPicker from '../../../../../ui/plan/seat-picker'
+import { seatPickerData } from '../../../../../lib/events/places'
 
 export const dynamic = 'force-dynamic'
 
@@ -25,8 +27,15 @@ export default async function NewBookingPage({ params, searchParams }: { params:
   const user = await requireUser(`/admin/events/${id}/bookings/new`)
   const event = await loadEventOr404(id, user)
   const { table } = await searchParams
-  const tables = await tableChoices(event.id, null)
+  const seatMode = event.mode === 'SEAT'
+  const [tables, seatData] = await Promise.all([
+    seatMode ? Promise.resolve([]) : tableChoices(event.id, null),
+    seatMode ? seatPickerData(event, new Date(), { admin: true }) : Promise.resolve(null)
+  ])
   const preselected = tables.some(t => t.key === table) ? table : undefined
+  const preselectedSeat = seatData?.seats.some(s => s.key === table && s.state === 'free') ? [table!] : []
+  const backgroundUrl = event.backgroundFile ? `/admin/events/${event.id}/background?v=${event.layoutVersion}-${event.backgroundFile.slice(0, 8)}` : null
+  const nothingFree = seatData ? !seatData.seats.some(s => s.state === 'free') : tables.length === 0
 
   return (
     <main className="bg-gray-50 py-6 px-4">
@@ -40,27 +49,36 @@ export default async function NewBookingPage({ params, searchParams }: { params:
           <h1 className="text-2xl font-bold">Buchung anlegen</h1>
         </div>
 
-        {tables.length === 0 ? (
-          <Notice tone="warning">Gerade ist kein Tisch frei.</Notice>
+        {nothingFree ? (
+          <Notice tone="warning">{seatMode ? 'Gerade ist kein Platz frei.' : 'Gerade ist kein Tisch frei.'}</Notice>
         ) : (
           <div className="bg-white rounded-lg shadow p-4">
             <ActionForm action={createBookingAdmin}>
               <input type="hidden" name="eventId" value={event.id} />
-              <div>
-                <label htmlFor="new-table" className={labelClass}>Tisch</label>
-                <select id="new-table" name="unitKey" defaultValue={preselected} className={input}>
-                  {tables.map(t => <option key={t.key} value={t.key}>{t.label} ({t.capacity} Plätze){t.bookable ? '' : ' – nicht buchbar'}</option>)}
-                </select>
-              </div>
+              {seatData ? (
+                <SeatPicker
+                  layout={event.layout} backgroundUrl={backgroundUrl} title={`Plan von ${event.title}`} seats={seatData.seats}
+                  groups={seatData.groups} initial={preselectedSeat} max={null}
+                />
+              ) : (
+                <div>
+                  <label htmlFor="new-table" className={labelClass}>Tisch</label>
+                  <select id="new-table" name="unitKey" defaultValue={preselected} className={input}>
+                    {tables.map(t => <option key={t.key} value={t.key}>{t.label} ({t.capacity} Plätze){t.bookable ? '' : ' – nicht buchbar'}</option>)}
+                  </select>
+                </div>
+              )}
               <div className="grid gap-3 sm:grid-cols-2">
                 <div>
                   <label htmlFor="new-name" className={labelClass}>Name</label>
                   <input id="new-name" name="name" required maxLength={BOOKING_LIMITS.name} className={input} />
                 </div>
-                <div>
-                  <label htmlFor="new-party" className={labelClass}>Personen</label>
-                  <input id="new-party" name="partySize" type="number" inputMode="numeric" required min={1} className={input} />
-                </div>
+                {!seatMode && (
+                  <div>
+                    <label htmlFor="new-party" className={labelClass}>Personen</label>
+                    <input id="new-party" name="partySize" type="number" inputMode="numeric" required min={1} className={input} />
+                  </div>
+                )}
                 <div>
                   <label htmlFor="new-email" className={labelClass}>E-Mail (optional)</label>
                   <input id="new-email" name="email" type="email" maxLength={254} className={input} />

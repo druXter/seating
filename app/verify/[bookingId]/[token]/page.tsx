@@ -2,7 +2,8 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { formatDateTime, formatRange } from '../../../lib/timezone'
-import { bookingForVerifyLink, tableOf } from '../../../lib/events/booking'
+import { bookingForVerifyLink } from '../../../lib/events/booking'
+import { placeLabelOf } from '../../../lib/events/places'
 import Notice from '../../../ui/notice'
 import ConfirmButton from './confirm-button'
 
@@ -18,7 +19,7 @@ export default async function VerifyPage({ params }: { params: Promise<{ booking
   const { bookingId, token } = await params
   const booking = await bookingForVerifyLink(bookingId, token)
   const now = new Date()
-  const table = booking ? await tableOf(booking.id) : null
+  const placeLabel = booking ? await placeLabelOf(booking.id) : null
   // Reservierung oder (noch unbestätigter) Eintrag auf der Warteliste, jeweils innerhalb der Frist.
   const waitlist = booking?.status === 'WAITLISTED'
   const valid = booking && (booking.status === 'PENDING' || (waitlist && !booking.emailVerifiedAt)) && booking.expiresAt && booking.expiresAt > now
@@ -42,7 +43,7 @@ export default async function VerifyPage({ params }: { params: Promise<{ booking
             <dl className="text-sm grid grid-cols-[auto_1fr] gap-x-4 gap-y-1">
               <dt className="text-gray-600">Veranstaltung</dt><dd>{booking.event.title}</dd>
               <dt className="text-gray-600">Wann</dt><dd>{formatRange(booking.event.startsAt, booking.event.endsAt, booking.event.timezone)}</dd>
-              {!waitlist && <><dt className="text-gray-600">Tisch</dt><dd>{table?.label}</dd></>}
+              {!waitlist && <><dt className="text-gray-600">{booking.event.mode === 'SEAT' ? 'Plätze' : 'Tisch'}</dt><dd>{placeLabel}</dd></>}
               <dt className="text-gray-600">Personen</dt><dd>{booking.partySize}</dd>
               <dt className="text-gray-600">Name</dt><dd>{booking.name}</dd>
             </dl>

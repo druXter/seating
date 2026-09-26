@@ -11,6 +11,7 @@ const units: StateUnit[] = [
   { key: 't1-s2', kind: 'SEAT', tableKey: 't1', bookable: true },
   { key: 't2', kind: 'TABLE', tableKey: null, bookable: true },
   { key: 't2-s1', kind: 'SEAT', tableKey: 't2', bookable: true },
+  { key: 't2-s2', kind: 'SEAT', tableKey: 't2', bookable: true },
   { key: 't3', kind: 'TABLE', tableKey: null, bookable: false },
   { key: 's4', kind: 'SEAT', tableKey: null, bookable: true }
 ]
@@ -50,6 +51,14 @@ describe('unitStates', () => {
     expect(states.get('t2')).toBe('held')
     expect(states.get('t2-s1')).toBe('held')
     expect(states.get('t1')).toBe('free')
+    // Die übrigen Plätze am Tisch bleiben frei.
+    expect(states.get('t2-s2')).toBe('free')
+  })
+
+  it('ein belegter Tisch belegt alle seine Plätze', () => {
+    const states = unitStates(units, [{ unitKey: 't1', status: 'CONFIRMED', expiresAt: null }], now)
+    expect(states.get('t1-s1')).toBe('confirmed')
+    expect(states.get('t1-s2')).toBe('confirmed')
   })
 
   it('ignoriert abgelaufene Holds schon beim Lesen', () => {
@@ -63,7 +72,9 @@ describe('unitStates', () => {
       { unitKey: 't1-s2', status: 'CONFIRMED', expiresAt: null }
     ], now)
     expect(states.get('t1')).toBe('confirmed')
-    expect(states.get('t1-s1')).toBe('confirmed')
+    // Jeder Platz behält seinen eigenen Zustand - Plätze an einem Tisch werden einzeln vergeben (SEAT).
+    expect(states.get('t1-s1')).toBe('held')
+    expect(states.get('t1-s2')).toBe('confirmed')
   })
 
   it('eine belegte, nicht buchbare Einheit zeigt die Belegung', () => {

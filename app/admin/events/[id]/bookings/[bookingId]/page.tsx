@@ -20,6 +20,8 @@ import BookingStatusBadge from '../../../../../ui/booking-status-badge'
 import CopyableField from '../../../../../ui/copyable-field'
 import Notice from '../../../../../ui/notice'
 import SubmitButton from '../../../../../ui/submit-button'
+import SeatPicker from '../../../../../ui/plan/seat-picker'
+import { seatPickerData } from '../../../../../lib/events/places'
 
 export const dynamic = 'force-dynamic'
 
@@ -73,8 +75,10 @@ export default async function BookingPage({ params, searchParams }: {
   const cancellable = active || waiting || offered
   const mailable = booking.email !== null
 
-  const [tables, auditLog, mailLog] = await Promise.all([
-    active || waiting ? tableChoices(event.id, booking.table?.key ?? null, now) : Promise.resolve([]),
+  const seatMode = event.mode === 'SEAT'
+  const [tables, seatData, auditLog, mailLog] = await Promise.all([
+    !seatMode && (active || waiting) ? tableChoices(event.id, booking.table?.key ?? null, now) : Promise.resolve([]),
+    seatMode && (active || waiting) ? seatPickerData(event, now, { ownBookingId: booking.id, admin: true }) : Promise.resolve(null),
     prisma.auditLog.findMany({ where: { bookingId: booking.id }, orderBy: { createdAt: 'desc' } }),
     prisma.mailLog.findMany({ where: { bookingId: booking.id }, orderBy: { createdAt: 'desc' } })
   ])
@@ -86,6 +90,7 @@ export default async function BookingPage({ params, searchParams }: {
     </>
   )
   const base = `/admin/events/${event.id}`
+  const backgroundUrl = event.backgroundFile ? `/admin/events/${event.id}/background?v=${event.layoutVersion}-${event.backgroundFile.slice(0, 8)}` : null
   const link = booking.status === 'CONFIRMED' && bookingSecretsConfigured() ? manageUrl(booking) : null
 
   return (
@@ -108,7 +113,7 @@ export default async function BookingPage({ params, searchParams }: {
             <div className={card}>
               <h2 className="font-bold">Buchung</h2>
               <dl className="text-sm grid grid-cols-[auto_1fr] gap-x-4 gap-y-1">
-                <dt className="text-gray-600">Tisch</dt><dd>{booking.table?.label ?? '–'}</dd>
+                <dt className="text-gray-600">{seatMode ? 'Plätze' : 'Tisch'}</dt><dd>{booking.placeLabel}</dd>
                 <dt className="text-gray-600">Personen</dt><dd>{booking.partySize}</dd>
                 <dt className="text-gray-600">E-Mail</dt>
                 <dd>
@@ -133,6 +138,13 @@ export default async function BookingPage({ params, searchParams }: {
                 <ActionForm action={changeBookingAdmin}>
                   {hidden}
                   <input type="hidden" name="updatedAt" value={booking.updatedAt.toISOString()} />
+                  {seatData && (
+                    <SeatPicker
+                      key={booking.updatedAt.toISOString()}
+                      layout={event.layout} backgroundUrl={backgroundUrl} title={`Plan von ${event.title}`} seats={seatData.seats}
+                      groups={seatData.groups} initial={booking.places.map(p => p.key)} max={null}
+                    />
+                  )}
                   <div className="grid gap-3 sm:grid-cols-2">
                     <div>
                       <label htmlFor="change-name" className={labelClass}>Name</label>
@@ -142,20 +154,24 @@ export default async function BookingPage({ params, searchParams }: {
                       <label htmlFor="change-phone" className={labelClass}>Telefon</label>
                       <input id="change-phone" name="phone" type="tel" maxLength={BOOKING_LIMITS.phone} defaultValue={booking.phone ?? ''} className={input} />
                     </div>
-                    <div>
-                      <label htmlFor="change-party" className={labelClass}>Personen</label>
-                      <input id="change-party" name="partySize" type="number" inputMode="numeric" required min={1} defaultValue={booking.partySize} className={input} />
-                    </div>
-                    <div>
-                      <label htmlFor="change-table" className={labelClass}>Tisch</label>
-                      <select id="change-table" name="unitKey" defaultValue={booking.table?.key} className={input}>
-                        {tables.map(table => (
-                          <option key={table.key} value={table.key}>
-                            {table.label} ({table.capacity} Plätze){table.key === booking.table?.key ? ' – aktuell' : table.bookable ? '' : ' – nicht buchbar'}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
+                    {!seatMode && (
+                      <>
+                        <div>
+                          <label htmlFor="change-party" className={labelClass}>Personen</label>
+                          <input id="change-party" name="partySize" type="number" inputMode="numeric" required min={1} defaultValue={booking.partySize} className={input} />
+                        </div>
+                        <div>
+                          <label htmlFor="change-table" className={labelClass}>Tisch</label>
+                          <select id="change-table" name="unitKey" defaultValue={booking.table?.key} className={input}>
+                            {tables.map(table => (
+                              <option key={table.key} value={table.key}>
+                                {table.label} ({table.capacity} Plätze){table.key === booking.table?.key ? ' – aktuell' : table.bookable ? '' : ' – nicht buchbar'}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      </>
+                    )}
                   </div>
                   <div>
                     <label htmlFor="change-note" className={labelClass}>Anmerkung der Kund*in</label>
@@ -164,7 +180,9 @@ export default async function BookingPage({ params, searchParams }: {
                   {status === 'CONFIRMED' && mailable && <Checkbox name="notify" label="Kund*in per Mail benachrichtigen (mit Gegenüberstellung alt → neu und neuem Kalendereintrag)" />}
                   <SubmitButton>Änderungen speichern</SubmitButton>
                   <p className="text-xs text-gray-600">
-                    Zur Wahl stehen der aktuelle und alle freien Tische, auch nicht buchbare. Die Mindestbelegung gilt hier nicht, die Zahl der Plätze schon.
+                    {seatMode
+                      ? 'Zur Wahl stehen die eigenen und alle freien Plätze, auch nicht buchbare; die Obergrenze pro Buchung gilt hier nicht. Die Personenzahl ist die Zahl der Plätze.'
+                      : 'Zur Wahl stehen der aktuelle und alle freien Tische, auch nicht buchbare. Die Mindestbelegung gilt hier nicht, die Zahl der Plätze schon.'}
                     Die E-Mail-Adresse lässt sich {status === 'PENDING' ? 'unten korrigieren' : 'bei bestätigten Buchungen nicht ändern'}.
                   </p>
                 </ActionForm>
@@ -192,7 +210,15 @@ export default async function BookingPage({ params, searchParams }: {
                     ? 'Wird ein passender Tisch frei, bekommt der am längsten wartende passende Eintrag automatisch ein Angebot. Du kannst auch direkt einen Tisch zuweisen – am Nachrück-Verfahren vorbei.'
                     : 'Die Person hat ihre Adresse noch nicht bestätigt – bis dahin zählt der Eintrag nicht. Direkt zuweisen geht trotzdem.'}
                 </p>
-                {tables.length === 0 ? <p className="text-sm text-gray-600">Gerade ist kein Tisch frei.</p> : (
+                {seatData ? (
+                  <ActionForm action={assignWaitlistAdmin}>
+                    {hidden}
+                    <p className="text-sm">Plätze für {booking.partySize} {booking.partySize === 1 ? 'Person' : 'Personen'} wählen – auch verstreute:</p>
+                    <SeatPicker layout={event.layout} backgroundUrl={backgroundUrl} title={`Plan von ${event.title}`} seats={seatData.seats} groups={seatData.groups} max={null} />
+                    {mailable && <Checkbox name="notify" label="Bestätigungsmail mit Kalendereintrag und Verwaltungslink schicken" />}
+                    <button type="submit" className="text-sm bg-blue-600 text-white font-bold rounded px-3 py-1 hover:bg-blue-700">Plätze zuweisen und bestätigen</button>
+                  </ActionForm>
+                ) : tables.length === 0 ? <p className="text-sm text-gray-600">Gerade ist kein Tisch frei.</p> : (
                   <ActionForm action={assignWaitlistAdmin}>
                     {hidden}
                     <div>
@@ -213,7 +239,7 @@ export default async function BookingPage({ params, searchParams }: {
             {offered && (
               <div className={card}>
                 <h2 className="font-bold">Angebot aus der Warteliste</h2>
-                <p className="text-sm text-gray-700">{booking.table?.label} ist der Gruppe angeboten. Nimmt sie nicht rechtzeitig an, geht der Tisch an den nächsten passenden Eintrag.</p>
+                <p className="text-sm text-gray-700">{booking.placeLabel}: der Gruppe angeboten. Nimmt sie nicht rechtzeitig an, geht das Angebot an den nächsten passenden Eintrag.</p>
                 <ActionForm action={confirmBookingAdmin}>
                   {hidden}
                   {mailable && <Checkbox name="notify" label="Bestätigungsmail mit Kalendereintrag schicken" />}

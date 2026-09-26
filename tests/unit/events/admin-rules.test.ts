@@ -55,7 +55,7 @@ describe('Tischregeln für Veranstalter*innen', () => {
 describe('Formulare', () => {
   it('Ändern: Telefon nie Pflicht, Tisch-key geprüft', () => {
     expect(parseAdminChange(form({ name: 'Max', partySize: '4', unitKey: 't2' }))).toEqual({
-      ok: true, input: { name: 'Max', phone: null, note: null, partySize: 4, unitKey: 't2' }
+      ok: true, input: { name: 'Max', phone: null, note: null, partySize: 4, unitKeys: ['t2'] }
     })
     const bad = parseAdminChange(form({ name: '', partySize: '0', unitKey: 't1-s2' }))
     expect(bad.ok).toBe(false)
@@ -71,6 +71,13 @@ describe('Formulare', () => {
     expect(noMail).toEqual({ ok: false, errors: ['Für eine Bestätigung per Mail braucht es eine E-Mail-Adresse.'] })
     const invalid = parseAdminCreate(form({ name: 'Max', partySize: '4', unitKey: 't2', email: 'kaputt' }))
     expect(invalid).toEqual({ ok: false, errors: ['Die E-Mail-Adresse sieht nicht gültig aus.'] })
+  })
+
+  it('Modus SEAT: Plätze statt Tisch, Personenzahl = Zahl der Plätze', () => {
+    expect(parseAdminChange(form({ name: 'Max', unitKey: ['blk1-r1-s1', 'blk1-r1-s2'] }), 'SEAT')).toEqual({
+      ok: true, input: { name: 'Max', phone: null, note: null, partySize: 2, unitKeys: ['blk1-r1-s1', 'blk1-r1-s2'] }
+    })
+    expect(parseAdminChange(form({ name: 'Max', unitKey: 't2' }), 'SEAT')).toEqual({ ok: false, errors: ['Bitte wähle mindestens einen Platz.'] })
   })
 
   it('interne Notiz: Steuerzeichen raus, leer = null', () => {

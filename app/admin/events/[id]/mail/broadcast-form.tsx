@@ -43,7 +43,7 @@ export default function BroadcastForm({ eventId, event, recipients, tables }: {
   const count = recipients.filter(r =>
     (r.status === 'CONFIRMED' || scope === 'active') && (!onlyTables || r.tableKeys.some(key => selected.has(key)))
   ).length
-  const preview = renderText(broadcastBlocks(event, { name: 'Erika Beispiel', partySize: 4 }, 'Tisch 1', body || '(dein Text)', '…/b/persoenlicher-link'))
+  const preview = renderText(broadcastBlocks(event, { name: 'Erika Beispiel', partySize: 4 }, event.mode === 'SEAT' ? 'Reihe A, Plätze 1–4' : 'Tisch 1', body || '(dein Text)', '…/b/persoenlicher-link'))
 
   return (
     <form action={send} className="space-y-3">

@@ -5,6 +5,7 @@ import { validateSlug } from '../slugs'
 import { DEFAULT_TIMEZONE, zonedInputToUtc } from '../timezone'
 import { PENDING_TTL_RANGE, SELF_EDIT_HOURS_MAX } from './booking-rules'
 import { OFFER_TTL_RANGE } from './waitlist-rules'
+import { MAX_SEATS_RANGE } from './seat-rules'
 
 export const EVENT_LIMITS = { title: 200, location: 200, description: 5000, mailNote: 1000 } as const
 
@@ -29,7 +30,7 @@ export const MODE_LABELS: Record<EventMode, string> = {
 }
 
 /** Modi, die die Oberfläche schon anbietet (SEAT folgt mit Phase 5, ASSIGNED mit Phase 6). */
-export const AVAILABLE_MODES: readonly EventMode[] = ['TABLE']
+export const AVAILABLE_MODES: readonly EventMode[] = ['TABLE', 'SEAT']
 
 const STATUSES: readonly EventStatus[] = ['DRAFT', 'OPEN', 'CLOSED', 'ARCHIVED']
 
@@ -56,6 +57,7 @@ export type BookingSettings = {
   mailNote: string
   waitlistEnabled: boolean
   offerTtlHours: number
+  maxSeatsPerBooking: number
 }
 
 export type ParsedEvent =
@@ -146,6 +148,8 @@ function parseBookingSettings(formData: FormData, errors: string[]): BookingSett
   const selfEditHoursBefore = intInRange(formData, 'selfEditHoursBefore', 0, SELF_EDIT_HOURS_MAX)
   if (selfEditHoursBefore === null) errors.push(`Änderungsfrist: 0 bis ${SELF_EDIT_HOURS_MAX} Stunden vor Beginn.`)
 
+  const maxSeatsPerBooking = intInRange(formData, 'maxSeatsPerBooking', MAX_SEATS_RANGE.min, MAX_SEATS_RANGE.max)
+  if (maxSeatsPerBooking === null) errors.push(`Plätze pro Buchung: ${MAX_SEATS_RANGE.min} bis ${MAX_SEATS_RANGE.max}.`)
   const offerTtlHours = intInRange(formData, 'offerTtlHours', OFFER_TTL_RANGE.min, OFFER_TTL_RANGE.max)
   if (offerTtlHours === null) errors.push(`Angebot aus der Warteliste: ${OFFER_TTL_RANGE.min} bis ${OFFER_TTL_RANGE.max} Stunden.`)
 
@@ -161,6 +165,7 @@ function parseBookingSettings(formData: FormData, errors: string[]): BookingSett
     replyTo,
     mailNote: cleanText(formString(formData, 'mailNote', EVENT_LIMITS.mailNote)).trim(),
     waitlistEnabled: formData.get('waitlistEnabled') === 'on',
-    offerTtlHours: offerTtlHours ?? 24
+    offerTtlHours: offerTtlHours ?? 24,
+    maxSeatsPerBooking: maxSeatsPerBooking ?? 10
   }
 }

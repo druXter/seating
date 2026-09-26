@@ -15,6 +15,7 @@ import { loadEventForUser } from '../../lib/events/store'
 import { parseEventForm } from '../../lib/events/settings'
 import { initialUnits, replaceEventLayout } from '../../lib/events/save-layout'
 import { offerAfterResponse } from '../../lib/events/waitlist'
+import { emailBlockingWhere } from '../../lib/events/booking-tx'
 
 // Die Berechtigung prüft JEDE Aktion selbst (über loadEventForUser -> eventLevel), nie nur die Seite.
 // owner: Besitzer*in oder Admin, moderator: per Freigabe - darf alles außer löschen und freigeben.
@@ -76,6 +77,13 @@ export async function updateEventSettings(_previous: FormState, formData: FormDa
 
   const parsed = parseEventForm(formData, event.timezone)
   if (!parsed.ok) return { errors: parsed.errors }
+  // Modus TABLE <-> SEAT nur ohne aktive Buchungen und Wartelisten-Einträge: Tisch- und Platzbuchungen
+  // lassen sich nicht sinnvoll ineinander umrechnen (docs/KONZEPT.md Abschnitt 12, Phase 5).
+  if (parsed.fields.mode !== event.mode) {
+    const now = new Date()
+    const blocking = await prisma.booking.count({ where: { eventId: event.id, ...emailBlockingWhere(now) } })
+    if (blocking > 0) return { errors: [`Modus: Das Event hat ${blocking} aktive Buchung(en) oder Wartelisten-Einträge – der Modus lässt sich nur ohne sie wechseln.`] }
+  }
 
   try {
     await prisma.event.update({

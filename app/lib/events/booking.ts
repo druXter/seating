@@ -8,7 +8,8 @@ import {
 } from '../booking-mail'
 import { HOLDING_STATUSES, tableFits } from './occupancy'
 import { auditDiff, calendarRelevant, changeLabels, changeRows, diffBooking } from './booking-changes'
-import { audit, emailBlockingWhere, isUniqueViolation, lockEvent, queueOfferExpiredMail, releaseStaleHolds, tableSeatsTaken } from './booking-tx'
+import { checkSeats, describePlaces, placeLabelOf, placesOf, setAllocations, type Place } from './places'
+import { audit, emailBlockingWhere, isUniqueViolation, lockEvent, queueOfferExpiredMail } from './booking-tx'
 import { MAX_PENDING_PER_IP, canSelfEdit, type ContactFields, type ReservationInput } from './booking-rules'
 
 /**
@@ -20,20 +21,46 @@ import { MAX_PENDING_PER_IP, canSelfEdit, type ContactFields, type ReservationIn
  * Abfrage: Kommt eine zweite Anfrage gleichzeitig, scheitert ihr Einfügen (P2002).
  */
 
+/** Rollt eine Transaktion zurück: ein Ziel ist durch gemischte Belegung gesperrt (setAllocations). */
+export class PlacesTaken extends Error {}
+
 /** Unauffällige Schein-id für die Antwort, wenn nichts reserviert wurde (siehe reserveTable). */
 export function decoyId(): string {
   return `c${randomBytes(12).toString('hex').slice(0, 24)}`
 }
 
 export type ReserveResult =
-  | { kind: 'reserved'; bookingId: string; tableLabel: string; expiresAt: Date; email: string }
+  | { kind: 'reserved'; bookingId: string; placeLabel: string; expiresAt: Date; email: string }
   | { kind: 'taken' }
   | { kind: 'unfit'; message: string }
   | { kind: 'limit' }
   | { kind: 'mail-failed' }
 
 /**
- * Reserviert einen Tisch (PENDING, hält ihn bis expiresAt) und schickt die Verifizierungsmail.
+ * Was eine Buchung belegen will, geprüft gegen die Regeln des Modus: TABLE ein buchbarer, passender
+ * Tisch; SEAT 1 bis maxSeatsPerBooking freie, buchbare Plätze (seat-rules.ts). Die Belegung selbst
+ * sichert danach der Unique-Index.
+ */
+async function resolvePlaces(event: Event, unitKeys: string[], partySize: number, now: Date): Promise<{ ok: true; places: Place[]; label: string } | { ok: false; message: string }> {
+  if (event.mode === 'SEAT') {
+    const check = await checkSeats(event, unitKeys, { maxSeats: event.maxSeatsPerBooking }, now)
+    return check.ok ? check : { ok: false, message: check.errors.join(' ') }
+  }
+  const unit = unitKeys.length === 1 ? await prisma.unit.findUnique({ where: { eventId_key: { eventId: event.id, key: unitKeys[0] } } }) : null
+  if (!unit || unit.kind !== 'TABLE' || !unit.bookable) return { ok: false, message: 'Diesen Tisch kann man nicht buchen.' }
+  if (!tableFits(unit.capacity, partySize, event.minFillRatio)) {
+    return { ok: false, message: `${unit.label} passt nicht zu ${partySize} ${partySize === 1 ? 'Person' : 'Personen'}.` }
+  }
+  return { ok: true, places: [unit], label: unit.label }
+}
+
+/** Für AuditLog.diff: der Tisch als stabiler key, Plätze als Kurzbeschreibung. */
+function placesDiff(event: Pick<Event, 'mode'>, places: readonly Place[], label: string) {
+  return event.mode === 'SEAT' ? { seats: label } : { table: places[0]?.key ?? null }
+}
+
+/**
+ * Reserviert einen Tisch bzw. Plätze (PENDING, hält sie bis expiresAt) und schickt die Verifizierungsmail.
  *
  * oneBookingPerEmail: Hat die Adresse schon eine aktive Buchung, wird NICHTS reserviert - die
  * Antwort sieht trotzdem genauso aus wie bei Erfolg (Schein-id), und die Adresse bekommt stattdessen
@@ -42,24 +69,20 @@ export type ReserveResult =
  * Scheitert der Mailversand, wird die Reservierung sofort wieder freigegeben - sonst hinge ein Tisch
  * an einer Mail, die nie ankommt.
  */
-export async function reserveTable(event: Event, input: ReservationInput, ip: string, now = new Date()): Promise<ReserveResult> {
-  const unit = await prisma.unit.findUnique({ where: { eventId_key: { eventId: event.id, key: input.unitKey } } })
-  if (!unit || unit.kind !== 'TABLE' || !unit.bookable) return { kind: 'unfit', message: 'Diesen Tisch kann man nicht buchen.' }
-  if (!tableFits(unit.capacity, input.partySize, event.minFillRatio)) {
-    return { kind: 'unfit', message: `${unit.label} passt nicht zu ${input.partySize} ${input.partySize === 1 ? 'Person' : 'Personen'}.` }
-  }
+export async function reservePlaces(event: Event, input: ReservationInput, ip: string, now = new Date()): Promise<ReserveResult> {
+  const resolved = await resolvePlaces(event, input.unitKeys, input.partySize, now)
+  if (!resolved.ok) return { kind: 'unfit', message: resolved.message }
+  const { places, label } = resolved
+  const partySize = event.mode === 'SEAT' ? places.length : input.partySize
 
   const expiresAt = new Date(now.getTime() + event.pendingTtlMinutes * 60 * 1000)
   const verify = newVerifyToken()
   const pendingIp = ipHash(ip)
 
-  let outcome: { kind: 'created'; booking: Booking } | { kind: 'duplicate'; existing: Booking } | { kind: 'limit' } | { kind: 'taken' }
+  let outcome: { kind: 'created'; booking: Booking } | { kind: 'duplicate'; existing: Booking } | { kind: 'limit' }
   try {
     outcome = await prisma.$transaction(async tx => {
       await lockEvent(tx, event.id)
-      await releaseStaleHolds(tx, event.id, [unit.id], now)
-      if (await tableSeatsTaken(tx, event.id, unit.key, now)) return { kind: 'taken' as const }
-
       if (event.oneBookingPerEmail) {
         const existing = await tx.booking.findFirst({ where: { eventId: event.id, email: input.email, ...emailBlockingWhere(now) } })
         if (existing) return { kind: 'duplicate' as const, existing }
@@ -70,27 +93,28 @@ export async function reserveTable(event: Event, input: ReservationInput, ip: st
       const booking = await tx.booking.create({
         data: {
           eventId: event.id, status: 'PENDING', source: 'PUBLIC', name: input.name, email: input.email, phone: input.phone,
-          note: input.note, partySize: input.partySize, expiresAt, verifyTokenHash: verify.hash, pendingIpHash: pendingIp,
-          allocations: { create: { eventId: event.id, unitId: unit.id } }
+          note: input.note, partySize, expiresAt, verifyTokenHash: verify.hash, pendingIpHash: pendingIp
         }
       })
-      await audit(tx, { eventId: event.id, bookingId: booking.id, actor: 'customer', action: 'reserved', diff: { table: unit.key, partySize: input.partySize } })
+      // Belegung erst nach den Prüfungen: gemischte Belegung und Unique-Index (Konzept Abschnitt 5).
+      if (!(await setAllocations(tx, event.id, booking.id, places, now))) throw new PlacesTaken()
+      await audit(tx, { eventId: event.id, bookingId: booking.id, actor: 'customer', action: 'reserved', diff: { ...placesDiff(event, places, label), partySize } })
       return { kind: 'created' as const, booking }
     })
   } catch (error) {
-    if (isUniqueViolation(error)) return { kind: 'taken' }
+    if (isUniqueViolation(error) || error instanceof PlacesTaken) return { kind: 'taken' }
     throw error
   }
 
-  if (outcome.kind === 'limit' || outcome.kind === 'taken') return outcome
+  if (outcome.kind === 'limit') return outcome
   if (outcome.kind === 'duplicate') {
     await sendAlreadyBookedMail(event, outcome.existing)
-    return { kind: 'reserved', bookingId: decoyId(), tableLabel: unit.label, expiresAt, email: input.email }
+    return { kind: 'reserved', bookingId: decoyId(), placeLabel: label, expiresAt, email: input.email }
   }
 
   const code = newVerifyCode(outcome.booking.id)
   const booking = await prisma.booking.update({ where: { id: outcome.booking.id }, data: { verifyCodeHmac: code.hmac } })
-  const sent = await sendVerifyMail(event, booking, unit.label, verify.token, code.code, expiresAt)
+  const sent = await sendVerifyMail(event, booking, label, verify.token, code.code, expiresAt)
   if (!sent) {
     await prisma.$transaction([
       prisma.allocation.deleteMany({ where: { bookingId: booking.id } }),
@@ -99,7 +123,7 @@ export async function reserveTable(event: Event, input: ReservationInput, ip: st
     await audit(prisma, { eventId: event.id, bookingId: booking.id, actor: 'system', action: 'mail-failed' })
     return { kind: 'mail-failed' }
   }
-  return { kind: 'reserved', bookingId: booking.id, tableLabel: unit.label, expiresAt, email: input.email }
+  return { kind: 'reserved', bookingId: booking.id, placeLabel: label, expiresAt, email: input.email }
 }
 
 export type ConfirmResult =
@@ -154,8 +178,8 @@ async function markConfirmed(booking: Booking, now: Date): Promise<ConfirmResult
   if (updated.count === 0) return (await prisma.booking.findUnique({ where: { id: booking.id } }))?.status === 'CONFIRMED' ? { kind: 'already' } : { kind: 'expired' }
 
   await audit(prisma, { eventId: booking.eventId, bookingId: booking.id, actor: 'customer', action: 'confirmed' })
-  const [event, table] = await Promise.all([prisma.event.findUniqueOrThrow({ where: { id: booking.eventId } }), tableOf(booking.id)])
-  await sendConfirmedMail(event, booking, table?.label ?? 'Tisch')
+  const [event, label] = await Promise.all([prisma.event.findUniqueOrThrow({ where: { id: booking.eventId } }), placeLabelOf(booking.id)])
+  await sendConfirmedMail(event, booking, label)
   return { kind: 'confirmed', bookingId: booking.id, manageTokenVersion: booking.manageTokenVersion }
 }
 
@@ -230,13 +254,13 @@ export async function resendVerification(bookingId: string, now = new Date()): P
     await sendWaitlistVerifyMail(booking.event, booking, verify.token, code.code, booking.expiresAt)
     return
   }
-  const table = await tableOf(booking.id)
-  await sendVerifyMail(booking.event, booking, table?.label ?? 'Tisch', verify.token, code.code, booking.expiresAt)
+  await sendVerifyMail(booking.event, booking, await placeLabelOf(booking.id), verify.token, code.code, booking.expiresAt)
 }
 
 // --- Verwaltungslink ----------------------------------------------------------------------------
 
-export type ManagedBooking = Booking & { event: Event; table: { id: string; key: string; label: string; capacity: number } | null }
+/** table: der Tisch (Modus TABLE), places: alle belegten Einheiten, placeLabel: deren Kurzbeschreibung. */
+export type ManagedBooking = Booking & { event: Event; table: Place | null; places: Place[]; placeLabel: string }
 
 /**
  * Buchung zu einem Verwaltungslink - oder null bei falschem Token. Den Link bekommt man erst mit der
@@ -251,7 +275,8 @@ export async function loadManagedBooking(bookingId: string, token: string): Prom
     || ((booking.status === 'WAITLISTED' || booking.status === 'EXPIRED') && booking.waitlistedAt !== null)
   if (!linked) return null
   if (!manageTokenValid(booking.id, booking.manageTokenVersion, token)) return null
-  return { ...booking, table: await tableOf(booking.id) }
+  const places = await placesOf(booking.id)
+  return { ...booking, table: places.find(p => p.kind === 'TABLE') ?? null, places, placeLabel: describePlaces(places) }
 }
 
 export type ChangeResult = { ok: true; changed: boolean } | { ok: false; errors: string[] }
@@ -262,55 +287,73 @@ export type ChangeResult = { ok: true; changed: boolean } | { ok: false; errors:
  * Tisch inzwischen vergeben, greift wie beim Buchen der Unique-Index.
  */
 export async function changeBooking(
-  managed: ManagedBooking, change: ContactFields & { partySize: number; unitKey: string }, now = new Date()
+  managed: ManagedBooking, change: ContactFields & { partySize: number; unitKeys: string[] }, now = new Date()
 ): Promise<ChangeResult> {
   const { event } = managed
   if (managed.status !== 'CONFIRMED') return { ok: false, errors: ['Diese Buchung ist storniert.'] }
   if (!canSelfEdit(event, now)) return { ok: false, errors: ['Die Frist für Änderungen ist abgelaufen. Bitte wende dich an die Veranstalter*innen.'] }
 
-  const target = change.unitKey === managed.table?.key
-    ? managed.table
-    : await prisma.unit.findFirst({ where: { eventId: event.id, key: change.unitKey, kind: 'TABLE', bookable: true } })
-  if (!target) return { ok: false, errors: ['Diesen Tisch kann man nicht buchen.'] }
-  if (!tableFits(target.capacity, change.partySize, event.minFillRatio)) {
-    return { ok: false, errors: [`${target.label} passt nicht zu ${change.partySize} ${change.partySize === 1 ? 'Person' : 'Personen'}.`] }
-  }
+  const target = await changeTarget(managed, change.unitKeys, change.partySize, now)
+  if (!target.ok) return { ok: false, errors: target.errors }
+  const partySize = event.mode === 'SEAT' ? target.places.length : change.partySize
 
   const changes = diffBooking(
-    { name: managed.name, phone: managed.phone, note: managed.note, partySize: managed.partySize, tableKey: managed.table?.key ?? null },
-    { ...change, tableKey: target.key }
+    { name: managed.name, phone: managed.phone, note: managed.note, partySize: managed.partySize, tableKey: managed.table?.key ?? null, ...seatSnapshot(event, managed.placeLabel) },
+    { ...change, partySize, tableKey: event.mode === 'SEAT' ? null : target.places[0].key, ...seatSnapshot(event, target.label) }
   )
   if (changes.length === 0) return { ok: true, changed: false }
 
-  // Eine neue .ics geht immer mit, die SEQUENCE steigt aber nur bei Personenzahl/Tisch.
+  // Eine neue .ics geht immer mit, die SEQUENCE steigt aber nur bei Personenzahl, Tisch oder Plätzen.
+  const taken = event.mode === 'SEAT' ? 'Mindestens einer der Plätze wurde gerade vergeben. Bitte wähle neu.' : `${target.label} wurde gerade vergeben. Bitte wähle einen anderen Tisch.`
   try {
-    const taken = await prisma.$transaction(async tx => {
-      if (target.id !== managed.table?.id) {
-        await releaseStaleHolds(tx, event.id, [target.id], now)
-        if (await tableSeatsTaken(tx, event.id, target.key, now, managed.id)) return true
-        await tx.allocation.deleteMany({ where: { bookingId: managed.id } })
-        await tx.allocation.create({ data: { eventId: event.id, unitId: target.id, bookingId: managed.id } })
-      }
+    await prisma.$transaction(async tx => {
+      if (!samePlaces(managed.places, target.places) && !(await setAllocations(tx, event.id, managed.id, target.places, now))) throw new PlacesTaken()
       await tx.booking.update({
         where: { id: managed.id },
         data: {
-          name: change.name, phone: change.phone, note: change.note, partySize: change.partySize,
+          name: change.name, phone: change.phone, note: change.note, partySize,
           ...(calendarRelevant(changes) ? { icsSequence: { increment: 1 } } : {})
         }
       })
       await audit(tx, { eventId: event.id, bookingId: managed.id, actor: 'customer', action: 'changed', diff: auditDiff(changes) })
-      return false
     })
-    if (taken) return { ok: false, errors: [`${target.label} wurde gerade vergeben. Bitte wähle einen anderen Tisch.`] }
   } catch (error) {
-    if (isUniqueViolation(error)) return { ok: false, errors: [`${target.label} wurde gerade vergeben. Bitte wähle einen anderen Tisch.`] }
+    if (isUniqueViolation(error) || error instanceof PlacesTaken) return { ok: false, errors: [taken] }
     throw error
   }
 
   const updated = await prisma.booking.findUniqueOrThrow({ where: { id: managed.id } })
-  const labelOf = (key: string) => key === target.key ? target.label : key === managed.table?.key ? managed.table.label : key
+  const labelOf = (key: string) => key === target.places[0]?.key ? target.places[0].label : key === managed.table?.key ? managed.table.label : key
   await sendChangedMail(event, updated, target.label, changeLabels(changes), changeRows(changes, labelOf))
   return { ok: true, changed: true }
+}
+
+/** Plätze als Teil des Vergleichs nur im Modus SEAT. */
+export function seatSnapshot(event: Pick<Event, 'mode'>, label: string): { seats?: string } {
+  return event.mode === 'SEAT' ? { seats: label } : {}
+}
+
+export function samePlaces(a: readonly { id: string }[], b: readonly { id: string }[]): boolean {
+  const ids = new Set(a.map(p => p.id))
+  return a.length === b.length && b.every(p => ids.has(p.id))
+}
+
+/**
+ * Neues Ziel einer Änderung durch die Kund*in: TABLE der eigene oder ein freier, buchbarer, passender
+ * Tisch; SEAT eigene und freie Plätze bis maxSeatsPerBooking.
+ */
+async function changeTarget(managed: ManagedBooking, unitKeys: string[], partySize: number, now: Date): Promise<{ ok: true; places: Place[]; label: string } | { ok: false; errors: string[] }> {
+  const { event } = managed
+  if (event.mode === 'SEAT') return checkSeats(event, unitKeys, { ownBookingId: managed.id, maxSeats: event.maxSeatsPerBooking }, now)
+  const key = unitKeys[0]
+  const target = key === managed.table?.key
+    ? managed.table
+    : await prisma.unit.findFirst({ where: { eventId: event.id, key, kind: 'TABLE', bookable: true }, select: { id: true, key: true, label: true, kind: true, capacity: true, tableKey: true } })
+  if (!target || unitKeys.length !== 1) return { ok: false, errors: ['Diesen Tisch kann man nicht buchen.'] }
+  if (!tableFits(target.capacity, partySize, event.minFillRatio)) {
+    return { ok: false, errors: [`${target.label} passt nicht zu ${partySize} ${partySize === 1 ? 'Person' : 'Personen'}.`] }
+  }
+  return { ok: true, places: [target], label: target.label }
 }
 
 /** Storno über den Verwaltungslink (bis zur Änderungsfrist): Tisch frei, Mail mit .ics (CANCEL). */
@@ -331,7 +374,7 @@ export async function cancelBooking(managed: ManagedBooking, now = new Date()): 
   if (!cancelled) return { ok: false, errors: ['Diese Buchung ist bereits storniert.'] }
 
   const updated = await prisma.booking.findUniqueOrThrow({ where: { id: managed.id } })
-  await sendCancelledMail(managed.event, updated, managed.table?.label ?? 'Tisch')
+  await sendCancelledMail(managed.event, updated, managed.placeLabel)
   return { ok: true, changed: true }
 }
 

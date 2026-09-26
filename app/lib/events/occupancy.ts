@@ -35,7 +35,8 @@ function stronger(a: UnitState, b: UnitState): UnitState {
 
 /**
  * Zustand jeder Einheit. Gemischte Belegung (Konzept Abschnitt 3): Ist ein Tisch als Ganzes
- * belegt, gelten seine Plätze als belegt - und ist einer seiner Plätze belegt, der Tisch.
+ * belegt, gelten seine Plätze als belegt - und ist einer seiner Plätze belegt, der Tisch (nicht aber
+ * die übrigen Plätze daran).
  * Nicht buchbare Einheiten sind "unavailable", außer sie sind trotzdem belegt (z.B. vom Admin
  * vergeben) - dann zählt die Belegung.
  */
@@ -47,20 +48,20 @@ export function unitStates(units: readonly StateUnit[], allocations: readonly St
     direct.set(allocation.unitKey, stronger(direct.get(allocation.unitKey) ?? 'free', state))
   }
 
-  // Belegung über die Tisch-Zugehörigkeit weitergeben (in beide Richtungen).
-  const byTable = new Map<string, UnitState>()
+  // Belegung über die Tisch-Zugehörigkeit weitergeben: Ein belegter Tisch belegt alle seine Plätze;
+  // ein belegter Platz belegt den Tisch als Ganzes - aber nicht die anderen Plätze daran (Modus SEAT:
+  // Plätze an einem Tisch werden einzeln vergeben).
+  const seatsOfTable = new Map<string, UnitState>()
   for (const unit of units) {
     const state = direct.get(unit.key)
-    if (!state) continue
-    const table = unit.kind === 'TABLE' ? unit.key : unit.tableKey
-    if (table) byTable.set(table, stronger(byTable.get(table) ?? 'free', state))
+    if (state && unit.kind === 'SEAT' && unit.tableKey) seatsOfTable.set(unit.tableKey, stronger(seatsOfTable.get(unit.tableKey) ?? 'free', state))
   }
 
   const result = new Map<string, UnitState>()
   for (const unit of units) {
-    const table = unit.kind === 'TABLE' ? unit.key : unit.tableKey
     let state = direct.get(unit.key) ?? 'free'
-    if (table) state = stronger(state, byTable.get(table) ?? 'free')
+    if (unit.kind === 'TABLE') state = stronger(state, seatsOfTable.get(unit.key) ?? 'free')
+    else if (unit.tableKey) state = stronger(state, direct.get(unit.tableKey) ?? 'free')
     if (state === 'free' && !unit.bookable) state = 'unavailable'
     result.set(unit.key, state)
   }

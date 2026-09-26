@@ -5,6 +5,7 @@ import { requireUser } from '../../../../lib/auth'
 import { loadEventOr404, loadUnitStates } from '../../../../lib/events/store'
 import { countStates } from '../../../../lib/events/occupancy'
 import { loadAuditContext } from '../../../../lib/events/admin-booking'
+import { describePlaces } from '../../../../lib/events/places'
 import {
   BOOKING_SOURCE_LABELS, LIST_FILTERS, LIST_FILTER_LABELS, effectiveStatus, matchesListFilter, matchesSearch, parseListFilter
 } from '../../../../lib/events/admin-rules'
@@ -39,12 +40,13 @@ export default async function BookingsPage({ params, searchParams }: { params: P
       orderBy: { createdAt: 'asc' },
       select: {
         id: true, name: true, email: true, phone: true, partySize: true, note: true, adminNote: true, status: true, source: true,
-        expiresAt: true, createdAt: true, waitlistedAt: true, emailVerifiedAt: true, allocations: { select: { unit: { select: { key: true, label: true } } } }
+        expiresAt: true, createdAt: true, waitlistedAt: true, emailVerifiedAt: true, allocations: { select: { unit: { select: { key: true, label: true, kind: true } } } }
       }
     }),
     prisma.auditLog.findMany({ where: { eventId: event.id, bookingId: null }, orderBy: { createdAt: 'desc' }, take: 20 })
   ])
-  const counts = countStates(units, states, 'TABLE')
+  const unitKind = event.mode === 'SEAT' ? 'SEAT' : 'TABLE'
+  const counts = countStates(units, states, unitKind)
   const confirmed = all.filter(b => effectiveStatus(b, now) === 'CONFIRMED')
   const guests = confirmed.reduce((sum, b) => sum + b.partySize, 0)
   const waitlist = all.filter(b => effectiveStatus(b, now) === 'WAITLISTED' && b.waitlistedAt !== null)
@@ -71,7 +73,7 @@ export default async function BookingsPage({ params, searchParams }: { params: P
 
         <div className="bg-white rounded-lg shadow p-4 space-y-3">
           <p className="text-sm text-gray-700" data-testid="booking-counts">
-            Tische: {counts.free} frei · {counts.held} reserviert (unbestätigt) · {counts.confirmed} belegt
+            {unitKind === 'SEAT' ? 'Plätze' : 'Tische'}: {counts.free} frei · {counts.held} reserviert (unbestätigt) · {counts.confirmed} belegt
             {counts.unavailable > 0 && ` · ${counts.unavailable} nicht buchbar`} — {confirmed.length} bestätigte Buchung{confirmed.length === 1 ? '' : 'en'} mit {guests} Person{guests === 1 ? '' : 'en'}
             {waitlist.length > 0 && <> — <Link href={`${base}/bookings?status=waitlist`} className="text-blue-700 hover:underline">{waitlist.length} auf der Warteliste</Link></>}
             {!event.waitlistEnabled && ' — Warteliste aus'}
@@ -108,7 +110,7 @@ export default async function BookingsPage({ params, searchParams }: { params: P
               <table className="w-full text-sm">
                 <thead>
                   <tr className="text-left border-b">
-                    <th scope="col" className="py-1 pr-3">Tisch</th>
+                    <th scope="col" className="py-1 pr-3">{unitKind === 'SEAT' ? 'Plätze' : 'Tisch'}</th>
                     <th scope="col" className="py-1 pr-3">Name</th>
                     <th scope="col" className="py-1 pr-3">Kontakt</th>
                     <th scope="col" className="py-1 pr-3">Personen</th>
@@ -121,7 +123,7 @@ export default async function BookingsPage({ params, searchParams }: { params: P
                     const status = effectiveStatus(booking, now)
                     return (
                       <tr key={booking.id} className="border-b last:border-0 align-top">
-                        <td className="py-1 pr-3">{booking.allocations.map(a => a.unit.label).join(', ') || '–'}</td>
+                        <td className="py-1 pr-3">{describePlaces(booking.allocations.map(a => a.unit))}</td>
                         <td className="py-1 pr-3">
                           <Link href={`${base}/bookings/${booking.id}`} className="text-blue-700 hover:underline">{booking.name}</Link>
                           {booking.note && <span className="block text-xs text-gray-600 whitespace-pre-line">{booking.note}</span>}

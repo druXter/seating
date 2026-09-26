@@ -188,3 +188,37 @@ export function WaitlistForm({ eventId, partySize, requirePhone, action, pending
     </form>
   )
 }
+
+/** Kontaktangaben und Datenschutzhinweis für die Platzbuchung (Modus SEAT - ohne Personenzahl). */
+export function SeatContactFields({ requirePhone }: { requirePhone: boolean }) {
+  const id = useId()
+  return (
+    <div className="space-y-3">
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div>
+          <label htmlFor={`${id}-name`} className={labelClass}>Name</label>
+          <input id={`${id}-name`} name="name" required maxLength={BOOKING_LIMITS.name} autoComplete="name" className={input} />
+        </div>
+        <div>
+          <label htmlFor={`${id}-email`} className={labelClass}>E-Mail</label>
+          <input id={`${id}-email`} name="email" type="email" required maxLength={254} autoComplete="email" className={input} />
+        </div>
+        <div>
+          <label htmlFor={`${id}-phone`} className={labelClass}>Telefon{requirePhone ? '' : ' (optional)'}</label>
+          <input id={`${id}-phone`} name="phone" type="tel" required={requirePhone} maxLength={BOOKING_LIMITS.phone} autoComplete="tel" className={input} />
+        </div>
+      </div>
+      <div>
+        <label htmlFor={`${id}-note`} className={labelClass}>Anmerkung (optional)</label>
+        <textarea id={`${id}-note`} name="note" maxLength={BOOKING_LIMITS.note} rows={2} className={input} />
+      </div>
+      <label className="flex items-start gap-2 text-sm">
+        <input type="checkbox" name="privacy" required className="mt-1" />
+        <span>
+          Ich habe den <Link href="/datenschutz" target="_blank" className="text-blue-700 underline">Datenschutzhinweis</Link> gelesen.
+          Meine Angaben werden nur für diese Buchung verwendet.
+        </span>
+      </label>
+    </div>
+  )
+}

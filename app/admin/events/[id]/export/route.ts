@@ -5,6 +5,7 @@ import { getCurrentUser } from '../../../../lib/auth'
 import { loadEventForUser } from '../../../../lib/events/store'
 import { BOOKING_SOURCE_LABELS, BOOKING_STATUS_LABELS, effectiveStatus, matchesListFilter, matchesSearch, parseListFilter } from '../../../../lib/events/admin-rules'
 import { toCsv } from '../../../../lib/csv'
+import { describePlaces } from '../../../../lib/events/places'
 import { formatShort } from '../../../../lib/timezone'
 
 /**
@@ -27,19 +28,19 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   const bookings = await prisma.booking.findMany({
     where: { eventId: event.id },
     orderBy: { createdAt: 'asc' },
-    include: { allocations: { select: { unit: { select: { label: true } } } } }
+    include: { allocations: { select: { unit: { select: { label: true, kind: true } } } } }
   })
   const rows = bookings
-    .map(b => ({ ...b, tables: b.allocations.map(a => a.unit.label) }))
+    .map(b => ({ ...b, tables: b.allocations.map(a => a.unit.label), place: describePlaces(b.allocations.map(a => a.unit)) }))
     .filter(b => matchesListFilter(b, filter, now) && matchesSearch(b, query))
     .sort((a, b) => (a.tables[0] ?? '￿').localeCompare(b.tables[0] ?? '￿', 'de', { numeric: true }))
     .map(b => [
-      b.tables.join(', '), b.name, b.email, b.phone, b.partySize, BOOKING_STATUS_LABELS[effectiveStatus(b, now)], BOOKING_SOURCE_LABELS[b.source],
+      b.allocations.length > 0 ? b.place : '', b.name, b.email, b.phone, b.partySize, BOOKING_STATUS_LABELS[effectiveStatus(b, now)], BOOKING_SOURCE_LABELS[b.source],
       b.note, b.adminNote, formatShort(b.createdAt, tz), b.emailVerifiedAt ? formatShort(b.emailVerifiedAt, tz) : null
     ])
 
   const csv = toCsv([
-    ['Tisch', 'Name', 'E-Mail', 'Telefon', 'Personen', 'Status', 'Quelle', 'Anmerkung', 'Interne Notiz', 'Gebucht am', 'E-Mail bestätigt am'],
+    [event.mode === 'SEAT' ? 'Plätze' : 'Tisch', 'Name', 'E-Mail', 'Telefon', 'Personen', 'Status', 'Quelle', 'Anmerkung', 'Interne Notiz', 'Gebucht am', 'E-Mail bestätigt am'],
     ...rows
   ])
   return new NextResponse(csv, {

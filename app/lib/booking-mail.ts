@@ -22,7 +22,12 @@ export type MailType =
   | 'verify' | 'confirmed' | 'changed' | 'admin-changed' | 'cancelled' | 'already-booked' | 'manage-link' | 'broadcast' | 'broadcast-test'
   | 'waitlist-verify' | 'waitlist-confirmed' | 'offer' | 'offer-expired'
 
-type MailEvent = Pick<Event, 'id' | 'slug' | 'title' | 'location' | 'startsAt' | 'endsAt' | 'timezone' | 'replyTo' | 'mailNote' | 'selfEditHoursBefore' | 'offerTtlHours'>
+type MailEvent = Pick<Event, 'id' | 'slug' | 'title' | 'location' | 'startsAt' | 'endsAt' | 'timezone' | 'replyTo' | 'mailNote' | 'selfEditHoursBefore' | 'offerTtlHours' | 'mode'>
+
+/** Modus SEAT spricht von Plätzen statt von einem Tisch. */
+function seats(event: Pick<Event, 'mode'>): boolean {
+  return event.mode === 'SEAT'
+}
 type MailBooking = { id: string; name: string; email: string | null; partySize: number; manageTokenVersion: number; icsSequence: number }
 
 export function manageUrl(booking: { id: string; manageTokenVersion: number }): string {
@@ -76,7 +81,7 @@ function deadlineText(event: MailEvent): string {
 
 export async function sendVerifyMail(event: MailEvent, booking: MailBooking, tableLabel: string, token: string, code: string, expiresAt: Date) {
   return deliver(event, booking.id, 'verify', booking.email, `Bitte bestätige deine Reservierung – ${event.title}`, 'Bitte bestätige deine Reservierung', [
-    { kind: 'p', text: `${tableLabel} ist bis ${formatDateTime(expiresAt, event.timezone)} für dich reserviert. Bitte bestätige deine E-Mail-Adresse, damit die Buchung gilt – sonst wird der Tisch danach wieder frei.` },
+    { kind: 'p', text: `${tableLabel} ist bis ${formatDateTime(expiresAt, event.timezone)} für dich reserviert. Bitte bestätige deine E-Mail-Adresse, damit die Buchung gilt – sonst ${seats(event) ? 'werden die Plätze' : 'wird der Tisch'} danach wieder frei.` },
     detailRows(event, booking, tableLabel),
     { kind: 'button', label: 'Buchung bestätigen', href: verifyUrl(booking.id, token) },
     { kind: 'p', text: `Oder gib auf der Buchungsseite diesen Code ein: ${code}` },
@@ -114,7 +119,7 @@ export async function sendChangedMail(event: MailEvent, booking: MailBooking, ta
 
 export async function sendCancelledMail(event: MailEvent, booking: MailBooking, tableLabel: string, byAdmin = false) {
   return deliver(event, booking.id, 'cancelled', booking.email, `Buchung storniert – ${event.title}`, 'Deine Buchung wurde storniert', [
-    { kind: 'p', text: byAdmin ? 'Die Veranstalter*innen haben deine Buchung storniert, der Tisch ist wieder frei.' : 'Deine Buchung wurde storniert, der Tisch ist wieder frei.' },
+    { kind: 'p', text: `${byAdmin ? 'Die Veranstalter*innen haben deine Buchung storniert' : 'Deine Buchung wurde storniert'}, ${seats(event) ? 'die Plätze sind' : 'der Tisch ist'} wieder frei.` },
     detailRows(event, booking, tableLabel),
     ...(byAdmin ? [{ kind: 'p' as const, text: 'Bei Fragen antworte einfach auf diese Mail.' }] : []),
     { kind: 'small', text: 'Im Anhang findest du eine Kalenderdatei, die den Eintrag in deinem Kalender entfernt (sofern dein Kalender das unterstützt).' }
@@ -149,7 +154,7 @@ export async function sendBroadcastMail(
 export async function sendBroadcastTestMail(event: MailEvent, to: string, content: { subject: string; body: string }) {
   const sample = { name: 'Erika Beispiel', partySize: 4 }
   return deliver(event, null, 'broadcast-test', to, `[Test] ${content.subject}`, event.title,
-    broadcastBlocks(event, sample, 'Tisch 1', content.body, `${baseUrl()}/b/beispiel/persoenlicher-link`))
+    broadcastBlocks(event, sample, seats(event) ? 'Reihe A, Plätze 1–4' : 'Tisch 1', content.body, `${baseUrl()}/b/beispiel/persoenlicher-link`))
 }
 
 // --- Warteliste (Konzept Abschnitt 5) ------------------------------------------------------------
@@ -178,7 +183,7 @@ export async function sendWaitlistVerifyMail(event: MailEvent, booking: MailBook
 
 export async function sendWaitlistConfirmedMail(event: MailEvent, booking: MailBooking) {
   return deliver(event, booking.id, 'waitlist-confirmed', booking.email, `Du stehst auf der Warteliste – ${event.title}`, 'Du stehst auf der Warteliste', [
-    { kind: 'p', text: `Wird ein passender Tisch frei, bekommst du ein Angebot per Mail. Es gilt ${event.offerTtlHours} ${event.offerTtlHours === 1 ? 'Stunde' : 'Stunden'} (höchstens bis Buchungsschluss) – nimmst du es in dieser Zeit nicht an, geht der Tisch an die nächste Gruppe.` },
+    { kind: 'p', text: `${seats(event) ? 'Werden passende Plätze nebeneinander frei' : 'Wird ein passender Tisch frei'}, bekommst du ein Angebot per Mail. Es gilt ${event.offerTtlHours} ${event.offerTtlHours === 1 ? 'Stunde' : 'Stunden'} (höchstens bis Buchungsschluss) – nimmst du es in dieser Zeit nicht an, geht das Angebot an die nächste Gruppe.` },
     waitlistRows(event, booking),
     { kind: 'button', label: 'Eintrag ansehen oder zurückziehen', href: manageUrl(booking) },
     { kind: 'small', text: 'Der Link ist dein persönlicher Zugang – gib ihn nicht weiter. Über ihn nimmst du später auch ein Angebot an.' }
@@ -186,17 +191,19 @@ export async function sendWaitlistConfirmedMail(event: MailEvent, booking: MailB
 }
 
 export async function sendOfferMail(event: MailEvent, booking: MailBooking, tableLabel: string, expiresAt: Date, logId?: string) {
-  return deliver(event, booking.id, 'offer', booking.email, `Ein Tisch ist für euch frei – ${event.title}`, 'Ein Tisch ist für euch frei', [
-    { kind: 'p', text: `Gute Nachricht: ${tableLabel} ist frei geworden und passt zu eurer Gruppe. Wir halten ihn bis ${formatDateTime(expiresAt, event.timezone)} für euch frei – bitte nimm das Angebot bis dahin an oder lehne es ab.` },
+  const heading = seats(event) ? 'Plätze sind für euch frei' : 'Ein Tisch ist für euch frei'
+  const freed = seats(event) ? `Plätze nebeneinander sind frei geworden (${tableLabel}). Wir halten sie` : `${tableLabel} ist frei geworden und passt zu eurer Gruppe. Wir halten ihn`
+  return deliver(event, booking.id, 'offer', booking.email, `${heading} – ${event.title}`, heading, [
+    { kind: 'p', text: `Gute Nachricht: ${freed} bis ${formatDateTime(expiresAt, event.timezone)} für euch frei – bitte nimm das Angebot bis dahin an oder lehne es ab.` },
     detailRows(event, booking, tableLabel),
     { kind: 'button', label: 'Angebot ansehen und annehmen', href: manageUrl(booking) },
-    { kind: 'small', text: 'Nimmst du das Angebot nicht rechtzeitig an, verfällt es und der Tisch geht an die nächste Gruppe auf der Warteliste.' }
+    { kind: 'small', text: 'Nimmst du das Angebot nicht rechtzeitig an, verfällt es und geht an die nächste Gruppe auf der Warteliste.' }
   ], { logId })
 }
 
 export async function sendOfferExpiredMail(event: MailEvent, booking: MailBooking, logId?: string) {
   return deliver(event, booking.id, 'offer-expired', booking.email, `Angebot verfallen – ${event.title}`, 'Dein Angebot ist verfallen', [
-    { kind: 'p', text: 'Du hast das Angebot nicht rechtzeitig angenommen, der Tisch geht an die nächste Gruppe. Dein Eintrag auf der Warteliste ist damit beendet.' },
+    { kind: 'p', text: 'Du hast das Angebot nicht rechtzeitig angenommen, es geht an die nächste Gruppe. Dein Eintrag auf der Warteliste ist damit beendet.' },
     waitlistRows(event, booking),
     { kind: 'button', label: 'Zur Veranstaltung', href: `${baseUrl()}/${event.slug}` },
     { kind: 'small', text: 'Du kannst dich auf der Seite der Veranstaltung erneut eintragen, solange noch gebucht werden kann.' }

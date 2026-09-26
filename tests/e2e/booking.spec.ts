@@ -379,3 +379,10 @@ test('Cron löscht abgelaufene und stornierte Buchungen nach 30 Tagen, bestätig
   expect(await prisma.booking.count({ where: { id: active.id } })).toBe(1)
   expect(await mailsTo('niemand@example.test')).toHaveLength(0)
 })
+
+test('Tisch im Plan mit der Maus anklicken öffnet das Buchungsformular', async ({ page }) => {
+  const event = await openEvent()
+  await page.goto(`/${event.slug}`)
+  await page.locator('[data-unit-key="t2"]').click()
+  await expect(page.getByRole('heading', { name: /Tisch 2 buchen/ })).toBeVisible()
+})

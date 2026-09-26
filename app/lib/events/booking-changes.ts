@@ -7,13 +7,14 @@
  * SEQUENCE braucht.
  */
 
-export type BookingSnapshot = { name: string; phone: string | null; note: string | null; partySize: number; tableKey: string | null }
+/** tableKey im Modus TABLE; seats (Kurzbeschreibung, z.B. "Reihe A, Plätze 3–5") im Modus SEAT. */
+export type BookingSnapshot = { name: string; phone: string | null; note: string | null; partySize: number; tableKey: string | null; seats?: string | null }
 
-export type ChangeField = 'name' | 'phone' | 'note' | 'partySize' | 'table'
+export type ChangeField = 'name' | 'phone' | 'note' | 'partySize' | 'table' | 'seats'
 export type Change = { field: ChangeField; from: string | number | null; to: string | number | null }
 
 export const CHANGE_LABELS: Record<ChangeField, string> = {
-  name: 'Name', phone: 'Telefon', note: 'Anmerkung', partySize: 'Personenzahl', table: 'Tisch'
+  name: 'Name', phone: 'Telefon', note: 'Anmerkung', partySize: 'Personenzahl', table: 'Tisch', seats: 'Plätze'
 }
 
 export function diffBooking(before: BookingSnapshot, after: BookingSnapshot): Change[] {
@@ -26,15 +27,16 @@ export function diffBooking(before: BookingSnapshot, after: BookingSnapshot): Ch
   track('note', before.note, after.note)
   track('partySize', before.partySize, after.partySize)
   track('table', before.tableKey, after.tableKey)
+  if (before.seats !== undefined && after.seats !== undefined) track('seats', before.seats, after.seats)
   return changes
 }
 
 /**
- * Name, Telefon und Anmerkung stehen nicht in der Kalenderdatei - nur Personenzahl und Tisch zählen
+ * Name, Telefon und Anmerkung stehen nicht in der Kalenderdatei - nur Personenzahl, Tisch und Plätze zählen
  * die SEQUENCE hoch (Konzept Abschnitt 7).
  */
 export function calendarRelevant(changes: readonly Change[]): boolean {
-  return changes.some(change => change.field === 'partySize' || change.field === 'table')
+  return changes.some(change => change.field === 'partySize' || change.field === 'table' || change.field === 'seats')
 }
 
 /** Für AuditLog.diff: { feld: { from, to } }. */

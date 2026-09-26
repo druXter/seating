@@ -31,8 +31,10 @@ export default async function EventPage({ params, searchParams }: { params: Prom
   const now = new Date()
 
   const { units, states } = await loadUnitStates(event.id, now)
-  const counts = countStates(units, states, 'TABLE')
-  const bookableTables = units.filter(u => u.kind === 'TABLE' && u.bookable).length
+  // Modus SEAT zählt Plätze, TABLE Tische.
+  const unitKind = event.mode === 'SEAT' ? 'SEAT' : 'TABLE'
+  const counts = countStates(units, states, unitKind)
+  const bookableTables = units.filter(u => u.kind === unitKind && u.bookable).length
 
   // Aktive Buchungen (bestätigt oder noch gültig reserviert) - für die Links im Plan und die Warnung beim Löschen.
   const [bookings, shares, sourcePlan] = await Promise.all([
@@ -50,10 +52,12 @@ export default async function EventPage({ params, searchParams }: { params: Prom
   // Klick auf einen Tisch: belegt -> zur Buchung, frei -> Buchung anlegen (Konzept Abschnitt 8).
   const bookingByUnit = new Map(bookings.flatMap(b => b.allocations.map(a => [a.unit.key, b] as const)))
   const tableLabels = new Map(units.map(u => [u.key, u.label]))
+  const tableKinds = new Map(units.map(u => [u.key, u.kind]))
   const visuals = new Map<string, UnitVisual>([...states].map(([key, state]) => {
     const booking = bookingByUnit.get(key)
     const label = tableLabels.get(key) ?? key
     if (booking) return [key, { state, href: `/admin/events/${event.id}/bookings/${booking.id}`, linkLabel: `${label}: Buchung von ${booking.name}` }]
+    if (tableKinds.get(key) !== unitKind) return [key, { state }]
     if (state === 'free' || state === 'unavailable') return [key, { state, href: `/admin/events/${event.id}/bookings/new?table=${key}`, linkLabel: `${label}: Buchung anlegen` }]
     return [key, { state }]
   }))
@@ -91,8 +95,8 @@ export default async function EventPage({ params, searchParams }: { params: Prom
           </p>
         </div>
 
-        {event.mode === 'TABLE' && bookableTables === 0 && (
-          <Notice tone="warning">Der Plan enthält keine buchbaren Tische – für eine Tischbuchung füge im Plan Tische hinzu.</Notice>
+        {(event.mode === 'TABLE' || event.mode === 'SEAT') && bookableTables === 0 && (
+          <Notice tone="warning">{unitKind === 'SEAT' ? 'Der Plan enthält keine buchbaren Plätze – füge im Plan Reihen, Stühle oder Tische mit Plätzen hinzu.' : 'Der Plan enthält keine buchbaren Tische – für eine Tischbuchung füge im Plan Tische hinzu.'}</Notice>
         )}
 
         <div className="bg-white rounded-lg shadow p-4 space-y-3">
@@ -101,7 +105,7 @@ export default async function EventPage({ params, searchParams }: { params: Prom
             <Link href={`/admin/events/${event.id}/plan`} className="text-sm text-blue-700 hover:underline">Plan bearbeiten</Link>
           </div>
           <p className="text-sm text-gray-700" data-testid="table-counts">
-            Tische: {counts.free} frei · {counts.held} reserviert (unbestätigt) · {counts.confirmed} belegt
+            {unitKind === 'SEAT' ? 'Plätze' : 'Tische'}: {counts.free} frei · {counts.held} reserviert (unbestätigt) · {counts.confirmed} belegt
             {counts.unavailable > 0 && ` · ${counts.unavailable} nicht buchbar`}
           </p>
           <PlanSvg layout={event.layout} backgroundUrl={backgroundUrl} units={visuals} title={`Plan von ${event.title} mit Belegung`} className="w-full h-auto max-h-[60vh]" />
@@ -147,6 +151,7 @@ export default async function EventPage({ params, searchParams }: { params: Prom
                 requirePhone: event.requirePhone,
                 waitlistEnabled: event.waitlistEnabled,
                 offerTtlHours: event.offerTtlHours,
+                maxSeatsPerBooking: event.maxSeatsPerBooking,
                 replyTo: event.replyTo ?? '',
                 mailNote: event.mailNote
               }}

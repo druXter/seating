@@ -7,6 +7,8 @@ import { bookingSecretsConfigured } from '../../../lib/booking-tokens'
 import { canSelfEdit, selfEditDeadline } from '../../../lib/events/booking-rules'
 import { loadManagedBooking } from '../../../lib/events/booking'
 import { loadUnitStates } from '../../../lib/events/store'
+import { seatPickerData } from '../../../lib/events/places'
+import { parseLayout } from '../../../lib/floorplan/schema'
 import Notice from '../../../ui/notice'
 import { acceptOfferAction, declineOfferAction, leaveWaitlistAction } from '../../actions'
 import { CancelForm, ChangeForm, ManageButtonForm } from './manage-forms'
@@ -42,7 +44,9 @@ export default async function ManagePage({ params, searchParams }: {
   const showTable = booking.status === 'CONFIRMED' || booking.status === 'OFFERED'
 
   let tables: { key: string; label: string; capacity: number }[] = []
-  if (editable) {
+  const layout = parseLayout(event.layout)
+  const seatData = editable && event.mode === 'SEAT' && layout.ok ? await seatPickerData(event, now, { ownBookingId: booking.id }) : null
+  if (editable && !seatData) {
     const { units, states } = await loadUnitStates(event.id, now)
     tables = units
       .filter(unit => unit.kind === 'TABLE' && unit.bookable && (unit.key === booking.table?.key || states.get(unit.key) === 'free'))
@@ -73,7 +77,7 @@ export default async function ManagePage({ params, searchParams }: {
             <dt className="text-gray-600">Veranstaltung</dt><dd><Link href={`/${event.slug}`} className="text-blue-700 hover:underline">{event.title}</Link></dd>
             <dt className="text-gray-600">Wann</dt><dd>{formatRange(event.startsAt, event.endsAt, event.timezone)}</dd>
             {event.location && <><dt className="text-gray-600">Wo</dt><dd>{event.location}</dd></>}
-            {showTable && <><dt className="text-gray-600">Tisch</dt><dd>{booking.table?.label ?? '–'}</dd></>}
+            {showTable && <><dt className="text-gray-600">{event.mode === 'SEAT' ? 'Plätze' : 'Tisch'}</dt><dd>{booking.placeLabel}</dd></>}
             {waiting && booking.waitlistedAt && <><dt className="text-gray-600">Auf der Warteliste seit</dt><dd>{formatDateTime(booking.waitlistedAt, event.timezone)}</dd></>}
             <dt className="text-gray-600">Personen</dt><dd>{booking.partySize}</dd>
             <dt className="text-gray-600">Name</dt><dd>{booking.name}</dd>
@@ -96,10 +100,10 @@ export default async function ManagePage({ params, searchParams }: {
 
         {offerOpen && (
           <div className="bg-white p-6 rounded-lg shadow space-y-3 border-2 border-green-300">
-            <h2 className="font-bold">Ein Tisch ist für euch frei</h2>
+            <h2 className="font-bold">{event.mode === 'SEAT' ? 'Plätze sind für euch frei' : 'Ein Tisch ist für euch frei'}</h2>
             <p className="text-sm text-gray-700">
-              {booking.table?.label} ist für euch reserviert bis <strong>{formatDateTime(booking.expiresAt!, event.timezone)}</strong>.
-              Nimmst du das Angebot bis dahin nicht an, geht der Tisch an die nächste Gruppe.
+              {booking.placeLabel}: für euch reserviert bis <strong>{formatDateTime(booking.expiresAt!, event.timezone)}</strong>.
+              Nimmst du das Angebot bis dahin nicht an, geht es an die nächste Gruppe.
             </p>
             <ManageButtonForm action={acceptOfferAction} bookingId={booking.id} token={token} label="Angebot annehmen" primary />
             <ManageButtonForm action={declineOfferAction} bookingId={booking.id} token={token} label="Angebot ablehnen" confirmMessage="Angebot wirklich ablehnen? Dein Eintrag auf der Warteliste endet damit." />
@@ -113,7 +117,11 @@ export default async function ManagePage({ params, searchParams }: {
               <p className="text-sm text-gray-600">Möglich bis {formatDateTime(selfEditDeadline(event), event.timezone)}.</p>
               <ChangeForm values={{
                 bookingId: booking.id, token, name: booking.name, phone: booking.phone ?? '', note: booking.note ?? '',
-                partySize: booking.partySize, unitKey: booking.table?.key ?? '', requirePhone: event.requirePhone, tables
+                partySize: booking.partySize, unitKey: booking.table?.key ?? '', requirePhone: event.requirePhone, tables,
+                seats: seatData && layout.ok ? {
+                  layout: layout.layout, backgroundUrl: event.backgroundFile ? `/${event.slug}/background?v=${event.backgroundFile.slice(0, 8)}` : null,
+                  seats: seatData.seats, groups: seatData.groups, initial: booking.places.map(p => p.key), max: event.maxSeatsPerBooking
+                } : undefined
               }} />
             </div>
             <div className="bg-white p-6 rounded-lg shadow space-y-2">

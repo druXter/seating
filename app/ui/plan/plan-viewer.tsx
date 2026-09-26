@@ -43,6 +43,9 @@ export default function PlanViewer({ layout, backgroundUrl, units, title, onUnit
   const gesture = useRef<Gesture | null>(null)
   // Nach einem Verschieben/Zoomen feuert der Browser trotzdem "click" - der ist dann keine Auswahl.
   const suppressClick = useRef(false)
+  // Einheit unter dem Zeiger beim Drücken: Mit Pointer-Capture (Maus, zum Ziehen) landet der folgende
+  // "click" beim SVG selbst statt bei der angetippten Einheit.
+  const pressedKey = useRef<string | null>(null)
   const fitted = fitView(layout)
 
   function clampWidth(width: number): number {
@@ -68,6 +71,7 @@ export default function PlanViewer({ layout, backgroundUrl, units, title, onUnit
   }
 
   function onPointerDown(event: PointerEvent<SVGSVGElement>) {
+    pressedKey.current = (event.target as Element).closest('[data-unit-key]')?.getAttribute('data-unit-key') ?? null
     if (event.pointerType === 'mouse') {
       if (event.button !== 0) return
       const matrix = inverse()
@@ -165,7 +169,8 @@ export default function PlanViewer({ layout, backgroundUrl, units, title, onUnit
           onPointerDown={onPointerDown}
           onClick={onUnitClick ? event => {
             if (suppressClick.current) return
-            const key = (event.target as Element).closest('[data-unit-key]')?.getAttribute('data-unit-key')
+            const key = pressedKey.current ?? (event.target as Element).closest('[data-unit-key]')?.getAttribute('data-unit-key')
+            pressedKey.current = null
             if (key) onUnitClick(key)
           } : undefined}
         />

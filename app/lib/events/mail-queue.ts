@@ -2,7 +2,7 @@
 import { prisma } from '../prisma'
 import { sendBroadcastMail, sendOfferExpiredMail, sendOfferMail } from '../booking-mail'
 import { holdsUnits } from './occupancy'
-import { tableOf } from './booking'
+import { placeLabelOf } from './places'
 import { broadcastDelayMs } from './admin-rules'
 
 /**
@@ -34,14 +34,12 @@ async function sendQueued(logId: string) {
   switch (log.type) {
     case 'broadcast': {
       if (!log.broadcast || !holdsUnits(booking, new Date())) return void (await skip('Buchung nicht mehr aktiv'))
-      const table = await tableOf(booking.id)
-      await sendBroadcastMail(log.event, booking, table?.label ?? 'Tisch', log.broadcast, logId)
+      await sendBroadcastMail(log.event, booking, await placeLabelOf(booking.id), log.broadcast, logId)
       return
     }
     case 'offer': {
       if (booking.status !== 'OFFERED' || !holdsUnits(booking, new Date())) return void (await skip('Angebot nicht mehr offen'))
-      const table = await tableOf(booking.id)
-      await sendOfferMail(log.event, booking, table?.label ?? 'Tisch', booking.expiresAt!, logId)
+      await sendOfferMail(log.event, booking, await placeLabelOf(booking.id), booking.expiresAt!, logId)
       return
     }
     case 'offer-expired':

@@ -4,11 +4,12 @@ import { prisma } from '../prisma'
 import { newVerifyCode, newVerifyToken } from '../booking-tokens'
 import { sendCancelledMail, sendChangedMail, sendConfirmedMail, sendManageLinkMail, sendVerifyMail } from '../booking-mail'
 import { holdsUnits } from './occupancy'
-import { tableOf } from './booking'
-import { activeWhere, audit, isUniqueViolation, lockEvent, releaseStaleHolds, tableSeatsTaken, type Tx } from './booking-tx'
+import { activeWhere, audit, emailBlockingWhere, isUniqueViolation, lockEvent, type Tx } from './booking-tx'
 import { auditDiff, calendarRelevant, changeLabels, changeRows, diffBooking } from './booking-changes'
 import { adminTableProblem, byLabel, type AdminChangeInput, type AdminCreateInput } from './admin-rules'
 import { loadUnitStates } from './store'
+import { checkSeats, describePlaces, placesOf, setAllocations, type Place } from './places'
+import { samePlaces, seatSnapshot } from './booking'
 import type { AuditContext } from './audit-text'
 
 /**
@@ -24,8 +25,9 @@ import type { AuditContext } from './audit-text'
 
 type Table = { id: string; key: string; label: string; capacity: number }
 /** Event ohne Plan - Server Actions reichen das geladene Event (mit geprüftem Plan) herein. */
-type AdminEvent = Omit<Event, 'layout'>
-export type AdminBooking = Booking & { table: Table | null }
+type AdminEvent = Omit<Event, 'layout'> & { layout: unknown }
+/** table: der Tisch (Modus TABLE), places: alle belegten Einheiten, placeLabel: deren Kurzbeschreibung. */
+export type AdminBooking = Booking & { table: Table | null; places: Place[]; placeLabel: string }
 
 export type AdminResult = { ok: true; changed: boolean; mailFailed: boolean; bookingId?: string } | { ok: false; errors: string[] }
 
@@ -47,23 +49,43 @@ function fail(...errors: string[]): AdminResult {
 export async function loadAdminBooking(eventId: string, bookingId: string): Promise<AdminBooking | null> {
   if (!/^[a-z0-9]{10,40}$/.test(bookingId)) return null
   const booking = await prisma.booking.findFirst({ where: { id: bookingId, eventId } })
-  return booking ? { ...booking, table: await tableOf(booking.id) } : null
+  if (!booking) return null
+  const places = await placesOf(booking.id)
+  const table = places.find(p => p.kind === 'TABLE') ?? null
+  return { ...booking, table, places, placeLabel: describePlaces(places) }
 }
 
 /** Zieltisch: jeder Tisch des Events, auch ein nicht buchbarer (z.B. für Ehrengäste freigehalten). */
 function findTable(eventId: string, key: string) {
-  return prisma.unit.findFirst({ where: { eventId, key, kind: 'TABLE' }, select: { id: true, key: true, label: true, capacity: true } })
+  return prisma.unit.findFirst({ where: { eventId, key, kind: 'TABLE' }, select: { id: true, key: true, label: true, capacity: true, kind: true, tableKey: true } })
 }
 
+type Target = { ok: true; places: Place[]; label: string; partySize: number } | { ok: false; errors: string[] }
+
 /**
- * Tischwechsel innerhalb einer Transaktion: abgelaufene Holds auf dem Ziel freigeben, gemischte
- * Belegung prüfen, alte Allocation weg, neue rein (Unique-Index greift bei gleichzeitiger Vergabe).
+ * Ziel einer Admin-Aktion: TABLE ein Tisch (auch nicht buchbar, Kapazität gilt, Mindestbelegung
+ * nicht); SEAT freie oder eigene Plätze, auch nicht buchbare, ohne Obergrenze pro Buchung.
  */
-async function moveAllocation(tx: Tx, eventId: string, bookingId: string, target: Table, now: Date) {
-  await releaseStaleHolds(tx, eventId, [target.id], now)
-  if (await tableSeatsTaken(tx, eventId, target.key, now, bookingId)) throw new Abort(`${target.label} ist belegt.`)
-  await tx.allocation.deleteMany({ where: { bookingId } })
-  await tx.allocation.create({ data: { eventId, unitId: target.id, bookingId } })
+async function adminTarget(event: AdminEvent, unitKeys: string[], partySize: number, now: Date, ownBookingId?: string): Promise<Target> {
+  if (event.mode === 'SEAT') {
+    const check = await checkSeats(event, unitKeys, { ownBookingId, admin: true, maxSeats: null }, now)
+    return check.ok ? { ...check, partySize: check.places.length } : check
+  }
+  const table = unitKeys.length === 1 ? await findTable(event.id, unitKeys[0]) : null
+  if (!table) return { ok: false, errors: ['Diesen Tisch gibt es nicht.'] }
+  const problem = adminTableProblem(table, partySize)
+  if (problem) return { ok: false, errors: [problem] }
+  return { ok: true, places: [table], label: table.label, partySize }
+}
+
+/** Für AuditLog.diff: Tisch als stabiler key, Plätze als Kurzbeschreibung. */
+function placeDiff(event: AdminEvent, target: Target & { ok: true }) {
+  return event.mode === 'SEAT' ? { seats: target.label } : { table: target.places[0].key }
+}
+
+/** Belegung setzen (places.ts, setAllocations) - gesperrt durch gemischte Belegung: abbrechen. */
+async function moveAllocation(tx: Tx, eventId: string, bookingId: string, target: Target & { ok: true }, now: Date) {
+  if (!(await setAllocations(tx, eventId, bookingId, target.places, now))) throw new Abort(`${target.label} ist belegt.`)
 }
 
 function takenMessage(error: unknown, label: string): string | null {
@@ -72,19 +94,17 @@ function takenMessage(error: unknown, label: string): string | null {
   return null
 }
 
-/** Kontakt, Personenzahl, Tisch. Mail mit Gegenüberstellung alt -> neu nur an bestätigte Buchungen. */
+/** Kontakt, Personenzahl, Tisch bzw. Plätze. Mail mit Gegenüberstellung alt -> neu nur an bestätigte Buchungen. */
 export async function adminChangeBooking(
   event: AdminEvent, booking: AdminBooking, input: AdminChangeInput, expected: Date, notify: boolean, actor: string, now = new Date()
 ): Promise<AdminResult> {
   if (!holdsUnits(booking, now)) return fail(INACTIVE)
-  const target = input.unitKey === booking.table?.key ? booking.table : await findTable(event.id, input.unitKey)
-  if (!target) return fail('Diesen Tisch gibt es nicht.')
-  const problem = adminTableProblem(target, input.partySize)
-  if (problem) return fail(problem)
+  const target = await adminTarget(event, input.unitKeys, input.partySize, now, booking.id)
+  if (!target.ok) return fail(...target.errors)
 
   const changes = diffBooking(
-    { name: booking.name, phone: booking.phone, note: booking.note, partySize: booking.partySize, tableKey: booking.table?.key ?? null },
-    { ...input, tableKey: target.key }
+    { name: booking.name, phone: booking.phone, note: booking.note, partySize: booking.partySize, tableKey: booking.table?.key ?? null, ...seatSnapshot(event, booking.placeLabel) },
+    { ...input, partySize: target.partySize, tableKey: event.mode === 'SEAT' ? null : target.places[0].key, ...seatSnapshot(event, target.label) }
   )
   if (changes.length === 0) return done(false, false)
   const mail = notify && booking.status === 'CONFIRMED' && booking.email !== null
@@ -95,12 +115,12 @@ export async function adminChangeBooking(
       const claimed = await tx.booking.updateMany({
         where: { id: booking.id, status: booking.status, updatedAt: expected },
         data: {
-          name: input.name, phone: input.phone, note: input.note, partySize: input.partySize,
+          name: input.name, phone: input.phone, note: input.note, partySize: target.partySize,
           ...(calendarRelevant(changes) ? { icsSequence: { increment: 1 } } : {})
         }
       })
       if (claimed.count === 0) throw new Abort(CONFLICT)
-      if (target.id !== booking.table?.id) await moveAllocation(tx, event.id, booking.id, target, now)
+      if (!samePlaces(booking.places, target.places)) await moveAllocation(tx, event.id, booking.id, target, now)
       await audit(tx, { eventId: event.id, bookingId: booking.id, actor, action: 'changed', diff: { ...auditDiff(changes), notified: mail } })
     })
   } catch (error) {
@@ -111,7 +131,7 @@ export async function adminChangeBooking(
 
   if (!mail) return done()
   const updated = await prisma.booking.findUniqueOrThrow({ where: { id: booking.id } })
-  const labelOf = (key: string) => (key === target.key ? target.label : key === booking.table?.key ? booking.table.label : key)
+  const labelOf = (key: string) => (key === target.places[0]?.key ? target.places[0].label : key === booking.table?.key ? booking.table.label : key)
   const sent = await sendChangedMail(event, updated, target.label, changeLabels(changes), changeRows(changes, labelOf), true)
   return done(!sent)
 }
@@ -148,7 +168,7 @@ export async function adminCancelBooking(event: AdminEvent, booking: AdminBookin
   if (!cancelled) return fail(CONFLICT)
   if (!mail) return done()
   const updated = await prisma.booking.findUniqueOrThrow({ where: { id: booking.id } })
-  return done(!(await sendCancelledMail(event, updated, booking.table?.label ?? 'Tisch', true)))
+  return done(!(await sendCancelledMail(event, updated, booking.placeLabel, true)))
 }
 
 /**
@@ -161,7 +181,7 @@ export async function adminDeleteBooking(event: AdminEvent, booking: AdminBookin
   const mail = notify && booking.status === 'CONFIRMED' && booking.email !== null
   if (mail) {
     const updated = await prisma.booking.update({ where: { id: booking.id }, data: { icsSequence: { increment: 1 } } })
-    mailFailed = !(await sendCancelledMail(event, updated, booking.table?.label ?? 'Tisch', true))
+    mailFailed = !(await sendCancelledMail(event, updated, booking.placeLabel, true))
   }
   const deleted = await prisma.$transaction(async tx => {
     const result = await tx.booking.deleteMany({ where: { id: booking.id, eventId: event.id } })
@@ -190,7 +210,7 @@ export async function adminConfirmBooking(event: AdminEvent, booking: AdminBooki
   await audit(prisma, { eventId: event.id, bookingId: booking.id, actor, action: 'confirmed', diff: { notified: mail } })
   if (!mail) return done()
   const updated = await prisma.booking.findUniqueOrThrow({ where: { id: booking.id } })
-  return done(!(await sendConfirmedMail(event, updated, booking.table?.label ?? 'Tisch')))
+  return done(!(await sendConfirmedMail(event, updated, booking.placeLabel)))
 }
 
 /**
@@ -231,7 +251,7 @@ async function reissueVerification(
     if (error instanceof Abort) return fail(error.message)
     throw error
   }
-  const sent = await sendVerifyMail(event, { ...booking, email }, booking.table?.label ?? 'Tisch', verify.token, code.code, expiresAt)
+  const sent = await sendVerifyMail(event, { ...booking, email }, booking.placeLabel, verify.token, code.code, expiresAt)
   return done(!sent)
 }
 
@@ -254,23 +274,21 @@ export function adminCorrectEmail(event: AdminEvent, booking: AdminBooking, newE
  * (Konzept Abschnitt 5, Schritt 4). Sofort bestätigt; Bestätigungsmail mit .ics auf Wunsch.
  */
 export async function adminAssignWaitlist(
-  event: AdminEvent, booking: AdminBooking, unitKey: string, notify: boolean, actor: string, now = new Date()
+  event: AdminEvent, booking: AdminBooking, unitKeys: string[], notify: boolean, actor: string, now = new Date()
 ): Promise<AdminResult> {
   if (booking.status !== 'WAITLISTED') return fail('Dieser Eintrag steht nicht mehr auf der Warteliste.')
-  const target = await findTable(event.id, unitKey)
-  if (!target) return fail('Diesen Tisch gibt es nicht.')
-  const problem = adminTableProblem(target, booking.partySize)
-  if (problem) return fail(problem)
+  const target = await adminTarget(event, unitKeys, booking.partySize, now, booking.id)
+  if (!target.ok) return fail(...target.errors)
   try {
     await prisma.$transaction(async tx => {
       await lockEvent(tx, event.id)
       const updated = await tx.booking.updateMany({
         where: { id: booking.id, status: 'WAITLISTED' },
-        data: { status: 'CONFIRMED', expiresAt: null, verifyTokenHash: null, verifyCodeHmac: null, verifyAttempts: 0 }
+        data: { status: 'CONFIRMED', expiresAt: null, verifyTokenHash: null, verifyCodeHmac: null, verifyAttempts: 0, partySize: target.partySize }
       })
       if (updated.count === 0) throw new Abort(CONFLICT)
       await moveAllocation(tx, event.id, booking.id, target, now)
-      await audit(tx, { eventId: event.id, bookingId: booking.id, actor, action: 'assigned', diff: { table: target.key, notified: notify && booking.email !== null } })
+      await audit(tx, { eventId: event.id, bookingId: booking.id, actor, action: 'assigned', diff: { ...placeDiff(event, target), notified: notify && booking.email !== null } })
     })
   } catch (error) {
     const message = takenMessage(error, target.label)
@@ -290,7 +308,7 @@ export async function adminRenewManageLink(event: AdminEvent, booking: AdminBook
   await audit(prisma, { eventId: event.id, bookingId: booking.id, actor, action: 'manage-link-renewed', diff: { notified: mail } })
   if (!mail) return done()
   const updated = await prisma.booking.findUniqueOrThrow({ where: { id: booking.id } })
-  return done(!(await sendManageLinkMail(event, updated, booking.table?.label ?? 'Tisch')))
+  return done(!(await sendManageLinkMail(event, updated, booking.placeLabel)))
 }
 
 /**
@@ -299,10 +317,8 @@ export async function adminRenewManageLink(event: AdminEvent, booking: AdminBook
  * oneBookingPerEmail gilt auch hier (wer mehrere Buchungen je Adresse will, schaltet es ab).
  */
 export async function adminCreateBooking(event: AdminEvent, input: AdminCreateInput, actor: string, now = new Date()): Promise<AdminResult> {
-  const target = await findTable(event.id, input.unitKey)
-  if (!target) return fail('Diesen Tisch gibt es nicht.')
-  const problem = adminTableProblem(target, input.partySize)
-  if (problem) return fail(problem)
+  const target = await adminTarget(event, input.unitKeys, input.partySize, now)
+  if (!target.ok) return fail(...target.errors)
 
   const pending = input.confirm === 'verify'
   const verify = pending ? newVerifyToken() : null
@@ -311,22 +327,21 @@ export async function adminCreateBooking(event: AdminEvent, input: AdminCreateIn
   try {
     booking = await prisma.$transaction(async tx => {
       await lockEvent(tx, event.id)
-      await releaseStaleHolds(tx, event.id, [target.id], now)
-      if (await tableSeatsTaken(tx, event.id, target.key, now)) throw new Abort(`${target.label} ist belegt.`)
       if (input.email && event.oneBookingPerEmail) {
-        const existing = await tx.booking.findFirst({ where: { eventId: event.id, email: input.email, ...activeWhere(now) }, select: { id: true } })
+        const existing = await tx.booking.findFirst({ where: { eventId: event.id, email: input.email, ...emailBlockingWhere(now) }, select: { id: true } })
         if (existing) throw new Abort('Für diese Adresse gibt es schon eine aktive Buchung (eine Buchung pro Adresse, siehe Einstellungen).')
       }
       const created = await tx.booking.create({
         data: {
           eventId: event.id, status: pending ? 'PENDING' : 'CONFIRMED', source: 'ADMIN', name: input.name, email: input.email,
-          phone: input.phone, note: input.note, adminNote: input.adminNote, partySize: input.partySize, expiresAt,
-          verifyTokenHash: verify?.hash ?? null, allocations: { create: { eventId: event.id, unitId: target.id } }
+          phone: input.phone, note: input.note, adminNote: input.adminNote, partySize: target.partySize, expiresAt,
+          verifyTokenHash: verify?.hash ?? null
         }
       })
+      await moveAllocation(tx, event.id, created.id, target, now)
       await audit(tx, {
         eventId: event.id, bookingId: created.id, actor, action: 'created',
-        diff: { table: target.key, partySize: input.partySize, notified: pending || (input.notify && input.email !== null) }
+        diff: { ...placeDiff(event, target), partySize: target.partySize, notified: pending || (input.notify && input.email !== null) }
       })
       return created
     })
