@@ -107,9 +107,9 @@ Referenzimplementierung (Abstimmungstool).
 Felder kommen mit der Phase, die sie nutzt (umgesetzt: `FloorPlan` in Phase 1; `Event` mit den Feldern für
 Anzeige, Status, Buchungszeitraum und `minFillRatio`, `EventAccess`, `Unit`, `Booking`/`Allocation` im Kern in
 Phase 2; Buchungs-Einstellungen, Verifizierung, Verwaltungslink, `MailLog`, `AuditLog`, `BookingThrottle` in
-Phase 3; `adminNote`, `Broadcast` und die Warteschlangen-Felder von `MailLog` in Phase 4; `externalRef` und die
-Warteliste folgen mit ihren Phasen). Zusätzlich zum Entwurf: `Event.replyTo`, `Event.mailNote`,
-`Booking.pendingIpHash`, `Broadcast`, `MailLog.broadcastId`/`claimedAt`. **Abweichung (Phase 4):** `Booking.email` ist
+Phase 3; `adminNote`, `Broadcast` und die Warteschlangen-Felder von `MailLog` in Phase 4; Warteliste in Phase 4b:
+`Event.waitlistEnabled`, `Event.offerTtlHours`, `Booking.waitlistedAt`; `externalRef` folgt mit Phase 7).
+Zusätzlich zum Entwurf: `Event.replyTo`, `Event.mailNote`, `Booking.pendingIpHash`, `Booking.waitlistedAt`, `Broadcast`, `MailLog.broadcastId`/`claimedAt`. **Abweichung (Phase 4):** `Booking.email` ist
 optional – nur bei `source = ADMIN` leer (telefonische Reservierung ohne Adresse, siehe Abschnitt 8).
 
 ```text
@@ -241,7 +241,7 @@ Umgesetzt in Phase 3 (`app/lib/events/booking.ts`), mit diesen Festlegungen:
   Phase 4, standardmäßig an). Mit neuer Frist lässt sich auch eine abgelaufene, aber noch nicht aufgeräumte Reservierung
   (Status noch `PENDING`, Allocation noch da) wiederbeleben – wurde der Tisch inzwischen vergeben, ist sie längst `EXPIRED`.
 
-### Warteliste (eigener Schritt nach Phase 4)
+### Warteliste (Phase 4b, umgesetzt)
 
 Angelehnt an rsvp-app (Nachrücken in Reihenfolge der Anmeldung, Admin kann direkt zulassen), aber mit **Angebot statt
 automatischer Zuteilung**: Ein frei werdender Tisch ist ein bestimmter Tisch, den die Gruppe nicht selbst ausgesucht hat
@@ -264,6 +264,32 @@ automatischer Zuteilung**: Ein frei werdender Tisch ist ein bestimmter Tisch, de
 5. Belegt ist eine Einheit auch durch `OFFERED` mit `expiresAt > now` (gleiche Regel wie `PENDING`). Der Cron setzt
    abgelaufene Angebote auf `EXPIRED` und stößt das nächste Angebot an; zusätzlich passiert das sofort bei jedem Ereignis,
    das eine Einheit frei macht.
+
+Umgesetzt in Phase 4b (`app/lib/events/waitlist.ts`, Regeln in `waitlist-rules.ts`), mit diesen Festlegungen:
+
+* **Eintragen** nur, wenn für die Gruppengröße kein passender Tisch frei ist, es aber passende (buchbare) Tische
+  gibt – zu große Gruppen würden nie ein Angebot bekommen. Unbestätigte Einträge sind `WAITLISTED` ohne
+  `emailVerifiedAt`, zählen nicht und verfallen nach **24 Stunden** (es wird kein Tisch blockiert, also keine Eile).
+  Reihenfolge: `Booking.waitlistedAt` (Zeitpunkt der Bestätigung).
+* **Zuteilung:** freie buchbare Tische, kleinste zuerst, jeweils an den am längsten wartenden passenden Eintrag (so
+  bleiben große Tische für große Gruppen). Jedes Angebot in einer eigenen Transaktion; der Unique-Index verhindert,
+  dass zwei gleichzeitige Durchläufe denselben Tisch anbieten.
+* **Frist:** `offerTtlHours` (Standard 24, 1–168), nie über Buchungsschluss bzw. Beginn hinaus. Angebote gibt es nur,
+  solange das Event buchbar ist (`bookingWindow`).
+* **Annehmen/Ablehnen über die Verwaltungsseite** (`/b/<id>/<token>`) statt eines eigenen Links: Den persönlichen
+  Link bekommt man mit der Bestätigung des Eintrags; die Seite zeigt je nach Stand Eintrag (austragen), Angebot
+  (annehmen/ablehnen, POST) oder beendeten Eintrag.
+* **Verfall bemerken:** Ein Hintergrund-Durchlauf im Serverprozess (`app/lib/events/sweep.ts`, jede Minute,
+  `SWEEP_INTERVAL_SECONDS`) setzt abgelaufene Reservierungen, Angebote und unbestätigte Einträge auf `EXPIRED`, bietet
+  frei gewordene Tische an und setzt die Mail-Warteschlange fort; der Cron ruft denselben Durchlauf auf. Nur mit dem
+  täglichen Cron würde ein frei gewordener Tisch bis zu einem Tag niemandem angeboten.
+* **Mails:** Angebot und „Angebot verfallen“ gehen über die Mail-Warteschlange (`app/lib/events/mail-queue.ts`, aus
+  der Rundmail-Warteschlange verallgemeinert) und werden in derselben Transaktion eingereiht wie die Statusänderung –
+  so geht keine verloren. Einzelmails vor Rundmails.
+* **Admin:** direkt zuweisen setzt den Eintrag sofort auf `CONFIRMED`; ein offenes Angebot kann der Admin für die
+  Gruppe annehmen; „Eintrag beenden“ = stornieren. Nach jeder Admin-Aktion, die einen Tisch frei machen kann, wird
+  angeboten.
+* „Event absagen“ (Abschnitt 8) ist weiterhin nicht umgesetzt.
 
 * **`SEAT`:** Das Angebot gilt für N konkrete Plätze. Welche (möglichst nebeneinander), wird mit Phase 5 entschieden.
 * **Zugang `RSVP`:** keine eigene Warteliste – dort wartet man in rsvp-app; wer nachrückt, kommt über den normalen Weg
@@ -489,7 +515,7 @@ optional `TURNSTILE_*`.
 | 2 | Events: Anlegen mit Plan-Snapshot, Slug-Routing, öffentliche Planansicht mit Belegung (noch ohne Buchung), Freigaben – in der Oberfläche nur Modus `TABLE` + Zugang `OPEN` |
 | 3 | Tischbuchung `TABLE`+`OPEN`: Reservierung, Verifizierung, Verfall, Bestätigung, `.ics`, Verwaltungslink (umgesetzt, Buchungsliste für Veranstalter*innen nur zum Lesen) |
 | 4 | Admin-Buchungsverwaltung: Verschieben, Ändern, Löschen, Änderungsmails, Rundmail, erneute Verifizierung, Audit, Export (umgesetzt; Ziehen im Plan → Phase 6, siehe Abschnitt 8) |
-| 4b | Warteliste mit Nachrück-Angebot (Abschnitt 5), ggf. „Event absagen“ (Abschnitt 8) |
+| 4b | Warteliste mit Nachrück-Angebot (Abschnitt 5) (umgesetzt; „Event absagen“ aus Abschnitt 8 weiterhin offen) |
 | 5 | Modus `SEAT` (Kino/Winterball) |
 | 6 | Modus `ASSIGNED` (Hochzeit) mit manueller/CSV-Gästeliste, Drag & Drop im Plan (auch zum Verschieben von Buchungen) |
 | 7 | rsvp-app-Anbindung (A und B), Änderungen in rsvp-app |

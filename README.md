@@ -16,7 +16,8 @@ Fachliche Grundlage und Fahrplan: [docs/KONZEPT.md](docs/KONZEPT.md).
 | 2 | Events mit Plan-Snapshot, Freigaben, öffentliche Planansicht mit Belegung | ✅ umgesetzt |
 | 3 | Tischbuchung mit Verifizierung, Verfall, `.ics`, Verwaltungslink | ✅ umgesetzt |
 | 4 | Buchungsverwaltung: ändern, verschieben, stornieren, löschen, anlegen, Rundmail, Audit, Export, Druckansicht | ✅ umgesetzt |
-| 4b–8 | Warteliste, Modi `SEAT`/`ASSIGNED`, rsvp-app, Föderation | offen |
+| 4b | Warteliste mit befristetem Nachrück-Angebot | ✅ umgesetzt |
+| 5–8 | Modi `SEAT`/`ASSIGNED`, rsvp-app, Föderation | offen |
 
 Tische lassen sich online buchen (Modus `TABLE`, Zugang `OPEN`), Veranstalter\*innen verwalten die Buchungen im
 Admin-Bereich.
@@ -106,7 +107,8 @@ Unter `/admin/events` legen Creator und Admins Events an, Moderator\*innen sehen
 
 * **Buchungs-Einstellungen:** Reservierung ohne Bestätigung (Standard 30 Minuten, 5–1440), Selbst ändern bis
   N Stunden vor Beginn (Standard 24, 0 = bis Beginn), eine Buchung pro E-Mail-Adresse (Standard an),
-  Telefon verpflichtend, Antwortadresse (Reply-To) und Hinweis für die Bestätigungsmail.
+  Telefon verpflichtend, Antwortadresse (Reply-To) und Hinweis für die Bestätigungsmail, **Warteliste** (Standard
+  an) und wie lange ein Angebot aus der Warteliste gilt (Standard 24 Stunden, 1–168).
 
 ### Öffentliche Eventseite
 
@@ -130,6 +132,29 @@ Unter `/admin/events` legen Creator und Admins Events an, Moderator\*innen sehen
 * Die Seite ist **per iFrame einbettbar** (wie in rsvp-app, `frame-ancestors *`) und nicht indexiert (`noindex`).
   Die Header werden beim Build festgeschrieben: Wer nur bestimmte Seiten einbetten lassen will, ändert
   `EMBEDDABLE` in `next.config.ts` und baut neu.
+
+### Warteliste
+
+* **Eintragen:** Gibt man eine Gruppengröße ein, für die gerade kein passender Tisch frei ist (es aber passende Tische
+  gibt), bietet die Seite „Auf die Warteliste“ an: Name, E-Mail, ggf. Telefon, Personenzahl (zweimal), Anmerkung.
+  Der Server prüft selbst, dass wirklich nichts frei ist, und drosselt wie beim Reservieren.
+* **Bestätigen** per Link oder Code wie beim Buchen, innerhalb von 24 Stunden – erst dann zählt der Eintrag. Die Mail
+  „Du stehst auf der Warteliste“ enthält den persönlichen Link zum Austragen.
+* **Eine Buchung pro Adresse** zählt Einträge der Warteliste mit (ohne Hinweis auf der Seite, wie beim Buchen).
+* **Angebot:** Wird ein Tisch frei, geht er an den am längsten wartenden Eintrag, zu dem er passt (Gruppengröße und
+  Mindestbelegung; kleinste freie Tische zuerst). Der Tisch ist dann für die Gruppe reserviert (Status „Angebot“,
+  öffentlich belegt), die Mail verlinkt die persönliche Seite mit „Angebot annehmen“ und „ablehnen“ (Buttons, GET
+  ändert nichts). Die Frist ist die eingestellte Zahl Stunden, höchstens bis Buchungsschluss.
+* **Annehmen** → bestätigte Buchung mit Bestätigungsmail und `.ics`. **Ablehnen** oder **nicht reagiert** → der
+  Eintrag endet (bei Verfall mit Mail) und der Tisch geht sofort an den nächsten passenden Eintrag.
+* **Angestoßen** wird das bei jedem Ereignis, das einen Tisch frei machen kann (Storno, Tischwechsel, Löschen,
+  Planänderung, Einstellungen, bestätigter Eintrag), und von einem **Hintergrund-Durchlauf** im Serverprozess
+  (`SWEEP_INTERVAL_SECONDS`, Standard jede Minute), der abgelaufene Reservierungen und Angebote bemerkt. Der Cron macht
+  dasselbe zusätzlich. Angebote gibt es nur, solange das Event buchbar ist.
+* **Admin:** Filter „Warteliste“ in der Buchungsliste (Reihenfolge und „seit“), Tisch direkt zuweisen (am
+  Nachrück-Verfahren vorbei, sofort bestätigt), offenes Angebot für die Gruppe annehmen, Eintrag beenden oder löschen.
+* Angebots- und Verfallsmails laufen über die Mail-Warteschlange (in derselben Transaktion eingereiht wie das Angebot
+  selbst, damit keine verloren geht), vor Rundmails.
 
 ### Buchung: Regeln und Schutz
 
@@ -258,7 +283,7 @@ npm test            # Unit-Tests (vitest): Passwort, Drossel-IP, Formular-Helfer
                     # Event-Rechte, Belegung, Plan-Änderungen, Event-Formular, .ics (Faltung, Escaping),
                     # Buchungs-Tokens (HMAC, Rotation), Buchungsregeln, Admin-Regeln (Filter, Suche,
                     # Formulare, Rundmail-Empfänger), Änderungs-Diff, Audit-Texte, CSV (Formel-Schutz),
-                    # Mail-Bausteine (Maskierung)
+                    # Mail-Bausteine (Maskierung), Warteliste (Zuteilung, Frist, Wahl)
 npm run test:e2e    # Playwright gegen eine frisch gebaute Instanz auf http://127.0.0.1:3701
 ```
 
@@ -291,6 +316,13 @@ Löschfristen. Für die Buchungsverwaltung:
 * Buchung anlegen: ohne Adresse, direkt, mit Bestätigung, eine pro Adresse.
 * Verwaltungslink neu erzeugen.
 * Rundmail: Test, Filter, Warteschlange, Cron setzt fort, nichts doppelt.
+* Warteliste:
+  * eintragen nur ohne freien passenden Tisch, zu große Gruppen, Bestätigung per Code und per Link (GET bestätigt
+    nicht), eine pro Adresse, nachgespielter Eintrag trotz freiem Tisch;
+  * Angebot an den ältesten passenden Eintrag (größere Gruppe übersprungen), annehmen, ablehnen → der Nächste;
+  * Verfall per Cron mit Mail → der Nächste, abgelaufenes Angebot nicht annehmbar, 6 gleichzeitige Durchläufe
+    → genau ein Angebot;
+  * austragen, Warteliste abgeschaltet, Admin (Reihenfolge, direkt zuweisen, beenden, fremdes Konto).
 * Berechtigung: Moderator\*in, fremdes Konto, Buchung eines anderen Events, ohne Sitzung.
 * Druckansicht.
 
@@ -333,7 +365,8 @@ Siehe `.env.example` (mit Erklärungen). Kurzüberblick:
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` | Mailversand – ohne ist die Online-Buchung abgeschaltet |
 | `VERIFY_CODE_SECRET` | HMAC für Bestätigungscodes (mind. 32 Zeichen) |
 | `MANAGE_LINK_SECRET`, `MANAGE_LINK_SECRET_PREVIOUS` | Ableitung der Verwaltungslinks, vorheriges für Schlüsselwechsel (mind. 32 Zeichen) |
-| `BROADCAST_MAILS_PER_MINUTE` | optional: Tempo der Rundmail-Warteschlange (Standard 30, 1–600) |
+| `BROADCAST_MAILS_PER_MINUTE` | optional: Tempo der Mail-Warteschlange (Standard 30, 1–600) |
+| `SWEEP_INTERVAL_SECONDS` | optional: Hintergrund-Durchlauf für Verfall und Angebote (Standard 60, 0 = aus) |
 | `IMPRESSUM_*` | Angaben für Impressum und Datenschutzerklärung |
 | `UPLOAD_DIR` | optional: Ablage hochgeladener Bilder (Standard `data/uploads` im Arbeitsverzeichnis) |
 

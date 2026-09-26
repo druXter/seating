@@ -6,7 +6,8 @@ import Link from 'next/link'
 // Änderung der Datenverarbeitung mitpflegen. Stand: Phase 4 (Konten der Veranstalter*innen,
 // Raumpläne mit Hintergrundbildern, Events mit öffentlicher Planansicht und Freigaben, Tischbuchung
 // ohne Konto mit Mail-Bestätigung, Verwaltungslink, Buchungsmails mit .ics und Löschfristen;
-// Buchungsverwaltung durch Veranstalter*innen mit interner Notiz, Rundmail und CSV-Export).
+// Buchungsverwaltung durch Veranstalter*innen mit interner Notiz, Rundmail und CSV-Export;
+// Warteliste mit Nachrück-Angebot, Phase 4b).
 //
 // Liest Verantwortlichen- und Infrastruktur-Angaben zur Laufzeit aus der (nicht
 // versionierten) .env, analog zu app/impressum/page.tsx - force-dynamic verhindert, dass
@@ -137,6 +138,23 @@ export default function DatenschutzPage() {
         </div>
 
         <div>
+          <h2 className="font-bold text-lg">5a. Warteliste</h2>
+          <p className="mt-2">
+            Ist für deine Gruppe gerade kein passender Tisch frei, kannst du dich auf die Warteliste setzen. Wir speichern
+            dieselben Angaben wie bei einer Buchung (ohne Tisch) und den Zeitpunkt deines Eintrags, der die Reihenfolge
+            bestimmt. Der Eintrag gilt erst, wenn du deine E-Mail-Adresse per Link oder Code bestätigst; unbestätigte Einträge
+            verfallen nach 24 Stunden.
+          </p>
+          <p className="mt-2">
+            Wird ein passender Tisch frei, reservieren wir ihn für eine begrenzte Zeit für dich und schicken dir ein Angebot
+            per Mail. Nimmst du es an, wird daraus eine Buchung (siehe Punkt 5). Lehnst du ab, reagierst du nicht rechtzeitig
+            oder trägst du dich aus, endet der Eintrag. Die Veranstalter*innen sehen die Warteliste und können dir auch direkt
+            einen Tisch zuweisen. Rechtsgrundlage ist wie bei der Buchung Art. 6 Abs. 1 lit. b DSGVO; zur Speicherdauer siehe
+            Punkt 10 (beendete Einträge wie stornierte Buchungen).
+          </p>
+        </div>
+
+        <div>
           <h2 className="font-bold text-lg">6. Schutz vor Missbrauch (Drosselung)</h2>
           <p className="mt-2">
             Um das Erraten von Passwörtern und das massenhafte Auslösen von Mails zu verhindern, zählen wir
@@ -156,7 +174,8 @@ export default function DatenschutzPage() {
             Passwort-Reset) und für deine Buchung: die Bitte um Bestätigung (mit Link und Code), die Bestätigung mit
             Kalenderdatei und persönlichem Link, Änderungen und Stornierungen (durch dich oder die Veranstalter*innen),
             einen neuen persönlichen Link, falls der alte ersetzt wurde, einen Hinweis, falls mit deiner Adresse erneut
-            gebucht werden sollte, sowie <strong>Rundmails der Veranstalter*innen</strong> zur Veranstaltung, für die
+            gebucht werden sollte, für die Warteliste die Bitte um Bestätigung, die Bestätigung deines Eintrags, ein Angebot
+            für einen frei gewordenen Tisch und ggf. den Hinweis, dass das Angebot verfallen ist, sowie <strong>Rundmails der Veranstalter*innen</strong> zur Veranstaltung, für die
             du gebucht hast (z. B. geänderte Einlasszeiten). Antworten auf Buchungsmails gehen an die Veranstalter*innen, sofern sie
             eine Antwortadresse hinterlegt haben. Werbung oder Newsletter gibt es nicht.
           </p>
@@ -208,7 +227,7 @@ export default function DatenschutzPage() {
             Freigaben und allen zugehörigen Buchungen.
           </p>
           <p className="mt-2">
-            Verfallene und stornierte Buchungen löschen wir <strong>30 Tage</strong> nach ihrer letzten Änderung, samt
+            Verfallene und stornierte Buchungen sowie beendete Einträge der Warteliste löschen wir <strong>30 Tage</strong> nach ihrer letzten Änderung, samt
             Mail- und Änderungsprotokoll. Bestätigte Buchungen bleiben bis zur Löschung der Veranstaltung gespeichert
             (siehe oben) – oder bis die Veranstalter*innen sie früher löschen.
           </p>
