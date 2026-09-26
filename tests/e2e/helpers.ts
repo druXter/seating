@@ -1,7 +1,9 @@
 import { createHash } from 'node:crypto'
-import { PrismaClient, type Role } from '@prisma/client'
+import { PrismaClient, type BookingStatus, type EventStatus, type Role } from '@prisma/client'
 import { expect, type APIResponse, type Page } from '@playwright/test'
 import { hashPassword } from '../../app/lib/password'
+import { deriveUnits } from '../../app/lib/floorplan/units'
+import type { Layout } from '../../app/lib/floorplan/schema'
 import { BASE_URL } from '../../playwright.config'
 
 export { BASE_URL }
@@ -68,14 +70,16 @@ export type ReplayableForm = { url: string; fields: [string, string][] }
  * Liest ein Server-Action-Formular aus, um es später (verändert, von einem anderen Konto
  * oder ohne Sitzung) erneut abzuschicken. WICHTIG: nur direkt nach einem frischen
  * Seitenaufruf - nach einer Client-Navigation fehlt das serverseitig gerenderte
- * $ACTION_ID-Feld und der Test würde nichts prüfen.
+ * $ACTION_ID-/$ACTION_REF-Feld und der Test würde nichts prüfen.
  */
 export async function readForm(page: Page, selector: string): Promise<ReplayableForm> {
   await page.reload()
   const fields = await page.locator(selector).first().evaluate((form: HTMLFormElement) =>
     [...new FormData(form).entries()].map(([k, v]) => [k, typeof v === 'string' ? v : ''] as [string, string])
   )
-  expect(fields.some(([name]) => name.startsWith('$ACTION_ID_')), 'Formular hat keine $ACTION_ID').toBe(true)
+  // $ACTION_ID_: einfache Server Action. $ACTION_REF_: Formular mit useActionState (die Action
+  // steckt mit ihrem Zustand in weiteren versteckten Feldern, die readForm ebenfalls mitnimmt).
+  expect(fields.some(([name]) => /^\$ACTION_(ID|REF)_/.test(name)), 'Formular hat keine $ACTION_ID/$ACTION_REF').toBe(true)
   return { url: page.url(), fields }
 }
 
@@ -137,5 +141,59 @@ export function testLayout() {
 export async function createPlanRecord(ownerId: string, options: { name?: string; shared?: boolean; layout?: object } = {}) {
   return prisma.floorPlan.create({
     data: { name: options.name ?? `Plan ${uniqueEmail('p')}`, ownerId, shared: options.shared ?? false, layout: options.layout ?? testLayout() }
+  })
+}
+
+export function uniqueSlug(prefix = 'event'): string {
+  return `${prefix}-${unique()}`
+}
+
+/** Cookie-Header für page.request (Secure-Cookies schickt es über http://127.0.0.1 sonst nicht mit). */
+export async function cookieOf(page: Page): Promise<string> {
+  const host = new URL(BASE_URL).hostname
+  return (await page.context().cookies()).filter(c => c.domain === host).map(c => `${c.name}=${c.value}`).join('; ')
+}
+
+/** Event direkt in der Datenbank - mit Units wie beim Anlegen über die Oberfläche. */
+export async function createEventRecord(ownerId: string | null, options: {
+  slug?: string; title?: string; status?: EventStatus; layout?: object; minFillRatio?: number | null; startsAt?: Date; endsAt?: Date
+} = {}) {
+  const layout = (options.layout ?? testLayout()) as Layout
+  const startsAt = options.startsAt ?? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+  return prisma.event.create({
+    data: {
+      slug: options.slug ?? uniqueSlug(),
+      title: options.title ?? 'Testevent',
+      status: options.status ?? 'DRAFT',
+      startsAt,
+      endsAt: options.endsAt ?? new Date(startsAt.getTime() + 5 * 60 * 60 * 1000),
+      minFillRatio: options.minFillRatio ?? null,
+      layout,
+      ownerId,
+      units: {
+        createMany: {
+          data: deriveUnits(layout).map(u => ({ key: u.key, kind: u.kind, label: u.label, tableKey: u.tableKey, capacity: u.capacity, bookable: u.bookable }))
+        }
+      }
+    }
+  })
+}
+
+/** Buchung mit Belegung (Phase 2 kann noch nicht buchen - die Tests legen Buchungen direkt an). */
+export async function createBooking(eventId: string, unitKeys: string[], options: {
+  status?: BookingStatus; expiresAt?: Date | null; partySize?: number; name?: string; email?: string
+} = {}) {
+  const units = await prisma.unit.findMany({ where: { eventId, key: { in: unitKeys } } })
+  return prisma.booking.create({
+    data: {
+      eventId,
+      status: options.status ?? 'CONFIRMED',
+      source: 'PUBLIC',
+      name: options.name ?? 'Test Person',
+      email: options.email ?? uniqueEmail('gast'),
+      partySize: options.partySize ?? 4,
+      expiresAt: options.expiresAt ?? null,
+      allocations: { create: units.map(unit => ({ eventId, unitId: unit.id })) }
+    }
   })
 }

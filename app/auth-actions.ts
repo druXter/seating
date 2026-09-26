@@ -258,7 +258,7 @@ export async function updateUserRole(formData: FormData) {
 
 /**
  * Löscht ein Konto samt Sitzungen und Verknüpfungen. Nur Admins, und nie ein Admin-Konto.
- * Raumpläne (ab Phase 2 auch Events) des Kontos gehen dabei an den löschenden Admin über (wie
+ * Raumpläne und Events des Kontos gehen dabei an den löschenden Admin über (wie
  * die Abstimmungen im Abstimmungstool) - nichts soll stillschweigend mit einem Konto verschwinden.
  */
 export async function deleteUser(formData: FormData) {
@@ -270,6 +270,7 @@ export async function deleteUser(formData: FormData) {
 
   await prisma.$transaction([
     prisma.floorPlan.updateMany({ where: { ownerId: target.id }, data: { ownerId: actor.id } }),
+    prisma.event.updateMany({ where: { ownerId: target.id }, data: { ownerId: actor.id } }),
     prisma.user.delete({ where: { id: target.id } })
   ])
 
