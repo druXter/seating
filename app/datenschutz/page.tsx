@@ -3,9 +3,10 @@ import Link from 'next/link'
 
 // ENTWURF: Beschreibt, was dieses Tool tatsächlich speichert und verarbeitet. Er ersetzt keine
 // Rechtsberatung - vor dem Einsatz mit Externen bitte einmal prüfen lassen und bei jeder
-// Änderung der Datenverarbeitung mitpflegen. Stand: Phase 3 (Konten der Veranstalter*innen,
+// Änderung der Datenverarbeitung mitpflegen. Stand: Phase 4 (Konten der Veranstalter*innen,
 // Raumpläne mit Hintergrundbildern, Events mit öffentlicher Planansicht und Freigaben, Tischbuchung
-// ohne Konto mit Mail-Bestätigung, Verwaltungslink, Buchungsmails mit .ics und Löschfristen).
+// ohne Konto mit Mail-Bestätigung, Verwaltungslink, Buchungsmails mit .ics und Löschfristen;
+// Buchungsverwaltung durch Veranstalter*innen mit interner Notiz, Rundmail und CSV-Export).
 //
 // Liest Verantwortlichen- und Infrastruktur-Angaben zur Laufzeit aus der (nicht
 // versionierten) .env, analog zu app/impressum/page.tsx - force-dynamic verhindert, dass
@@ -120,6 +121,19 @@ export default function DatenschutzPage() {
             der Buchung gab, protokollieren wir (Art, Zeitpunkt, Empfängeradresse, Zustellstatus bzw. alte und neue
             Werte), um Rückfragen beantworten zu können.
           </p>
+          <p className="mt-2">
+            Die Veranstalter*innen können deine Buchung ändern (z. B. einen anderen Tisch zuweisen), stornieren oder
+            löschen – darüber informieren sie dich in der Regel per Mail mit einer Gegenüberstellung alt/neu. Sie können
+            zu einer Buchung eine <strong>interne Notiz</strong> hinterlegen (z. B. „Rollstuhlplatz“), die du nicht
+            siehst, und die Buchungen für die Durchführung der Veranstaltung als Liste ausdrucken oder als CSV-Datei
+            exportieren (z. B. Tischliste für den Einlass). Für den Export sind die Veranstalter*innen selbst
+            verantwortlich; wir empfehlen, ihn nach der Veranstaltung zu löschen.
+          </p>
+          <p className="mt-2">
+            Reservierst du telefonisch oder auf anderem Weg, können die Veranstalter*innen die Buchung auch selbst
+            anlegen – dann mit den Angaben, die du ihnen gibst; eine E-Mail-Adresse ist dafür nicht nötig (ohne Adresse
+            bekommst du keine Mails und keinen persönlichen Link).
+          </p>
         </div>
 
         <div>
@@ -140,8 +154,10 @@ export default function DatenschutzPage() {
           <p className="mt-2">
             Wir verschicken E-Mails nur für Kontofunktionen (Einladung zu einem neuen Konto, auf Wunsch angeforderter
             Passwort-Reset) und für deine Buchung: die Bitte um Bestätigung (mit Link und Code), die Bestätigung mit
-            Kalenderdatei und persönlichem Link, Änderungen und Stornierungen sowie einen Hinweis, falls mit deiner
-            Adresse erneut gebucht werden sollte. Antworten auf Buchungsmails gehen an die Veranstalter*innen, sofern sie
+            Kalenderdatei und persönlichem Link, Änderungen und Stornierungen (durch dich oder die Veranstalter*innen),
+            einen neuen persönlichen Link, falls der alte ersetzt wurde, einen Hinweis, falls mit deiner Adresse erneut
+            gebucht werden sollte, sowie <strong>Rundmails der Veranstalter*innen</strong> zur Veranstaltung, für die
+            du gebucht hast (z. B. geänderte Einlasszeiten). Antworten auf Buchungsmails gehen an die Veranstalter*innen, sofern sie
             eine Antwortadresse hinterlegt haben. Werbung oder Newsletter gibt es nicht.
           </p>
         </div>

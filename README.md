@@ -15,11 +15,11 @@ Fachliche Grundlage und Fahrplan: [docs/KONZEPT.md](docs/KONZEPT.md).
 | 1 | Raumplan-Editor, Vorlagen, Import/Export, Hintergrundbild | ✅ umgesetzt |
 | 2 | Events mit Plan-Snapshot, Freigaben, öffentliche Planansicht mit Belegung | ✅ umgesetzt |
 | 3 | Tischbuchung mit Verifizierung, Verfall, `.ics`, Verwaltungslink | ✅ umgesetzt |
-| 4–8 | Buchungsverwaltung, Warteliste, Modi `SEAT`/`ASSIGNED`, rsvp-app, Föderation | offen |
+| 4 | Buchungsverwaltung: ändern, verschieben, stornieren, löschen, anlegen, Rundmail, Audit, Export, Druckansicht | ✅ umgesetzt |
+| 4b–8 | Warteliste, Modi `SEAT`/`ASSIGNED`, rsvp-app, Föderation | offen |
 
-Tische lassen sich online buchen (Modus `TABLE`, Zugang `OPEN`). Die Verwaltung von Buchungen durch
-Veranstalter\*innen (verschieben, ändern, stornieren, Rundmail) folgt mit Phase 4 – bis dahin gibt es auf der Event-Seite
-eine Buchungsliste nur zum Lesen.
+Tische lassen sich online buchen (Modus `TABLE`, Zugang `OPEN`), Veranstalter\*innen verwalten die Buchungen im
+Admin-Bereich.
 
 ## Konten
 
@@ -98,10 +98,11 @@ Unter `/admin/events` legen Creator und Admins Events an, Moderator\*innen sehen
   „Plan aus Vorlage neu übernehmen“ holt den aktuellen Stand der Vorlage mit denselben Prüfungen.
 * **Einheiten:** Jeder Tisch und Platz steht mit seinem stabilen Schlüssel in der Tabelle `Unit` und wird bei jedem
   Speichern abgeglichen. Belegt ist eine Einheit durch eine bestätigte Buchung oder eine unbestätigte, deren Frist
-  noch läuft – Abgelaufenes zählt schon beim Lesen nicht. Buchungen selbst entstehen erst ab Phase 3.
+  noch läuft – Abgelaufenes zählt schon beim Lesen nicht.
 * **Freigaben:** Besitzer\*in oder Admin gibt das Event per E-Mail-Adresse einem bestehenden Konto frei. Freigegebene
   Konten dürfen alles außer löschen und weiter freigeben. Admins sehen alle Events.
-* **Löschen:** nur Besitzer\*in oder Admin, mit Warnung bei aktiven Buchungen.
+* **Löschen:** nur Besitzer\*in oder Admin, mit Warnung bei aktiven Buchungen (die Buchenden werden nicht
+  benachrichtigt – wer das will, schickt vorher eine Rundmail oder storniert einzeln mit Mail).
 
 * **Buchungs-Einstellungen:** Reservierung ohne Bestätigung (Standard 30 Minuten, 5–1440), Selbst ändern bis
   N Stunden vor Beginn (Standard 24, 0 = bis Beginn), eine Buchung pro E-Mail-Adresse (Standard an),
@@ -146,7 +147,7 @@ Unter `/admin/events` legen Creator und Admins Events an, Moderator\*innen sehen
   pro IP je 15 Minuten, erneut senden 3 pro Buchung und 10 pro IP je Stunde; höchstens 3 gleichzeitig unbestätigte
   Reservierungen pro IP und Event.
 * **Mailversand gescheitert:** Die Reservierung wird sofort wieder freigegeben – kein Tisch hängt an einer Mail, die nie
-  ankommt. Jede Mail steht im `MailLog`, jede Änderung im `AuditLog` (angezeigt ab Phase 4).
+  ankommt. Jede Mail steht im `MailLog`, jede Änderung im `AuditLog` (angezeigt auf der Buchungsseite im Admin-Bereich).
 * **Ohne SMTP oder ohne Secrets** (je mindestens 32 Zeichen) ist das Buchen abgeschaltet – kein unsicherer Rückfall.
 * **Absender** ist immer `SMTP_FROM` (pro Event frei wählbare Absender würden SPF/DMARC verletzen), pro Event gibt es ein
   Reply-To.
@@ -178,6 +179,51 @@ Unter `/admin/events` legen Creator und Admins Events an, Moderator\*innen sehen
 * **Reservierte Adressen:** Events liegen unter `/<slug>`. Alle Pfade des Tools stehen in `app/lib/slugs.ts`;
   ein Test schlägt fehl, sobald eine neue Route dort fehlt.
 
+### Buchungen verwalten (Veranstalter\*innen)
+
+Besitzer\*in, Admins und Konten mit Freigabe (auch Moderator\*innen) verwalten die Buchungen eines Events. Jede Aktion
+prüft auf dem Server Konto, Zugriff auf das Event und dass die Buchung zu genau diesem Event gehört.
+
+* **Plan auf der Event-Seite:** Klick auf einen belegten Tisch öffnet die Buchung, auf einen freien „Buchung anlegen“
+  mit vorausgewähltem Tisch.
+* **Liste** (`/admin/events/<id>/bookings`): Suche (Name, E-Mail, Telefon, Tisch), Filter nach Status (aktiv,
+  bestätigt, unbestätigt, storniert, verfallen, alle), Zähler; von dort CSV-Export, Druckansicht, Tischkarten, Rundmail.
+* **Buchung** (`…/bookings/<buchung>`):
+  * Name, Telefon, Anmerkung, Personenzahl und Tisch ändern. Zur Wahl stehen der aktuelle und alle freien Tische,
+    auch nicht buchbare. Die Mindestbelegung gilt für Veranstalter\*innen nicht, die Zahl der Plätze schon (wer
+    mehr braucht, vergrößert den Tisch im Plan). Mit „Kund\*in benachrichtigen“ (Standard an) geht eine Mail mit
+    Gegenüberstellung alt → neu und aktualisierter `.ics` raus. Die SEQUENCE steigt nur bei Tisch oder Personenzahl.
+    Hat jemand die Buchung inzwischen geändert (Kund\*in oder zweites Konto), wird nicht still überschrieben.
+  * Interne Notiz: nie in Mails, auf der Verwaltungsseite oder öffentlich.
+  * Unbestätigt:
+    * manuell bestätigen (die Adresse gilt dann nicht als von der Person bestätigt),
+    * Bestätigungsmail erneut senden (wahlweise mit neuer Frist),
+    * **E-Mail-Adresse korrigieren**: nur solange unbestätigt, die alte Adresse bekommt nichts, eine Buchung pro
+      Adresse wird für die neue geprüft.
+  * Verwaltungslink anzeigen und neu erzeugen: Der alte wird ungültig, auch in Kalendereinträgen. Der neue geht
+    wahlweise per Mail raus.
+  * Stornieren (Mail mit `.ics` CANCEL wählbar) und endgültig löschen. Beim Löschen verschwinden auch Mail- und
+    Änderungsprotokoll, am Event bleibt nur ein Eintrag ohne Personendaten.
+  * **Verlauf** (Audit-Log: wer hat wann was geändert) und alle Mails mit Zustellstatus.
+* **Buchung anlegen** (`source = ADMIN`), z. B. telefonisch:
+  * Ohne E-Mail-Adresse ist sie direkt bestätigt und bekommt keine Mails.
+  * Mit Adresse wahlweise direkt bestätigt (Bestätigungsmail wählbar) oder mit Bestätigung per Mail wie online.
+  * Die Regel „eine Buchung pro Adresse“ gilt auch hier.
+* **Rundmail** (`…/mail`):
+  * Empfänger\*innen: nur bestätigte oder auch unbestätigte Buchungen, alle oder ausgewählte Tische. Die Zahl
+    rechnet die Seite live mit.
+  * Vorschau des Klartexts und Testversand an das eigene Konto (mit Beispieldaten).
+  * Jede\*r bekommt eine eigene Mail (kein BCC) mit den Daten der eigenen Buchung und – wenn bestätigt – dem
+    persönlichen Link. Die aktuelle `.ics` kann angehängt werden.
+  * Versand über eine einfache Warteschlange in der Datenbank (`MailLog` mit Status „in Warteschlange“), gedrosselt
+    auf `BROADCAST_MAILS_PER_MINUTE` (Standard 30).
+  * Gestartet wird der Versand direkt nach dem Absenden. Nach einem Neustart setzen Serverstart und Cron ihn fort.
+    Mails, die beim Neustart gerade verschickt wurden, gelten als gescheitert und gehen nicht doppelt raus. Wer
+    inzwischen storniert hat, wird übersprungen.
+* **CSV-Export** mit denselben Filtern wie die Liste: UTF-8 mit BOM, Semikolon, Formel-Schutz gegen CSV-Injection
+  (Zellen, die mit `= + - @` beginnen, bekommen ein `'` davor).
+* **Druckansicht**: Tischliste für Einlass und Deko (mit Abhakkästchen, unbestätigte markiert) und Tischkarten.
+
 ## Automatische Löschung
 
 Ein externer Scheduler (z. B. Uptime Kuma) ruft **einmal täglich** auf:
@@ -189,6 +235,7 @@ Ein leeres oder fehlendes `CRON_SECRET` lässt niemanden durch. Der Aufruf setzt
 und stornierte Buchungen 30 Tage nach ihrer letzten Änderung (samt Mail- und Änderungsprotokoll), Events 18 Monate nach
 ihrem Ende (samt Plan, Bild, Freigaben und Buchungen), Konten nach 2 Jahren ohne Anmeldung (Admin-Konten und Konten, denen
 noch Raumpläne oder Events gehören, ausgenommen), abgelaufene Sitzungen, Einladungs-/Reset-Links und Drossel-Zähler.
+Außerdem setzt der Aufruf eine unterbrochene Rundmail fort (siehe oben).
 Wird ein Konto von Hand gelöscht, gehen seine Raumpläne und Events an den löschenden Admin über.
 
 ## Setup
@@ -209,7 +256,9 @@ Es gibt keinen `migrations`-Ordner – wie in den anderen Tools der Suite aussch
 npm test            # Unit-Tests (vitest): Passwort, Drossel-IP, Formular-Helfer, Slugs, Cron-Secret,
                     # Raumplan-Format, Geometrie, Schlüssel, Editor-Zustand, Bilderkennung, Zeitzonen,
                     # Event-Rechte, Belegung, Plan-Änderungen, Event-Formular, .ics (Faltung, Escaping),
-                    # Buchungs-Tokens (HMAC, Rotation), Buchungsregeln
+                    # Buchungs-Tokens (HMAC, Rotation), Buchungsregeln, Admin-Regeln (Filter, Suche,
+                    # Formulare, Rundmail-Empfänger), Änderungs-Diff, Audit-Texte, CSV (Formel-Schutz),
+                    # Mail-Bausteine (Maskierung)
 npm run test:e2e    # Playwright gegen eine frisch gebaute Instanz auf http://127.0.0.1:3701
 ```
 
@@ -232,7 +281,18 @@ kompletter Ablauf per Link und per Code, GET bestätigt nicht, 5 falsche Codes s
 Verlängerung, Verfall, 8 gleichzeitige Anfragen auf einen Tisch, eine Buchung pro Adresse ohne Hinweis auf der Seite,
 Obergrenze und Drosselung pro IP, gescheiterter Mailversand, Regeln (Mindestbelegung, Zeitraum, erfundene Tische),
 Verwaltungslink (falscher Token, Rotation, Ändern, Tischwechsel auf belegten Tisch, Frist, Storno), `.ics` in den Mails,
-Löschfristen.
+Löschfristen. Für die Buchungsverwaltung:
+* Liste, Filter, Suche, Links im Plan, CSV (Formel-Schutz, 404 ohne Zugriff).
+* Ändern mit Mail alt → neu und SEQUENCE, belegter Tisch, zu viele Personen, veralteter Stand, ohne Mail.
+* Interne Notiz nicht auf der Verwaltungsseite.
+* Storno mit und ohne Mail, Löschen ohne Personendaten im Verlauf.
+* Unbestätigte Buchungen: erneut senden mit und ohne Frist, E-Mail korrigieren (bestätigte per nachgespieltem
+  Formular abgelehnt), manuell bestätigen.
+* Buchung anlegen: ohne Adresse, direkt, mit Bestätigung, eine pro Adresse.
+* Verwaltungslink neu erzeugen.
+* Rundmail: Test, Filter, Warteschlange, Cron setzt fort, nichts doppelt.
+* Berechtigung: Moderator\*in, fremdes Konto, Buchung eines anderen Events, ohne Sitzung.
+* Druckansicht.
 
 Mails fängt ein Test-SMTP ab (`tests/e2e/mail-server.ts`, Pakete `smtp-server` und `mailparser`, nur für die Tests), der
 sie als `.eml` in `data/test-mails` ablegt; Empfänger unter `@nomail.test` lehnt er ab (gescheiterter Versand). Zur
@@ -273,6 +333,7 @@ Siehe `.env.example` (mit Erklärungen). Kurzüberblick:
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` | Mailversand – ohne ist die Online-Buchung abgeschaltet |
 | `VERIFY_CODE_SECRET` | HMAC für Bestätigungscodes (mind. 32 Zeichen) |
 | `MANAGE_LINK_SECRET`, `MANAGE_LINK_SECRET_PREVIOUS` | Ableitung der Verwaltungslinks, vorheriges für Schlüsselwechsel (mind. 32 Zeichen) |
+| `BROADCAST_MAILS_PER_MINUTE` | optional: Tempo der Rundmail-Warteschlange (Standard 30, 1–600) |
 | `IMPRESSUM_*` | Angaben für Impressum und Datenschutzerklärung |
 | `UPLOAD_DIR` | optional: Ablage hochgeladener Bilder (Standard `data/uploads` im Arbeitsverzeichnis) |
 

@@ -107,8 +107,10 @@ Referenzimplementierung (Abstimmungstool).
 Felder kommen mit der Phase, die sie nutzt (umgesetzt: `FloorPlan` in Phase 1; `Event` mit den Feldern für
 Anzeige, Status, Buchungszeitraum und `minFillRatio`, `EventAccess`, `Unit`, `Booking`/`Allocation` im Kern in
 Phase 2; Buchungs-Einstellungen, Verifizierung, Verwaltungslink, `MailLog`, `AuditLog`, `BookingThrottle` in
-Phase 3; `adminNote`, `externalRef` und die Warteliste folgen mit ihren Phasen). Zusätzlich zum
-Entwurf: `Event.replyTo`, `Event.mailNote`, `Booking.pendingIpHash`.
+Phase 3; `adminNote`, `Broadcast` und die Warteschlangen-Felder von `MailLog` in Phase 4; `externalRef` und die
+Warteliste folgen mit ihren Phasen). Zusätzlich zum Entwurf: `Event.replyTo`, `Event.mailNote`,
+`Booking.pendingIpHash`, `Broadcast`, `MailLog.broadcastId`/`claimedAt`. **Abweichung (Phase 4):** `Booking.email` ist
+optional – nur bei `source = ADMIN` leer (telefonische Reservierung ohne Adresse, siehe Abschnitt 8).
 
 ```text
 FloorPlan        id, name, ownerId?, shared (bool), layout (JSON), version (int, für Konflikterkennung),
@@ -151,7 +153,8 @@ Booking          id, eventId, status (PENDING|CONFIRMED|CANCELLED|EXPIRED|WAITLI
 Allocation       id, eventId, unitId, bookingId, attendeeName?
                  UNIQUE(eventId, unitId)                   -- DIE Garantie gegen Doppelbuchung
 
-MailLog          id, bookingId?, eventId, type, recipient, status, error?, createdAt
+MailLog          id, bookingId?, eventId, broadcastId?, type, recipient, status, error?, claimedAt?, createdAt
+Broadcast        id, eventId, subject, body, includeIcs, createdById?, createdAt   -- Rundmail (Phase 4)
 AuditLog         id, eventId, bookingId?, actor (userId|"customer"|"system"), action, diff (JSON), createdAt
 BookingThrottle  analog LoginThrottle (IP / E-Mail)
 ```
@@ -214,7 +217,7 @@ Umgesetzt in Phase 3 (`app/lib/events/booking.ts`), mit diesen Festlegungen:
   Schein-id sperrt die Code-Eingabe nach 5 Versuchen nicht. Beides verrät nur mit Aufwand, dass eine Adresse gebucht hat.
 * Selbständerung über den Verwaltungslink: Name, Telefon, Anmerkung, Personenzahl (im Rahmen der Tischregeln) und
   Tisch (Auswahl aus eigenem und freien Tischen, Wechsel in einer Transaktion mit demselben Unique-Index), Storno.
-* Veranstalter*innen sehen bis Phase 4 eine Buchungsliste nur zum Lesen auf der Event-Seite.
+* Veranstalter*innen verwalten die Buchungen seit Phase 4 im Admin-Bereich (Abschnitt 8).
 
 ---
 
@@ -234,7 +237,9 @@ Umgesetzt in Phase 3 (`app/lib/events/booking.ts`), mit diesen Festlegungen:
   meist kein Interesse mehr, und jede zusätzliche Mail an eine womöglich falsche Adresse ist unnötig.
 * Erneutes Senden der Verifizierung (Kund*in oder Admin): neuer Token/Code, alter wird ungültig, Versuchszähler auf 0.
   **Durch die Kund*in verlängert es den Verfall nicht** – sonst ließe sich ein Tisch durch wiederholtes Anfordern
-  beliebig lange blockieren. Der Admin kann beim erneuten Senden wählen, ob `expiresAt` neu gesetzt wird (Phase 4).
+  beliebig lange blockieren. Der Admin kann beim erneuten Senden wählen, ob `expiresAt` neu gesetzt wird (umgesetzt in
+  Phase 4, standardmäßig an). Mit neuer Frist lässt sich auch eine abgelaufene, aber noch nicht aufgeräumte Reservierung
+  (Status noch `PENDING`, Allocation noch da) wiederbeleben – wurde der Tisch inzwischen vergeben, ist sie längst `EXPIRED`.
 
 ### Warteliste (eigener Schritt nach Phase 4)
 
@@ -320,6 +325,20 @@ Phase 3, `app/lib/booking-tokens.ts`). Verwaltungsseite mit
   wählbarer Absender würde SPF/DMARC verletzen und im Spam landen.
 * Jede Mail steht im `MailLog` (auch gescheiterte), jede Änderung an einer Buchung im `AuditLog` (geschrieben ab
   Phase 3, angezeigt ab Phase 4).
+* Umgesetzt in Phase 4:
+  * Änderungsmail (Kund\*in und Admin) mit Gegenüberstellung alt → neu. Mails an bestätigte Buchungen,
+    unbestätigte bekommen keine Änderungs- oder Stornomail.
+  * Zusätzliche Mail „Neuer Verwaltungslink“.
+  * **Rundmail über eine Warteschlange in der Datenbank:**
+    * Pro Empfänger\*in eine `MailLog`-Zeile `queued`. Ein Worker im Serverprozess setzt sie atomar auf
+      `sending`, verschickt und setzt `sent`/`failed`.
+    * Tempo per `BROADCAST_MAILS_PER_MINUTE`, Standard 30.
+    * Angestoßen per `after()` nach dem Absenden, beim Serverstart (`instrumentation.ts`) und vom Cron.
+    * Hängt eine Zeile nach einem Neustart in `sending`, setzt der Cron sie nach 10 Minuten auf `failed`, statt sie
+      womöglich doppelt zu schicken.
+    * Text und Buchungsdaten werden erst beim Versand zusammengesetzt. Inzwischen Storniertes wird `skipped`.
+    * Den Verwaltungslink und die optionale `.ics` bekommen nur bestätigte Buchungen.
+    * Der Testversand geht mit Beispieldaten an das eigene Konto.
 
 `.ics`-Details:
 
@@ -372,6 +391,34 @@ Fall: Tippfehler, die Verifizierungsmail kam nie an, die Person meldet sich tele
 Drag & Drop auf Plätze. Markierung: noch nicht platziert, Begleitungen zusammenhalten.
 
 **Audit-Log:** wer hat wann was an einer Buchung geändert – hilft bei Rückfragen ("ich hatte doch Tisch 4").
+
+Umgesetzt in Phase 4 (`app/lib/events/admin-booking.ts`, Seiten unter `/admin/events/<id>/bookings`, `…/mail`,
+`…/export`, `…/print`), mit diesen Festlegungen:
+
+* **Berechtigung:** Besitzer\*in, Admin und freigegebene Konten (auch `MODERATOR`) dürfen alle Buchungsaktionen,
+  auch endgültiges Löschen. Das „außer löschen“ der Freigabe meint das Event selbst. Jede Server Action prüft Konto,
+  Event-Zugriff und dass die Buchung zu genau diesem Event gehört.
+* **Tischregeln für Admins:** Die Kapazität gilt, `minFillRatio` nicht. Mehr Personen als Plätze gehen nicht, denn
+  darauf verlässt sich die Planprüfung (Abschnitt 2); wer einen Stuhl mehr braucht, vergrößert den Tisch im Plan. Admins
+  dürfen auch freie, **nicht buchbare** Tische vergeben. Die Frist `selfEditHoursBefore` gilt für sie nicht.
+* **Konflikterkennung:** Änderungsformulare tragen `Booking.updatedAt`. Hat die Kund\*in oder ein anderes Konto die
+  Buchung inzwischen geändert, wird abgelehnt statt still überschrieben.
+* **Manuell angelegte Buchungen:** E-Mail optional.
+  * Ohne Adresse: direkt bestätigt, keine Mails, kein Verwaltungslink.
+  * Mit Adresse: „direkt bestätigt“ (Bestätigungsmail wählbar) oder „Bestätigung per Mail“ wie online (`PENDING`
+    mit Frist).
+  * `oneBookingPerEmail` gilt auch hier.
+* **Manuell bestätigen** setzt `emailVerifiedAt` nicht – die Adresse hat niemand bestätigt.
+* **Endgültig löschen** entfernt die Buchung samt `MailLog`/`AuditLog`. Am Event bleibt ein Audit-Eintrag ohne
+  Personendaten (Tisch, Personenzahl, Status).
+* **Verschieben per Ziehen im Plan ist nicht Teil von Phase 4 (Abweichung):** Der Tisch wird aus einer Liste gewählt,
+  ein Klick im Plan führt zur Buchung bzw. zum Anlegen. Drag & Drop kommt mit dem Zuordnungsmodus (Phase 6), der es
+  ohnehin braucht.
+* **Export:** CSV mit UTF-8-BOM und `;` (Excel, deutsch), Formel-Schutz gegen CSV-Injection, gleiche Filter wie die
+  Liste. **Druckansicht:** Tischliste mit Abhakkästchen und Tischkarten, nur aktive Buchungen.
+* **Nicht umgesetzt:** „Event absagen“ (alle Buchungen gesammelt mit Mail stornieren, dann löschen). Beim Löschen
+  eines Events bleibt die Warnung; wer die Buchenden informieren will, schickt vorher eine Rundmail oder storniert
+  einzeln. Kandidat für Phase 4b, weil es dieselbe Warteschlange nutzen kann.
 
 ---
 
@@ -441,10 +488,10 @@ optional `TURNSTILE_*`.
 | 1 | Raumplan: Datenformat, Editor (Tische, Plätze, statische Objekte, Reihen-Generator), Vorlagen, Import/Export |
 | 2 | Events: Anlegen mit Plan-Snapshot, Slug-Routing, öffentliche Planansicht mit Belegung (noch ohne Buchung), Freigaben – in der Oberfläche nur Modus `TABLE` + Zugang `OPEN` |
 | 3 | Tischbuchung `TABLE`+`OPEN`: Reservierung, Verifizierung, Verfall, Bestätigung, `.ics`, Verwaltungslink (umgesetzt, Buchungsliste für Veranstalter*innen nur zum Lesen) |
-| 4 | Admin-Buchungsverwaltung: Verschieben, Ändern, Löschen, Änderungsmails, Rundmail, erneute Verifizierung, Audit, Export |
-| 4b | Warteliste mit Nachrück-Angebot (Abschnitt 5) |
+| 4 | Admin-Buchungsverwaltung: Verschieben, Ändern, Löschen, Änderungsmails, Rundmail, erneute Verifizierung, Audit, Export (umgesetzt; Ziehen im Plan → Phase 6, siehe Abschnitt 8) |
+| 4b | Warteliste mit Nachrück-Angebot (Abschnitt 5), ggf. „Event absagen“ (Abschnitt 8) |
 | 5 | Modus `SEAT` (Kino/Winterball) |
-| 6 | Modus `ASSIGNED` (Hochzeit) mit manueller/CSV-Gästeliste |
+| 6 | Modus `ASSIGNED` (Hochzeit) mit manueller/CSV-Gästeliste, Drag & Drop im Plan (auch zum Verschieben von Buchungen) |
 | 7 | rsvp-app-Anbindung (A und B), Änderungen in rsvp-app |
 | 8 | Konto-Föderation über `suite-kit`, Eintrag im suite-kit-README |
 
