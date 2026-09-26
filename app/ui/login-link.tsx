@@ -6,12 +6,14 @@ import { usePathname } from 'next/navigation'
 import { RESERVED_SLUGS } from '../lib/slugs'
 
 /**
- * "Anmelden" in der Konto-Leiste - aber nicht auf öffentlichen Eventseiten (/<slug>): Buchende
- * haben kein Konto, der Link würde dort nur verwirren (und in eingebetteten Seiten stören).
+ * "Anmelden" in der Konto-Leiste - aber nicht auf Seiten für Buchende (Eventseite /<slug>,
+ * Bestätigungslink /verify/..., Verwaltungslink /b/...): Buchende haben kein Konto, der Link würde
+ * dort nur verwirren (und in eingebetteten Seiten stören).
  */
 export default function LoginLink() {
   const pathname = usePathname()
   const segment = /^\/([^/]+)$/.exec(pathname)?.[1]
   if (segment && !RESERVED_SLUGS.has(segment)) return null
+  if (/^\/(b|verify)\//.test(pathname)) return null
   return <Link href="/login" className="hover:text-gray-900">Anmelden</Link>
 }

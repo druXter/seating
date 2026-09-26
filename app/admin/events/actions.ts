@@ -79,7 +79,7 @@ export async function updateEventSettings(_previous: FormState, formData: FormDa
   try {
     await prisma.event.update({
       where: { id: event.id },
-      data: { ...parsed.fields, ...(parsed.status ? { status: parsed.status } : {}) }
+      data: { ...parsed.fields, ...(parsed.status ? { status: parsed.status } : {}), ...(parsed.booking ?? {}) }
     })
   } catch (error) {
     if (isUniqueViolation(error)) return { errors: [SLUG_TAKEN] }

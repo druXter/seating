@@ -89,9 +89,17 @@ model ExternalIdentity {
 // Zähler gegen Passwort-Raten und Mail-Flut (siehe app/lib/throttle.ts). `key` ist ein
 // SHA-256-Hash aus Bereich + Kennung (E-Mail bzw. IP-Adresse) - es werden also weder
 // Adressen noch IPs im Klartext gespeichert. Zeilen werden nach Ablauf des Zeitfensters
-// bei Gelegenheit wieder gelöscht. Die Buchungs-Drosselung (Phase 3) nutzt eine eigene
-// Tabelle BookingThrottle nach demselben Muster.
+// bei Gelegenheit wieder gelöscht. Die Buchungs-Drosselung nutzt eine eigene Tabelle
+// BookingThrottle nach demselben Muster.
 model LoginThrottle {
+  key         String   @id
+  count       Int
+  windowStart DateTime
+}
+
+// Wie LoginThrottle, aber für öffentliche Buchungsformulare (reservieren, Code eingeben, Mail
+// erneut senden) - getrennt, damit Buchende nie die Anmeldung von Konten stören und umgekehrt.
+model BookingThrottle {
   key         String   @id
   count       Int
   windowStart DateTime
@@ -158,6 +166,10 @@ enum EventStatus {
 //
 // Zeiten in UTC; timezone bestimmt Eingabe und Anzeige (vorerst immer Europe/Berlin).
 // minFillRatio: Mindestbelegung eines Tisches (0.5 = 8er-Tisch ab 4 Personen), null = keine.
+// pendingTtlMinutes: so lange hält eine unbestätigte Buchung ihren Tisch.
+// selfEditHoursBefore: Buchende ändern/stornieren selbst bis startsAt minus so viele Stunden (0 = bis
+// Beginn) - als Abstand gespeichert, damit die Frist mitwandert, wenn das Event verschoben wird.
+// replyTo/mailNote: Antwortadresse und freier Hinweis in den Buchungsmails.
 // ownerId: wie bei FloorPlan, SetNull nur als Sicherheitsnetz (beim Löschen eines Kontos werden
 // Events umgehängt).
 model Event {
@@ -175,6 +187,12 @@ model Event {
   bookingOpensAt  DateTime?
   bookingClosesAt DateTime?
   minFillRatio    Float?
+  pendingTtlMinutes   Int     @default(30)
+  selfEditHoursBefore Int     @default(24)
+  oneBookingPerEmail  Boolean @default(true)
+  requirePhone        Boolean @default(false)
+  replyTo             String?
+  mailNote            String  @default("")
   layout          Json
   layoutVersion   Int           @default(1)
   backgroundFile  String?
@@ -190,6 +208,8 @@ model Event {
   bookings    Booking[]
   allocations Allocation[]
   shares      EventAccess[]
+  mailLogs    MailLog[]
+  auditLogs   AuditLog[]
 
   @@index([ownerId])
   @@index([endsAt])
@@ -247,9 +267,16 @@ enum BookingSource {
   ADMIN
 }
 
-// Kern einer Buchung (Phase 2: nur, was Belegungsanzeige und Plan-Prüfung brauchen). Verifizierung,
-// Verwaltungslink, Telefon, Anmerkungen usw. kommen mit Phase 3/4 (docs/KONZEPT.md Abschnitt 3).
-// expiresAt nur bei PENDING/OFFERED: Danach gilt die Buchung schon beim Lesen als verfallen.
+// Eine Buchung (docs/KONZEPT.md Abschnitte 3-6). expiresAt nur bei PENDING/OFFERED: Danach gilt die
+// Buchung schon beim Lesen als verfallen.
+//
+// Verifizierung: verifyTokenHash = SHA-256 des Links (32 Byte Zufall), verifyCodeHmac =
+// HMAC(VERIFY_CODE_SECRET, id:code) - nie der reine Hash eines 6-stelligen Codes. Beides wird bei der
+// Bestätigung gelöscht. pendingIpHash (SHA-256 der IP) nur solange unbestätigt, für die Obergrenze
+// gleichzeitiger Reservierungen pro IP.
+//
+// Verwaltungslink: nicht gespeichert, sondern HMAC(MANAGE_LINK_SECRET, id:manageTokenVersion) -
+// "Link neu erzeugen" erhöht die Version (app/lib/booking-tokens.ts).
 model Booking {
   id          String        @id @default(cuid())
   eventId     String
@@ -259,14 +286,28 @@ model Booking {
   name        String
   email       String
   partySize   Int
+  phone       String?
+  note        String?
   expiresAt   DateTime?
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
   cancelledAt DateTime?
+
+  emailVerifiedAt    DateTime?
+  verifyTokenHash    String?   @unique
+  verifyCodeHmac     String?
+  verifyAttempts     Int       @default(0)
+  pendingIpHash      String?
+  manageTokenVersion Int       @default(1)
+  icsSequence        Int       @default(0)
+
   allocations Allocation[]
+  mailLogs    MailLog[]
+  auditLogs   AuditLog[]
 
   @@index([eventId, status])
   @@index([eventId, email])
+  @@index([pendingIpHash])
 }
 
 // Belegung einer Einheit durch eine Buchung. DER Unique-Index (eventId, unitId) ist die Garantie
@@ -289,4 +330,39 @@ model Allocation {
   @@unique([eventId, unitId])
   @@index([bookingId])
   @@index([unitId])
+}
+
+// Jede verschickte (oder gescheiterte) Buchungsmail - für Rückfragen ("ich habe nichts bekommen").
+// Verschwindet mit Buchung bzw. Event.
+model MailLog {
+  id        String   @id @default(cuid())
+  eventId   String
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  bookingId String?
+  booking   Booking? @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  type      String
+  recipient String
+  status    String
+  error     String?
+  createdAt DateTime @default(now())
+
+  @@index([eventId])
+  @@index([bookingId])
+}
+
+// Wer hat wann was an einer Buchung geändert (Konzept Abschnitt 8). actor: Konto-id, "customer"
+// oder "system". diff: JSON mit alten/neuen Werten. Angezeigt ab Phase 4.
+model AuditLog {
+  id        String   @id @default(cuid())
+  eventId   String
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  bookingId String?
+  booking   Booking? @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  actor     String
+  action    String
+  diff      Json
+  createdAt DateTime @default(now())
+
+  @@index([eventId])
+  @@index([bookingId])
 }

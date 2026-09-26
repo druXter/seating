@@ -7,7 +7,8 @@ import { APP_NAME } from './app'
 // SMTP_HOST bewusst nicht vorausgesetzt: bleibt es leer, bricht der Versand unten früh ab
 // statt einen kaputten Transporter zu nutzen. Die Konto-Funktionen funktionieren dann
 // trotzdem - Einladungslinks werden dem einladenden Konto direkt auf dem Bildschirm
-// angezeigt (siehe app/admin/users/page.tsx). Buchungsmails (ab Phase 3) brauchen SMTP.
+// angezeigt (siehe app/admin/users/page.tsx). Buchungsmails brauchen SMTP - ohne ist das
+// Buchen abgeschaltet (app/lib/booking-mail.ts).
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST,
   port: parseInt(process.env.SMTP_PORT || '587'),
@@ -23,7 +24,7 @@ export function isMailConfigured(): boolean {
 }
 
 /** Maskiert Text für die Verwendung in HTML (Mail-Inhalte enthalten u.a. frei wählbare Namen/Titel). */
-function esc(value: string): string {
+export function esc(value: string): string {
   return value
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
@@ -46,23 +47,40 @@ function layout(heading: string, body: string, buttonLabel: string, link: string
     `
 }
 
-async function send(toEmail: string, subject: string, text: string, html: string): Promise<boolean> {
-  if (!isMailConfigured()) return false
+export type MailAttachment = { filename: string; content: string; contentType: string }
+
+export type SendResult = { ok: true } | { ok: false; error: string }
+
+/**
+ * Verschickt eine Mail. Der Absender ist immer SMTP_FROM (ein pro Event frei wählbarer Absender
+ * würde SPF/DMARC verletzen und im Spam landen) - pro Event gibt es nur ein Reply-To.
+ */
+export async function sendMail(
+  toEmail: string, subject: string, text: string, html: string,
+  options: { replyTo?: string | null; attachments?: MailAttachment[] } = {}
+): Promise<SendResult> {
+  if (!isMailConfigured()) return { ok: false, error: 'SMTP nicht konfiguriert' }
 
   try {
     await transporter.sendMail({
       from: process.env.SMTP_FROM,
       to: toEmail,
+      ...(options.replyTo ? { replyTo: options.replyTo } : {}),
       subject,
       text,
       html,
-      envelope: { from: process.env.SMTP_USER, to: toEmail }
+      attachments: options.attachments,
+      envelope: { from: process.env.SMTP_USER || undefined, to: toEmail }
     })
-    return true
+    return { ok: true }
   } catch (error) {
     console.error(`Fehler beim Senden einer Mail an ${toEmail}:`, error)
-    return false
+    return { ok: false, error: error instanceof Error ? error.message.slice(0, 500) : 'Unbekannter Fehler' }
   }
+}
+
+async function send(toEmail: string, subject: string, text: string, html: string): Promise<boolean> {
+  return (await sendMail(toEmail, subject, text, html)).ok
 }
 
 /** Einladung zu einem neu angelegten Konto - der Link legt das erste Passwort fest. */

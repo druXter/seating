@@ -18,8 +18,9 @@ function unique(): string {
   return `${Date.now().toString(36)}${(counter++).toString(36)}`
 }
 
-export function uniqueEmail(prefix = 'user'): string {
-  return `${prefix}-${unique()}@example.test`
+/** domain 'nomail.test': der Test-SMTP lehnt die Adresse ab (gescheiterter Versand, siehe mail-server.ts). */
+export function uniqueEmail(prefix = 'user', domain = 'example.test'): string {
+  return `${prefix}-${unique()}@${domain}`
 }
 
 // Zufälliger Startwert pro Prozess: Nach einem fehlgeschlagenen Test startet Playwright einen
@@ -196,4 +197,68 @@ export async function createBooking(eventId: string, unitKeys: string[], options
       allocations: { create: units.map(unit => ({ eventId, unitId: unit.id })) }
     }
   })
+}
+
+/** Plan mit runden Tischen der angegebenen Größen (t1, t2, ...), alle buchbar. */
+export function tablesLayout(capacities: number[]) {
+  return {
+    schemaVersion: 1, width: 400 * capacities.length + 200, height: 800, grid: 50, nextId: capacities.length + 1,
+    elements: capacities.map((seats, i) => ({
+      id: `t${i + 1}`, type: 'table', shape: 'round', x: 300 + i * 400, y: 400, rotation: 0, width: 150, height: 150, seats,
+      sides: { top: true, right: true, bottom: true, left: true }, bookable: true
+    }))
+  }
+}
+
+export type CapturedAction = { url: string; headers: Record<string, string>; body: Buffer }
+
+/**
+ * Schneidet den Server-Action-Aufruf mit, den `trigger` im Browser auslöst - für Formulare, die erst
+ * im Browser entstehen (z.B. das Buchungsformular nach der Tischwahl) und deshalb kein
+ * serverseitig gerendertes $ACTION-Feld für readForm haben.
+ */
+export async function captureAction(page: Page, trigger: () => Promise<void>): Promise<CapturedAction> {
+  const captured = page.waitForRequest(request => request.method() === 'POST' && !!request.headers()['next-action'])
+  await trigger()
+  const request = await captured
+  const headers = await request.allHeaders()
+  const keep = ['next-action', 'content-type', 'accept', 'next-router-state-tree']
+  return {
+    url: request.url(),
+    headers: Object.fromEntries(Object.entries(headers).filter(([k]) => keep.includes(k))),
+    body: request.postDataBuffer() ?? Buffer.alloc(0)
+  }
+}
+
+/** Ersetzt den Wert eines Formularfelds im mitgeschnittenen multipart-Körper (React benennt die Felder "_<n>_<name>"). */
+export function withField(body: Buffer, field: string, value: string): Buffer {
+  const pattern = new RegExp(`(name="(?:_?\\d+_)?${field}"\\r\\n\\r\\n)[^\\r]*`)
+  const text = body.toString('utf8')
+  if (!pattern.test(text)) throw new Error(`Feld ${field} nicht im Aufruf: ${text.slice(0, 300)}`)
+  return Buffer.from(text.replace(pattern, (_m, head: string) => head + value), 'utf8')
+}
+
+/** Spielt einen mitgeschnittenen Aufruf erneut ab (optional mit geänderten Feldern und eigener IP). */
+export async function replayAction(page: Page, action: CapturedAction, fields: Record<string, string> = {}, ip = uniqueIp()) {
+  let body = action.body
+  for (const [field, value] of Object.entries(fields)) body = withField(body, field, value)
+  return page.request.post(action.url, {
+    headers: { ...action.headers, origin: BASE_URL, 'x-forwarded-for': ip, cookie: await cookieOf(page) },
+    data: body
+  })
+}
+
+/** Link und Code aus der Verifizierungsmail. */
+export function verifyLinkOf(text: string): { url: string; bookingId: string; token: string; code: string } {
+  const match = /https?:\/\/[^\s]+\/verify\/([a-z0-9]+)\/([\w-]+)/.exec(text)
+  const code = /Code ein: (\d{6})/.exec(text)?.[1]
+  if (!match || !code) throw new Error('Kein Verifizierungslink/Code in der Mail')
+  return { url: match[0], bookingId: match[1], token: match[2], code }
+}
+
+/** Verwaltungslink aus einer Mail. */
+export function manageLinkOf(text: string): string {
+  const match = /https?:\/\/[^\s]+\/b\/[a-z0-9]+\/[\w-]+/.exec(text)
+  if (!match) throw new Error('Kein Verwaltungslink in der Mail')
+  return match[0]
 }

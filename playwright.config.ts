@@ -1,4 +1,5 @@
 import { defineConfig, devices } from '@playwright/test'
+import { SMTP_PORT } from './tests/e2e/mail-server'
 
 // E2E-Tests gegen eine echte, frisch gebaute Instanz (next build + next start) mit eigener
 // Datenbank (prisma/test.db) - nie gegen die Entwicklungs- oder Produktivdatenbank.
@@ -14,6 +15,12 @@ export const TEST_UPLOAD_DIR = 'data/test-uploads'
 // Gilt für den Server UND für die Testprozesse (tests/e2e/helpers.ts greift direkt auf die
 // Datenbank zu). Relative SQLite-Pfade löst Prisma relativ zu prisma/schema.prisma auf.
 process.env.DATABASE_URL = 'file:./test.db'
+// Buchungs-Secrets nur für die Tests - auch im Testprozess gesetzt, damit er Verwaltungslinks und
+// Codes selbst berechnen kann (app/lib/booking-tokens.ts).
+process.env.VERIFY_CODE_SECRET = 'e2e-verify-code-secret-0123456789abcdef'
+process.env.MANAGE_LINK_SECRET = 'e2e-manage-link-secret-0123456789abcdef'
+process.env.MANAGE_LINK_SECRET_PREVIOUS = 'e2e-previous-manage-secret-0123456789ab'
+process.env.BASE_URL = BASE_URL
 
 export default defineConfig({
   testDir: './tests/e2e',
@@ -47,8 +54,16 @@ export default defineConfig({
       CRON_SECRET: TEST_CRON_SECRET,
       // Eigenes Upload-Verzeichnis, wird wie die Test-Datenbank bei jedem Lauf geleert.
       UPLOAD_DIR: TEST_UPLOAD_DIR,
-      // Kein Mailversand: Einladungslinks werden angezeigt, Reset-Mails gehen nirgendwohin.
-      SMTP_HOST: '',
+      // Test-SMTP aus tests/e2e/mail-server.ts (in global-setup gestartet). Empfänger @nomail.test
+      // lehnt er ab - dann greift z.B. der angezeigte Einladungslink.
+      SMTP_HOST: '127.0.0.1',
+      SMTP_PORT: String(SMTP_PORT),
+      SMTP_USER: '',
+      SMTP_PASS: '',
+      SMTP_FROM: 'Seating Test <seating@example.test>',
+      VERIFY_CODE_SECRET: process.env.VERIFY_CODE_SECRET!,
+      MANAGE_LINK_SECRET: process.env.MANAGE_LINK_SECRET!,
+      MANAGE_LINK_SECRET_PREVIOUS: process.env.MANAGE_LINK_SECRET_PREVIOUS!,
       TZ: 'Europe/Berlin'
     }
   }

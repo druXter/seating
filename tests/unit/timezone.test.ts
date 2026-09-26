@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatDateTime, formatRange, utcToZonedInput, zonedInputToUtc } from '../../app/lib/timezone'
+import { formatDateTime, formatDeadline, formatRange, utcToZonedInput, zonedInputToUtc } from '../../app/lib/timezone'
 
 describe('zonedInputToUtc', () => {
   it('rechnet Winter- und Sommerzeit in Berlin um', () => {
@@ -42,5 +42,11 @@ describe('Anzeige', () => {
     expect(formatDateTime(start)).toBe('Samstag, 12. Dezember 2026, 19:00 Uhr')
     expect(formatRange(start, new Date('2026-12-12T22:30:00Z'))).toBe('Samstag, 12. Dezember 2026, 19:00–23:30 Uhr')
     expect(formatRange(start, new Date('2026-12-13T02:00:00Z'))).toBe('Samstag, 12. Dezember 2026, 19:00 Uhr bis Sonntag, 13. Dezember 2026, 03:00 Uhr')
+  })
+
+  it('Frist am selben Tag kurz, sonst vollständig (Tagesgrenze in der Event-Zeitzone)', () => {
+    const now = new Date('2026-12-12T22:30:00Z') // 23:30 in Berlin
+    expect(formatDeadline(new Date('2026-12-12T22:50:00Z'), 'Europe/Berlin', now)).toBe('heute, 23:50 Uhr')
+    expect(formatDeadline(new Date('2026-12-12T23:10:00Z'), 'Europe/Berlin', now)).toBe('Sonntag, 13. Dezember 2026, 00:10 Uhr')
   })
 })

@@ -16,7 +16,7 @@ type View = { x: number; y: number; width: number; height: number }
 type Point = { x: number; y: number }
 
 type Gesture =
-  | { kind: 'pan'; pointerId: number; start: Point; matrix: DOMMatrix; view: View }
+  | { kind: 'pan'; pointerId: number; start: Point; startClient: Point; matrix: DOMMatrix; view: View }
   | { kind: 'pinch'; distance: number; worldMid: Point; matrix: DOMMatrix; view: View }
 
 function fitView(layout: Layout): View {
@@ -29,16 +29,20 @@ function apply(matrix: DOMMatrix, x: number, y: number): Point {
   return { x: p.x, y: p.y }
 }
 
-export default function PlanViewer({ layout, backgroundUrl, units, title }: {
+export default function PlanViewer({ layout, backgroundUrl, units, title, onUnitClick }: {
   layout: Layout
   backgroundUrl: string | null
   units: ReadonlyMap<string, UnitVisual>
   title: string
+  /** Klick/Tipp auf eine Einheit (nicht nach dem Verschieben). Tastatur: über die Liste. */
+  onUnitClick?: (key: string) => void
 }) {
   const [view, setView] = useState<View>(() => fitView(layout))
   const svgRef = useRef<SVGSVGElement>(null)
   const pointers = useRef(new Map<number, Point>())
   const gesture = useRef<Gesture | null>(null)
+  // Nach einem Verschieben/Zoomen feuert der Browser trotzdem "click" - der ist dann keine Auswahl.
+  const suppressClick = useRef(false)
   const fitted = fitView(layout)
 
   function clampWidth(width: number): number {
@@ -68,12 +72,20 @@ export default function PlanViewer({ layout, backgroundUrl, units, title }: {
       if (event.button !== 0) return
       const matrix = inverse()
       if (!matrix) return
-      gesture.current = { kind: 'pan', pointerId: event.pointerId, start: apply(matrix, event.clientX, event.clientY), matrix, view }
+      suppressClick.current = false
+      gesture.current = {
+        kind: 'pan', pointerId: event.pointerId, start: apply(matrix, event.clientX, event.clientY),
+        startClient: { x: event.clientX, y: event.clientY }, matrix, view
+      }
       svgRef.current?.setPointerCapture(event.pointerId)
       return
     }
+    if (pointers.current.size === 0) suppressClick.current = false
     pointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY })
-    if (pointers.current.size === 2) startPinch()
+    if (pointers.current.size === 2) {
+      suppressClick.current = true
+      startPinch()
+    }
   }
 
   function onPointerMove(event: PointerEvent<SVGSVGElement>) {
@@ -97,6 +109,7 @@ export default function PlanViewer({ layout, backgroundUrl, units, title }: {
       return
     }
     if (current?.kind !== 'pan' || current.pointerId !== event.pointerId) return
+    if (Math.hypot(event.clientX - current.startClient.x, event.clientY - current.startClient.y) > 4) suppressClick.current = true
     const point = apply(current.matrix, event.clientX, event.clientY)
     setView({ ...current.view, x: current.view.x - (point.x - current.start.x), y: current.view.y - (point.y - current.start.y) })
   }
@@ -150,6 +163,11 @@ export default function PlanViewer({ layout, backgroundUrl, units, title }: {
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
           onPointerDown={onPointerDown}
+          onClick={onUnitClick ? event => {
+            if (suppressClick.current) return
+            const key = (event.target as Element).closest('[data-unit-key]')?.getAttribute('data-unit-key')
+            if (key) onUnitClick(key)
+          } : undefined}
         />
       </div>
     </div>

@@ -62,6 +62,11 @@ function formatTime(date: Date, timeZone: string): string {
   return new Intl.DateTimeFormat('de-DE', { timeZone, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(date)
 }
 
+/** Frist kurz angeben: am selben Tag "heute, 15:07 Uhr", sonst vollständig. */
+export function formatDeadline(date: Date, timeZone: string = DEFAULT_TIMEZONE, now = new Date()): string {
+  return dayKey(date, timeZone) === dayKey(now, timeZone) ? `heute, ${formatTime(date, timeZone)} Uhr` : formatDateTime(date, timeZone)
+}
+
 /**
  * Zeitraum eines Events: am selben Tag "Samstag, 12. Dezember 2026, 19:00–23:30 Uhr",
  * sonst beide Zeitpunkte vollständig.

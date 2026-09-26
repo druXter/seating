@@ -7,6 +7,8 @@ import { APP_NAME } from '../lib/app'
 import { getCurrentUser } from '../lib/auth'
 import { validateSlug } from '../lib/slugs'
 import { formatDateTime, formatRange } from '../lib/timezone'
+import { bookingAvailable } from '../lib/booking-mail'
+import { bookingWindow, selfEditDeadline } from '../lib/events/booking-rules'
 import { isPubliclyVisible, loadEventBySlug, loadEventForUser, loadUnitStates } from '../lib/events/store'
 import { publicState } from '../lib/events/occupancy'
 import { STATUS_LABELS } from '../lib/events/settings'
@@ -43,11 +45,15 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   }
 }
 
-function bookingNotice(event: { status: string; endsAt: Date; bookingOpensAt: Date | null; bookingClosesAt: Date | null; timezone: string }, now: Date): string {
-  if (event.endsAt < now) return 'Diese Veranstaltung hat bereits stattgefunden.'
-  if (event.status === 'CLOSED' || (event.bookingClosesAt && event.bookingClosesAt <= now)) return 'Die Buchung ist geschlossen.'
-  if (event.bookingOpensAt && event.bookingOpensAt > now) return `Buchen kannst du ab ${formatDateTime(event.bookingOpensAt, event.timezone)}.`
-  return 'Die Online-Buchung ist hier bald möglich.'
+/** Hinweis über dem Plan: ob und wie gebucht werden kann. */
+function bookingState(event: Parameters<typeof bookingWindow>[0] & { selfEditHoursBefore: number }, now: Date): { open: boolean; message: string } {
+  const window = bookingWindow(event, now)
+  if (!window.open) return { open: false, message: window.message }
+  if (!bookingAvailable()) return { open: false, message: 'Die Online-Buchung ist gerade nicht möglich. Bitte versuche es später noch einmal.' }
+  return {
+    open: true,
+    message: `Wähle einen freien Tisch und reserviere ihn. Nach der Bestätigung per Mail kannst du deine Buchung bis ${formatDateTime(selfEditDeadline(event), event.timezone)} selbst ändern oder stornieren.`
+  }
 }
 
 export default async function EventPublicPage({ params }: { params: Promise<{ slug: string }> }) {
@@ -63,6 +69,7 @@ export default async function EventPublicPage({ params }: { params: Promise<{ sl
   const tableSeats = units
     .filter(unit => unit.kind === 'SEAT' && unit.tableKey !== null)
     .map(unit => ({ key: unit.key, tableKey: unit.tableKey as string }))
+  const booking = bookingState(event, now)
   const backgroundUrl = event.backgroundFile ? `/${event.slug}/background?v=${event.backgroundFile.slice(0, 8)}` : null
 
   return (
@@ -82,7 +89,7 @@ export default async function EventPublicPage({ params }: { params: Promise<{ sl
           {event.description && <p className="text-sm text-gray-700 whitespace-pre-line pt-2">{event.description}</p>}
         </div>
 
-        <Notice tone="info">{bookingNotice(event, now)}</Notice>
+        <Notice tone="info">{booking.message}</Notice>
 
         <div className="bg-white p-4 sm:p-6 rounded-lg shadow">
           <EventPlan
@@ -92,6 +99,7 @@ export default async function EventPublicPage({ params }: { params: Promise<{ sl
             tableSeats={tableSeats}
             minFillRatio={event.minFillRatio}
             title={`Raumplan ${event.title}`}
+            booking={{ eventId: event.id, open: booking.open, requirePhone: event.requirePhone }}
           />
         </div>
       </div>

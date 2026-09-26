@@ -6,7 +6,7 @@ import { baseUrl } from '../../../lib/base-url'
 import { loadPlan } from '../../../lib/floorplan/store'
 import { loadEventOr404, loadUnitStates } from '../../../lib/events/store'
 import { countStates, HOLDING_STATUSES } from '../../../lib/events/occupancy'
-import { formatRange, utcToZonedInput } from '../../../lib/timezone'
+import { formatDateTime, formatRange, utcToZonedInput } from '../../../lib/timezone'
 import { deleteEvent, removeEventBackground, shareEvent, unshareEvent } from '../actions'
 import { EventSettingsForm, ResyncForm } from '../event-forms'
 import PlanSvg, { type UnitVisual } from '../../../ui/plan/plan-svg'
@@ -34,9 +34,15 @@ export default async function EventPage({ params, searchParams }: { params: Prom
   const bookableTables = units.filter(u => u.kind === 'TABLE' && u.bookable).length
   const visuals = new Map<string, UnitVisual>([...states].map(([key, state]) => [key, { state }]))
 
-  const [activeBookings, shares, sourcePlan] = await Promise.all([
-    prisma.booking.count({
-      where: { eventId: event.id, OR: [{ status: 'CONFIRMED' }, { status: { in: [...HOLDING_STATUSES] }, expiresAt: { gt: now } }] }
+  // Aktive Buchungen (bestätigt oder noch gültig reserviert) - Verwaltung folgt mit Phase 4.
+  const [bookings, shares, sourcePlan] = await Promise.all([
+    prisma.booking.findMany({
+      where: { eventId: event.id, OR: [{ status: 'CONFIRMED' }, { status: { in: [...HOLDING_STATUSES] }, expiresAt: { gt: now } }] },
+      orderBy: { createdAt: 'asc' },
+      select: {
+        id: true, name: true, email: true, phone: true, partySize: true, note: true, status: true, expiresAt: true, createdAt: true,
+        allocations: { select: { unit: { select: { label: true } } } }
+      }
     }),
     event.level === 'owner'
       ? prisma.eventAccess.findMany({ where: { eventId: event.id }, include: { user: { select: { email: true } } }, orderBy: { createdAt: 'asc' } })
@@ -44,6 +50,7 @@ export default async function EventPage({ params, searchParams }: { params: Prom
     event.sourcePlanId ? loadPlan(event.sourcePlanId, user) : Promise.resolve(null)
   ])
 
+  const activeBookings = bookings.length
   const publicUrl = `${baseUrl()}/${event.slug}`
   const backgroundUrl = event.backgroundFile ? `/admin/events/${event.id}/background?v=${event.layoutVersion}-${event.backgroundFile.slice(0, 8)}` : null
   const tz = event.timezone
@@ -99,6 +106,49 @@ export default async function EventPage({ params, searchParams }: { params: Prom
           {sourcePlan && <ResyncForm eventId={event.id} layoutVersion={event.layoutVersion} planName={sourcePlan.name} />}
         </div>
 
+        <div className="bg-white rounded-lg shadow p-4 space-y-3">
+          <h2 className="font-bold">Buchungen ({activeBookings})</h2>
+          {bookings.length === 0 ? (
+            <p className="text-sm text-gray-600">Noch keine Buchungen.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left border-b">
+                    <th scope="col" className="py-1 pr-3">Tisch</th>
+                    <th scope="col" className="py-1 pr-3">Name</th>
+                    <th scope="col" className="py-1 pr-3">Kontakt</th>
+                    <th scope="col" className="py-1 pr-3">Personen</th>
+                    <th scope="col" className="py-1">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {bookings.map(booking => (
+                    <tr key={booking.id} className="border-b last:border-0 align-top">
+                      <td className="py-1 pr-3">{booking.allocations.map(a => a.unit.label).join(', ') || '–'}</td>
+                      <td className="py-1 pr-3">
+                        {booking.name}
+                        {booking.note && <span className="block text-xs text-gray-600 whitespace-pre-line">{booking.note}</span>}
+                      </td>
+                      <td className="py-1 pr-3">
+                        {booking.email}
+                        {booking.phone && <span className="block text-xs text-gray-600">{booking.phone}</span>}
+                      </td>
+                      <td className="py-1 pr-3">{booking.partySize}</td>
+                      <td className="py-1">
+                        {booking.status === 'CONFIRMED'
+                          ? 'bestätigt'
+                          : `unbestätigt bis ${formatDateTime(booking.expiresAt!, tz).replace(/^.*, /, '')}`}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          <p className="text-xs text-gray-600">Nur zur Ansicht – Ändern, Verschieben und Stornieren durch Veranstalter*innen folgt.</p>
+        </div>
+
         <div className="grid gap-4 md:grid-cols-2 items-start">
           <div className="bg-white rounded-lg shadow p-4 space-y-3">
             <h2 className="font-bold">Einstellungen</h2>
@@ -116,7 +166,13 @@ export default async function EventPage({ params, searchParams }: { params: Prom
                 bookingOpensAt: event.bookingOpensAt ? utcToZonedInput(event.bookingOpensAt, tz) : '',
                 bookingClosesAt: event.bookingClosesAt ? utcToZonedInput(event.bookingClosesAt, tz) : '',
                 minFillPercent: event.minFillRatio === null ? '' : String(Math.round(event.minFillRatio * 100)),
-                status: event.status
+                status: event.status,
+                pendingTtlMinutes: event.pendingTtlMinutes,
+                selfEditHoursBefore: event.selfEditHoursBefore,
+                oneBookingPerEmail: event.oneBookingPerEmail,
+                requirePhone: event.requirePhone,
+                replyTo: event.replyTo ?? '',
+                mailNote: event.mailNote
               }}
             />
           </div>

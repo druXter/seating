@@ -1,5 +1,5 @@
 // app/ui/plan/plan-svg.tsx
-import type { CSSProperties, PointerEvent, ReactNode } from 'react'
+import type { CSSProperties, MouseEvent, PointerEvent, ReactNode } from 'react'
 import { SEAT_SIZE, blockSeatPositions, tableSeatPositions } from '../../lib/floorplan/geometry'
 import { rowLabel, seatNumber, tableLabel } from '../../lib/floorplan/units'
 import type { UnitState } from '../../lib/events/occupancy'
@@ -60,6 +60,7 @@ export type PlanSvgProps = {
   onBackgroundPointerDown?: (event: PointerEvent<SVGRectElement>) => void
   /** Auf dem ganzen SVG (Ansicht ohne Elementauswahl, siehe plan-viewer.tsx). */
   onPointerDown?: (event: PointerEvent<SVGSVGElement>) => void
+  onClick?: (event: MouseEvent<SVGSVGElement>) => void
   onPointerMove?: (event: PointerEvent<SVGSVGElement>) => void
   /** Auch für pointercancel (z.B. Geste vom Browser übernommen) - eine Geste muss immer enden. */
   onPointerUp?: (event: PointerEvent<SVGSVGElement>) => void
@@ -74,7 +75,7 @@ export type PlanSvgProps = {
 
 export default function PlanSvg({
   layout, backgroundUrl, selected, viewBox, showGrid = false, title, className, onElementPointerDown,
-  onBackgroundPointerDown, onPointerDown, onPointerMove, onPointerUp, overlay, svgRef, units, touchAction = 'none', style
+  onBackgroundPointerDown, onPointerDown, onClick, onPointerMove, onPointerUp, overlay, svgRef, units, touchAction = 'none', style
 }: PlanSvgProps) {
   const box = viewBox ?? { x: -50, y: -50, width: layout.width + 100, height: layout.height + 100 }
   const background = backgroundUrl ? (layout.background ?? { x: 0, y: 0, width: layout.width, opacity: 0.5 }) : null
@@ -90,6 +91,7 @@ export default function PlanSvg({
       aria-label={title}
       style={{ touchAction, userSelect: 'none', background: '#f8fafc', ...style }}
       onPointerDown={onPointerDown}
+      onClick={onClick}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerUp}
@@ -179,7 +181,10 @@ function ElementShape({ element, selected, units }: { element: LayoutElement; se
       const highlight = visual?.highlighted ? { stroke: SELECTED, strokeWidth: 8 } : outline
       const label = tableLabel(element)
       return (
-        <g opacity={visual?.dimmed ? 0.3 : 1} data-unit-key={visual ? element.id : undefined} data-state={visual?.state}>
+        <g
+          opacity={visual?.dimmed ? 0.3 : 1} data-unit-key={visual ? element.id : undefined} data-state={visual?.state}
+          style={visual?.state === 'free' && !visual.dimmed ? { cursor: 'pointer' } : undefined}
+        >
           {visual && <title>{`${label} · ${element.seats} Plätze · ${STATE_TEXT[visual.state]}`}</title>}
           {seats.map((seat, index) => (
             <circle key={index} cx={seat.x} cy={seat.y} r={SEAT_SIZE / 2} fill={seatFill(units, `${element.id}-s${index + 1}`, bookable)} stroke={SEAT_STROKE} strokeWidth={2} />

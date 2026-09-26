@@ -90,9 +90,9 @@ const nextConfig: NextConfig = {
         headers: [{ key: "Content-Security-Policy", value: "default-src 'none'; sandbox; frame-ancestors 'none'" }],
       },
       {
-        // Persönlicher Verwaltungslink einer Buchung (/b/<bookingId>/<token>, ab Phase 3),
-        // siehe docs/KONZEPT.md Abschnitt 6.
-        source: "/b/:path*",
+        // Persönlicher Verwaltungslink einer Buchung (/b/<bookingId>/<token>) und der Link aus der
+        // Verifizierungsmail (/verify/<bookingId>/<token>), siehe docs/KONZEPT.md Abschnitt 6.
+        source: "/:area(b|verify)/:path*",
         headers: [...PRIVATE_PAGE, { key: "Referrer-Policy", value: "no-referrer" }],
       },
 

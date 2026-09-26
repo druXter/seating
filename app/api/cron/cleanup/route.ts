@@ -2,18 +2,24 @@ import { NextResponse } from 'next/server'
 import { prisma } from '../../../lib/prisma'
 import { safeEqual } from '../../../lib/permissions'
 import { deleteUpload } from '../../../lib/uploads'
+import { expireStaleBookings } from '../../../lib/events/booking'
 
 // Suite-weit einheitliche Fristen (siehe suite-kit README "Betrieb"), damit die
 // Datenschutzerklärungen aller Tools dieselben Zeiträume nennen können.
 const ACCOUNT_INACTIVITY_YEARS = 2
 const EVENT_RETENTION_MONTHS = 18
+// Abgelaufene und stornierte Buchungen (docs/KONZEPT.md Abschnitt 11) - deutlich vor dem Event.
+const ENDED_BOOKING_RETENTION_DAYS = 30
 
 /**
  * Automatischer Cron-Endpunkt für Uptime Kuma o.Ä. (Speicherbegrenzung, Art. 5 Abs. 1 lit. e
  * DSGVO), gleiches Muster wie im Abstimmungstool und in rsvp-app. Läuft idempotent, einmal
  * täglich reicht.
  *
- * Stand Phase 2:
+ * Stand Phase 3:
+ * 0. Setzt abgelaufene Reservierungen (PENDING/OFFERED nach expiresAt) auf EXPIRED und gibt ihre
+ *    Tische frei (beim Lesen zählen sie ohnehin schon nicht mehr), und löscht abgelaufene und
+ *    stornierte Buchungen ENDED_BOOKING_RETENTION_DAYS nach ihrer letzten Änderung (samt MailLog/AuditLog).
  * 1. Löscht Events EVENT_RETENTION_MONTHS nach ihrem Ende - samt Einheiten, Buchungen, Belegungen,
  *    Freigaben (Cascade) und Hintergrundbild.
  * 2. Löscht Konten, die seit ACCOUNT_INACTIVITY_YEARS nicht mehr eingeloggt waren - bewusst
@@ -22,8 +28,6 @@ const EVENT_RETENTION_MONTHS = 18
  * 3. Räumt Technisches auf: abgelaufene Sitzungen, abgelaufene Einladungs-/Reset-Links,
  *    veraltete Drossel-Zähler.
  *
- * Später dazu (siehe docs/KONZEPT.md Abschnitte 5 und 11): abgelaufene PENDING-Buchungen auf
- * EXPIRED setzen, abgelaufene/stornierte Buchungen nach 30 Tagen entfernen.
  */
 export async function GET(request: Request) {
   const secret = new URL(request.url).searchParams.get('secret')
@@ -35,6 +39,11 @@ export async function GET(request: Request) {
   }
 
   const now = new Date()
+
+  const expiredBookings = await expireStaleBookings(now)
+  const deletedBookings = await prisma.booking.deleteMany({
+    where: { status: { in: ['EXPIRED', 'CANCELLED'] }, updatedAt: { lt: new Date(now.getTime() - ENDED_BOOKING_RETENTION_DAYS * 24 * 60 * 60 * 1000) } }
+  })
 
   const eventCutoff = new Date(now)
   eventCutoff.setMonth(eventCutoff.getMonth() - EVENT_RETENTION_MONTHS)
@@ -55,9 +64,13 @@ export async function GET(request: Request) {
     where: { resetTokenExpiresAt: { lt: now } },
     data: { resetTokenHash: null, resetTokenExpiresAt: null }
   })
-  await prisma.loginThrottle.deleteMany({ where: { windowStart: { lt: new Date(now.getTime() - 24 * 60 * 60 * 1000) } } })
+  const staleThrottle = { windowStart: { lt: new Date(now.getTime() - 24 * 60 * 60 * 1000) } }
+  await prisma.loginThrottle.deleteMany({ where: staleThrottle })
+  await prisma.bookingThrottle.deleteMany({ where: staleThrottle })
 
   return NextResponse.json({
+    expiredBookings,
+    deletedBookings: deletedBookings.count,
     deletedEvents: deletedEvents.count,
     deletedUsers: deletedUsers.count,
     deletedSessions: deletedSessions.count

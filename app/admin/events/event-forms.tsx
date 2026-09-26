@@ -6,6 +6,7 @@ import type { EventMode, EventStatus } from '@prisma/client'
 import { createEvent, resyncEventFromTemplate, updateEventSettings, type FormState } from './actions'
 import { suggestSlug, SLUG_MAX_LENGTH } from '../../lib/slugs'
 import { AVAILABLE_MODES, EVENT_LIMITS, MODE_LABELS, STATUS_HINTS, STATUS_LABELS } from '../../lib/events/settings'
+import { PENDING_TTL_RANGE, SELF_EDIT_HOURS_MAX } from '../../lib/events/booking-rules'
 import SubmitButton from '../../ui/submit-button'
 import Notice from '../../ui/notice'
 
@@ -35,6 +36,12 @@ export type EventFormValues = {
   bookingClosesAt: string
   minFillPercent: string
   status: EventStatus
+  pendingTtlMinutes: number
+  selfEditHoursBefore: number
+  oneBookingPerEmail: boolean
+  requirePhone: boolean
+  replyTo: string
+  mailNote: string
 }
 
 /** Titel + Adresse: Solange die Adresse nicht selbst geändert wurde, folgt sie dem Titel. */
@@ -181,6 +188,36 @@ export function EventSettingsForm({ eventId, values, baseUrl }: { eventId: strin
           <p className="text-xs text-gray-600 mt-1">
             Beispiel 50: Ein 8er-Tisch ist erst ab 4 Personen buchbar. Leer lassen, wenn jede Gruppe jeden ausreichend großen Tisch nehmen darf.
           </p>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div>
+            <label htmlFor="event-ttl" className={labelClass}>Reservierung ohne Bestätigung (Minuten)</label>
+            <input id="event-ttl" name="pendingTtlMinutes" type="number" required min={PENDING_TTL_RANGE.min} max={PENDING_TTL_RANGE.max} defaultValue={values.pendingTtlMinutes} className={input} />
+          </div>
+          <div>
+            <label htmlFor="event-selfedit" className={labelClass}>Selbst ändern bis (Stunden vor Beginn)</label>
+            <input id="event-selfedit" name="selfEditHoursBefore" type="number" required min={0} max={SELF_EDIT_HOURS_MAX} defaultValue={values.selfEditHoursBefore} className={input} />
+          </div>
+        </div>
+        <p className="text-xs text-gray-600">
+          So lange hält eine unbestätigte Reservierung ihren Tisch. Bestätigte Buchungen können die Buchenden bis zur
+          Änderungsfrist selbst ändern und stornieren (0 = bis Beginn).
+        </p>
+        <label className="flex items-start gap-2 text-sm">
+          <input type="checkbox" name="oneBookingPerEmail" defaultChecked={values.oneBookingPerEmail} className="mt-1" />
+          <span>Pro E-Mail-Adresse nur eine Buchung<span className="block text-xs text-gray-600">Abschalten, wenn z. B. Vereine mehrere Tische buchen sollen.</span></span>
+        </label>
+        <label className="flex items-start gap-2 text-sm">
+          <input type="checkbox" name="requirePhone" defaultChecked={values.requirePhone} className="mt-1" />
+          <span>Telefonnummer verpflichtend</span>
+        </label>
+        <div>
+          <label htmlFor="event-replyto" className={labelClass}>Antwortadresse für Buchungsmails (optional)</label>
+          <input id="event-replyto" name="replyTo" type="email" maxLength={254} defaultValue={values.replyTo} className={input} />
+        </div>
+        <div>
+          <label htmlFor="event-mailnote" className={labelClass}>Hinweis in der Bestätigungsmail (optional)</label>
+          <textarea id="event-mailnote" name="mailNote" maxLength={EVENT_LIMITS.mailNote} rows={3} defaultValue={values.mailNote} className={input} placeholder="z. B. Einlass ab 18:30 Uhr, bitte Buchungsbestätigung bereithalten." />
         </div>
       </fieldset>
       <SubmitButton disabled={pending}>Einstellungen speichern</SubmitButton>

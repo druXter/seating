@@ -1,10 +1,11 @@
 // app/lib/events/settings.ts
 import type { EventMode, EventStatus } from '@prisma/client'
-import { formString } from '../form'
+import { formString, normalizeEmail } from '../form'
 import { validateSlug } from '../slugs'
 import { DEFAULT_TIMEZONE, zonedInputToUtc } from '../timezone'
+import { PENDING_TTL_RANGE, SELF_EDIT_HOURS_MAX } from './booking-rules'
 
-export const EVENT_LIMITS = { title: 200, location: 200, description: 5000 } as const
+export const EVENT_LIMITS = { title: 200, location: 200, description: 5000, mailNote: 1000 } as const
 
 export const STATUS_LABELS: Record<EventStatus, string> = {
   DRAFT: 'Entwurf',
@@ -44,7 +45,19 @@ export type EventFields = {
   minFillRatio: number | null
 }
 
-export type ParsedEvent = { ok: true; fields: EventFields; status: EventStatus | null } | { ok: false; errors: string[] }
+/** Buchungs-Einstellungen - nur im Einstellungsformular (beim Anlegen gelten die Standardwerte). */
+export type BookingSettings = {
+  pendingTtlMinutes: number
+  selfEditHoursBefore: number
+  oneBookingPerEmail: boolean
+  requirePhone: boolean
+  replyTo: string | null
+  mailNote: string
+}
+
+export type ParsedEvent =
+  | { ok: true; fields: EventFields; status: EventStatus | null; booking: BookingSettings | null }
+  | { ok: false; errors: string[] }
 
 /** Zeilenumbrüche vereinheitlichen, Steuerzeichen (außer Umbruch/Tab) entfernen. */
 function cleanText(value: string): string {
@@ -106,10 +119,40 @@ export function parseEventForm(formData: FormData, timeZone: string = DEFAULT_TI
     else errors.push('Unbekannter Status.')
   }
 
+  const booking = formData.has('pendingTtlMinutes') ? parseBookingSettings(formData, errors) : null
+
   if (errors.length > 0 || !startsAt || !endsAt) return { ok: false, errors }
   return {
     ok: true,
     status,
+    booking,
     fields: { title, slug, description, location, startsAt, endsAt, mode, bookingOpensAt, bookingClosesAt, minFillRatio }
+  }
+}
+
+function intInRange(formData: FormData, name: string, min: number, max: number): number | null {
+  const value = formString(formData, name, 10)
+  if (!/^\d+$/.test(value)) return null
+  const number = Number(value)
+  return number >= min && number <= max ? number : null
+}
+
+function parseBookingSettings(formData: FormData, errors: string[]): BookingSettings {
+  const pendingTtlMinutes = intInRange(formData, 'pendingTtlMinutes', PENDING_TTL_RANGE.min, PENDING_TTL_RANGE.max)
+  if (pendingTtlMinutes === null) errors.push(`Reservierung ohne Bestätigung: ${PENDING_TTL_RANGE.min} bis ${PENDING_TTL_RANGE.max} Minuten.`)
+  const selfEditHoursBefore = intInRange(formData, 'selfEditHoursBefore', 0, SELF_EDIT_HOURS_MAX)
+  if (selfEditHoursBefore === null) errors.push(`Änderungsfrist: 0 bis ${SELF_EDIT_HOURS_MAX} Stunden vor Beginn.`)
+
+  const replyInput = formString(formData, 'replyTo', 254)
+  const replyTo = replyInput ? normalizeEmail(replyInput) : null
+  if (replyInput && !replyTo) errors.push('Antwortadresse: keine gültige E-Mail-Adresse.')
+
+  return {
+    pendingTtlMinutes: pendingTtlMinutes ?? 30,
+    selfEditHoursBefore: selfEditHoursBefore ?? 24,
+    oneBookingPerEmail: formData.get('oneBookingPerEmail') === 'on',
+    requirePhone: formData.get('requirePhone') === 'on',
+    replyTo,
+    mailNote: cleanText(formString(formData, 'mailNote', EVENT_LIMITS.mailNote)).trim()
   }
 }

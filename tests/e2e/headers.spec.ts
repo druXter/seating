@@ -22,7 +22,7 @@ test('allgemeine Sicherheits-Header auf jeder Seite', async ({ request }) => {
 })
 
 test('kein Einbetten außer auf Eventseiten - auch nicht für einteilige Seiten des Tools', async ({ request }) => {
-  for (const path of [...PUBLIC, ...PRIVATE, '/admin/events', '/admin/events/new', '/b/x/y', '/api/cron/cleanup']) {
+  for (const path of [...PUBLIC, ...PRIVATE, '/admin/events', '/admin/events/new', '/b/x/y', '/verify/x/y', '/api/cron/cleanup']) {
     const h = await headersOf(request, path)
     expect(h['content-security-policy'], path).toContain("frame-ancestors 'none'")
     expect(h['x-frame-options'], path).toBe('DENY')
@@ -68,7 +68,7 @@ test('sensible Seiten: noindex, kein Caching, kein Einbetten', async ({ request 
 })
 
 test('Einmal-Links und Verwaltungslinks gehen nicht per Referer weiter', async ({ request }) => {
-  for (const path of ['/reset-password?token=abc', '/b/irgendwas/token']) {
+  for (const path of ['/reset-password?token=abc', '/b/irgendwas/token', '/verify/irgendwas/token']) {
     const h = await headersOf(request, path)
     expect(h['referrer-policy'], path).toBe('no-referrer')
     expect(h['x-robots-tag'], path).toBe('noindex, nofollow')
