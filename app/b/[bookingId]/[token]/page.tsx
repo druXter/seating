@@ -8,10 +8,15 @@ import { canSelfEdit, selfEditDeadline } from '../../../lib/events/booking-rules
 import { loadManagedBooking } from '../../../lib/events/booking'
 import { loadUnitStates } from '../../../lib/events/store'
 import Notice from '../../../ui/notice'
-import { CancelForm, ChangeForm } from './manage-forms'
+import { acceptOfferAction, declineOfferAction, leaveWaitlistAction } from '../../actions'
+import { CancelForm, ChangeForm, ManageButtonForm } from './manage-forms'
 
 export const dynamic = 'force-dynamic'
 export const metadata: Metadata = { title: 'Deine Buchung', robots: { index: false, follow: false } }
+
+type Search = {
+  confirmed?: string; changed?: string; unchanged?: string; cancelled?: string; waitlisted?: string; accepted?: string; declined?: string; left?: string
+}
 
 /**
  * Persönliche Verwaltungsseite einer Buchung (/b/<id>/<token>, docs/KONZEPT.md Abschnitt 6).
@@ -20,7 +25,7 @@ export const metadata: Metadata = { title: 'Deine Buchung', robots: { index: fal
  */
 export default async function ManagePage({ params, searchParams }: {
   params: Promise<{ bookingId: string; token: string }>
-  searchParams: Promise<{ confirmed?: string; changed?: string; unchanged?: string; cancelled?: string }>
+  searchParams: Promise<Search>
 }) {
   const { bookingId, token } = await params
   if (!bookingSecretsConfigured()) notFound()
@@ -30,6 +35,11 @@ export default async function ManagePage({ params, searchParams }: {
   const { event } = booking
   const now = new Date()
   const editable = booking.status === 'CONFIRMED' && canSelfEdit(event, now)
+  // Warteliste (Konzept Abschnitt 5): Eintrag, offenes Angebot, beendeter Eintrag.
+  const waiting = booking.status === 'WAITLISTED'
+  const offerOpen = booking.status === 'OFFERED' && booking.expiresAt !== null && booking.expiresAt > now
+  const fromWaitlist = booking.waitlistedAt !== null
+  const showTable = booking.status === 'CONFIRMED' || booking.status === 'OFFERED'
 
   let tables: { key: string; label: string; capacity: number }[] = []
   if (editable) {
@@ -43,19 +53,28 @@ export default async function ManagePage({ params, searchParams }: {
   return (
     <main className="bg-gray-50 py-8 px-4">
       <div className="max-w-2xl mx-auto space-y-4 text-gray-900">
-        <h1 className="text-2xl font-bold">Deine Buchung</h1>
+        <h1 className="text-2xl font-bold">{waiting || (fromWaitlist && booking.status !== 'CONFIRMED') ? 'Dein Eintrag auf der Warteliste' : 'Deine Buchung'}</h1>
+        {search.waitlisted === '1' && <Notice tone="success">Du stehst jetzt auf der Warteliste. Wird ein passender Tisch frei, bekommst du ein Angebot per Mail.</Notice>}
+        {search.accepted === '1' && <Notice tone="success">Angebot angenommen – deine Buchung ist bestätigt. Die Bestätigungsmail mit Kalendereintrag ist unterwegs.</Notice>}
+        {search.declined === '1' && <Notice tone="success">Du hast das Angebot abgelehnt, dein Eintrag ist beendet. Der Tisch geht an die nächste Gruppe.</Notice>}
+        {search.left === '1' && <Notice tone="success">Du bist von der Warteliste ausgetragen.</Notice>}
         {search.confirmed === '1' && <Notice tone="success">Deine Buchung ist bestätigt. Die Bestätigungsmail mit Kalendereintrag ist unterwegs.</Notice>}
         {search.changed === '1' && <Notice tone="success">Änderungen gespeichert. Du bekommst eine Mail mit dem aktualisierten Kalendereintrag.</Notice>}
         {search.unchanged === '1' && <Notice tone="info">Es gab nichts zu ändern.</Notice>}
         {search.cancelled === '1' && <Notice tone="success">Deine Buchung ist storniert. Du bekommst eine Bestätigung per Mail.</Notice>}
-        {booking.status === 'CANCELLED' && search.cancelled !== '1' && <Notice tone="warning">Diese Buchung wurde storniert.</Notice>}
+        {booking.status === 'CANCELLED' && !search.cancelled && !search.declined && !search.left && (
+          <Notice tone="warning">{fromWaitlist ? 'Dieser Eintrag ist beendet.' : 'Diese Buchung wurde storniert.'}</Notice>
+        )}
+        {booking.status === 'EXPIRED' && <Notice tone="warning">Das Angebot ist verfallen, dein Eintrag ist beendet. Du kannst dich auf der Seite der Veranstaltung erneut eintragen.</Notice>}
+        {booking.status === 'OFFERED' && !offerOpen && <Notice tone="warning">Das Angebot ist abgelaufen, der Tisch geht an die nächste Gruppe.</Notice>}
 
         <div className="bg-white p-6 rounded-lg shadow space-y-3">
           <dl className="text-sm grid grid-cols-[auto_1fr] gap-x-4 gap-y-1">
             <dt className="text-gray-600">Veranstaltung</dt><dd><Link href={`/${event.slug}`} className="text-blue-700 hover:underline">{event.title}</Link></dd>
             <dt className="text-gray-600">Wann</dt><dd>{formatRange(event.startsAt, event.endsAt, event.timezone)}</dd>
             {event.location && <><dt className="text-gray-600">Wo</dt><dd>{event.location}</dd></>}
-            {booking.status === 'CONFIRMED' && <><dt className="text-gray-600">Tisch</dt><dd>{booking.table?.label ?? '–'}</dd></>}
+            {showTable && <><dt className="text-gray-600">Tisch</dt><dd>{booking.table?.label ?? '–'}</dd></>}
+            {waiting && booking.waitlistedAt && <><dt className="text-gray-600">Auf der Warteliste seit</dt><dd>{formatDateTime(booking.waitlistedAt, event.timezone)}</dd></>}
             <dt className="text-gray-600">Personen</dt><dd>{booking.partySize}</dd>
             <dt className="text-gray-600">Name</dt><dd>{booking.name}</dd>
             <dt className="text-gray-600">E-Mail</dt><dd>{booking.email}</dd>
@@ -63,6 +82,29 @@ export default async function ManagePage({ params, searchParams }: {
             {booking.note && <><dt className="text-gray-600">Anmerkung</dt><dd className="whitespace-pre-line">{booking.note}</dd></>}
           </dl>
         </div>
+
+        {waiting && (
+          <div className="bg-white p-6 rounded-lg shadow space-y-3">
+            <p className="text-sm text-gray-700">
+              Wird ein passender Tisch frei, bekommst du ein Angebot per Mail. Es gilt {event.offerTtlHours} {event.offerTtlHours === 1 ? 'Stunde' : 'Stunden'}
+              {' '}(höchstens bis Buchungsschluss). Die Reihenfolge richtet sich nach dem Zeitpunkt der Anmeldung – Gruppen, für die ein frei
+              gewordener Tisch passt, kommen zuerst dran.
+            </p>
+            <ManageButtonForm action={leaveWaitlistAction} bookingId={booking.id} token={token} label="Von der Warteliste austragen" confirmMessage="Wirklich von der Warteliste austragen?" />
+          </div>
+        )}
+
+        {offerOpen && (
+          <div className="bg-white p-6 rounded-lg shadow space-y-3 border-2 border-green-300">
+            <h2 className="font-bold">Ein Tisch ist für euch frei</h2>
+            <p className="text-sm text-gray-700">
+              {booking.table?.label} ist für euch reserviert bis <strong>{formatDateTime(booking.expiresAt!, event.timezone)}</strong>.
+              Nimmst du das Angebot bis dahin nicht an, geht der Tisch an die nächste Gruppe.
+            </p>
+            <ManageButtonForm action={acceptOfferAction} bookingId={booking.id} token={token} label="Angebot annehmen" primary />
+            <ManageButtonForm action={declineOfferAction} bookingId={booking.id} token={token} label="Angebot ablehnen" confirmMessage="Angebot wirklich ablehnen? Dein Eintrag auf der Warteliste endet damit." />
+          </div>
+        )}
 
         {editable ? (
           <>

@@ -124,9 +124,13 @@ export async function adminSetNote(booking: AdminBooking, adminNote: string | nu
   return done()
 }
 
-/** Storno (bestätigt oder unbestätigt). Mail mit .ics (CANCEL) nur an bestätigte Buchungen. */
+/**
+ * Storno (bestätigt, unbestätigt, Eintrag auf der Warteliste oder offenes Angebot - Letztere enden
+ * damit). Mail mit .ics (CANCEL) nur an bestätigte Buchungen. Einen frei gewordenen Tisch bietet die
+ * aufrufende Action der Warteliste an.
+ */
 export async function adminCancelBooking(event: AdminEvent, booking: AdminBooking, notify: boolean, actor: string, now = new Date()): Promise<AdminResult> {
-  if (booking.status !== 'CONFIRMED' && booking.status !== 'PENDING') return fail(INACTIVE)
+  if (!['CONFIRMED', 'PENDING', 'WAITLISTED', 'OFFERED'].includes(booking.status)) return fail(INACTIVE)
   const mail = notify && booking.status === 'CONFIRMED' && booking.email !== null
   const cancelled = await prisma.$transaction(async tx => {
     const result = await tx.booking.updateMany({
@@ -172,15 +176,16 @@ export async function adminDeleteBooking(event: AdminEvent, booking: AdminBookin
 }
 
 /**
- * Unbestätigte Buchung von Hand bestätigen (z.B. Person hat angerufen). emailVerifiedAt bleibt leer -
- * die Adresse hat niemand bestätigt.
+ * Unbestätigte Buchung von Hand bestätigen (z.B. Person hat angerufen) oder ein offenes Angebot aus
+ * der Warteliste für die Gruppe annehmen. emailVerifiedAt bleibt, wie es ist - bei einer unbestätigten
+ * Reservierung also leer, die Adresse hat niemand bestätigt.
  */
 export async function adminConfirmBooking(event: AdminEvent, booking: AdminBooking, notify: boolean, actor: string, now = new Date()): Promise<AdminResult> {
   const result = await prisma.booking.updateMany({
-    where: { id: booking.id, status: 'PENDING', expiresAt: { gt: now } },
+    where: { id: booking.id, status: { in: ['PENDING', 'OFFERED'] }, expiresAt: { gt: now } },
     data: { status: 'CONFIRMED', expiresAt: null, verifyTokenHash: null, verifyCodeHmac: null, verifyAttempts: 0, pendingIpHash: null }
   })
-  if (result.count === 0) return fail('Nur unbestätigte Buchungen mit gültiger Reservierung lassen sich bestätigen.')
+  if (result.count === 0) return fail('Nur unbestätigte Buchungen und offene Angebote lassen sich bestätigen.')
   const mail = notify && booking.email !== null
   await audit(prisma, { eventId: event.id, bookingId: booking.id, actor, action: 'confirmed', diff: { notified: mail } })
   if (!mail) return done()
@@ -242,6 +247,39 @@ export function adminCorrectEmail(event: AdminEvent, booking: AdminBooking, newE
   if (booking.source === 'RSVP') return Promise.resolve(fail('Die Adresse kommt aus rsvp-app und lässt sich hier nicht ändern.'))
   if (newEmail === booking.email) return Promise.resolve(fail('Das ist dieselbe Adresse.'))
   return reissueVerification(event, booking, { renew, newEmail }, actor, now)
+}
+
+/**
+ * Eintrag der Warteliste direkt auf einen freien Tisch setzen - auch am Nachrück-Verfahren vorbei
+ * (Konzept Abschnitt 5, Schritt 4). Sofort bestätigt; Bestätigungsmail mit .ics auf Wunsch.
+ */
+export async function adminAssignWaitlist(
+  event: AdminEvent, booking: AdminBooking, unitKey: string, notify: boolean, actor: string, now = new Date()
+): Promise<AdminResult> {
+  if (booking.status !== 'WAITLISTED') return fail('Dieser Eintrag steht nicht mehr auf der Warteliste.')
+  const target = await findTable(event.id, unitKey)
+  if (!target) return fail('Diesen Tisch gibt es nicht.')
+  const problem = adminTableProblem(target, booking.partySize)
+  if (problem) return fail(problem)
+  try {
+    await prisma.$transaction(async tx => {
+      await lockEvent(tx, event.id)
+      const updated = await tx.booking.updateMany({
+        where: { id: booking.id, status: 'WAITLISTED' },
+        data: { status: 'CONFIRMED', expiresAt: null, verifyTokenHash: null, verifyCodeHmac: null, verifyAttempts: 0 }
+      })
+      if (updated.count === 0) throw new Abort(CONFLICT)
+      await moveAllocation(tx, event.id, booking.id, target, now)
+      await audit(tx, { eventId: event.id, bookingId: booking.id, actor, action: 'assigned', diff: { table: target.key, notified: notify && booking.email !== null } })
+    })
+  } catch (error) {
+    const message = takenMessage(error, target.label)
+    if (message) return fail(message)
+    throw error
+  }
+  if (!notify || !booking.email) return done()
+  const updated = await prisma.booking.findUniqueOrThrow({ where: { id: booking.id } })
+  return done(!(await sendConfirmedMail(event, updated, target.label)))
 }
 
 /** Verwaltungslink neu erzeugen: Version + 1, der alte Link (auch in Kalendereinträgen) ist ungültig. */

@@ -31,6 +31,29 @@ export function activeWhere(now: Date): Prisma.BookingWhereInput {
 }
 
 /**
+ * Belegt diese Adresse schon etwas (oneBookingPerEmail)? Aktive Buchungen, Angebote und Einträge auf
+ * der Warteliste - bestätigte immer, unbestätigte bis zu ihrer Frist (Konzept Abschnitt 5, Schritt 1).
+ */
+export function emailBlockingWhere(now: Date): Prisma.BookingWhereInput {
+  return {
+    OR: [
+      ...(activeWhere(now).OR as Prisma.BookingWhereInput[]),
+      { status: 'WAITLISTED', OR: [{ emailVerifiedAt: { not: null } }, { expiresAt: { gt: now } }] }
+    ]
+  }
+}
+
+/**
+ * Ein Angebot aus der Warteliste ist verfallen: Mail "Angebot verfallen" in die Warteschlange
+ * (app/lib/events/mail-queue.ts) - in derselben Transaktion wie der Statuswechsel, damit sie nicht
+ * verloren geht.
+ */
+export async function queueOfferExpiredMail(tx: Tx, booking: { id: string; eventId: string; email: string | null }) {
+  if (!booking.email) return
+  await tx.mailLog.create({ data: { eventId: booking.eventId, bookingId: booking.id, type: 'offer-expired', recipient: booking.email, status: 'queued' } })
+}
+
+/**
  * SQLite erlaubt nur einen Schreiber gleichzeitig, sperrt bei einer "deferred" Transaktion aber erst
  * beim ersten Schreiben. Diese Anweisung schreibt als ERSTES - damit sehen die folgenden Prüfungen
  * (eine Buchung pro E-Mail, Obergrenze pro IP) einen festen Stand, und zwei gleichzeitige Anfragen
@@ -44,13 +67,16 @@ export async function lockEvent(tx: Tx, eventId: string) {
 export async function releaseStaleHolds(tx: Tx, eventId: string, unitIds: string[], now: Date) {
   const stale = await tx.booking.findMany({
     where: { eventId, status: { in: [...HOLDING_STATUSES] }, expiresAt: { lte: now }, allocations: { some: { unitId: { in: unitIds } } } },
-    select: { id: true }
+    select: { id: true, eventId: true, status: true, email: true }
   })
   if (stale.length === 0) return
   const ids = stale.map(b => b.id)
   await tx.allocation.deleteMany({ where: { bookingId: { in: ids } } })
   await tx.booking.updateMany({ where: { id: { in: ids } }, data: { status: 'EXPIRED', pendingIpHash: null, verifyTokenHash: null, verifyCodeHmac: null } })
-  for (const id of ids) await audit(tx, { eventId, bookingId: id, actor: 'system', action: 'expired' })
+  for (const booking of stale) {
+    await audit(tx, { eventId, bookingId: booking.id, actor: 'system', action: 'expired' })
+    if (booking.status === 'OFFERED') await queueOfferExpiredMail(tx, booking)
+  }
 }
 
 /**

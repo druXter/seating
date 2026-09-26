@@ -6,8 +6,9 @@ import type { Layout } from '../lib/floorplan/schema'
 import { tableFits, type PublicUnitState } from '../lib/events/occupancy'
 import PlanViewer from '../ui/plan/plan-viewer'
 import type { UnitVisual } from '../ui/plan/plan-svg'
-import { reserveAction } from './booking-actions'
-import { PendingPanel, ReserveForm } from './booking-panel'
+import { waitlistChoice } from '../lib/events/waitlist-rules'
+import { joinWaitlistAction, reserveAction } from './booking-actions'
+import { PendingPanel, ReserveForm, WaitlistForm } from './booking-panel'
 
 /**
  * Öffentliche Planansicht einer Tischbuchung (Modus TABLE): Plan mit Belegung, Gruppengröße als
@@ -21,9 +22,9 @@ import { PendingPanel, ReserveForm } from './booking-panel'
  * nach dem Reservieren Code-Eingabe. Solange eine Reservierung offen ist, bleibt die Auswahl gesperrt.
  */
 
-export type BookingOptions = { eventId: string; open: boolean; requirePhone: boolean }
+export type BookingOptions = { eventId: string; open: boolean; requirePhone: boolean; waitlist: boolean }
 
-export type PublicTable = { key: string; label: string; capacity: number; state: PublicUnitState }
+export type PublicTable = { key: string; label: string; capacity: number; bookable: boolean; state: PublicUnitState }
 
 const STATE_TEXT: Record<PublicUnitState, string> = { free: 'frei', occupied: 'belegt', unavailable: 'nicht buchbar' }
 
@@ -59,27 +60,38 @@ export default function EventPlan({ layout, backgroundUrl, tables, tableSeats, m
   const [partyInput, setPartyInput] = useState('')
   const [selectedKey, setSelectedKey] = useState<string | null>(null)
   const [reserveState, reserve, reserving] = useActionState(reserveAction, null)
+  const [waitlistState, joinWaitlist, joining] = useActionState(joinWaitlistAction, null)
+  const [waitlistOpen, setWaitlistOpen] = useState(false)
   const panelRef = useRef<HTMLDivElement>(null)
   const inputId = useId()
   const pendingReservation = reserveState?.step === 'pending' ? reserveState : null
+  const pendingWaitlist = waitlistState?.step === 'pending' ? waitlistState : null
+  const busy = pendingReservation !== null || pendingWaitlist !== null
   const selected = tables.find(t => t.key === selectedKey) ?? null
 
   function select(key: string) {
-    if (!booking.open || pendingReservation) return
+    if (!booking.open || busy) return
     const table = tables.find(t => t.key === key)
-    if (table?.state === 'free') setSelectedKey(key)
+    if (table?.state === 'free') {
+      setSelectedKey(key)
+      setWaitlistOpen(false)
+    }
   }
 
   // Formular nach der Auswahl in den Blick holen (auf dem Handy liegt es unter dem Plan).
   useEffect(() => {
-    if (selectedKey) panelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-  }, [selectedKey])
+    if (selectedKey || waitlistOpen) panelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }, [selectedKey, waitlistOpen])
   const maxCapacity = Math.max(1, ...tables.map(t => t.capacity))
   const partySize = /^\d+$/.test(partyInput) ? Number(partyInput) : null
   const filtering = partySize !== null && partySize >= 1
 
   const fits = (table: PublicTable) => partySize !== null && tableFits(table.capacity, partySize, minFillRatio)
   const matching = filtering ? tables.filter(t => t.state === 'free' && fits(t)) : []
+  // Warteliste: nur wenn kein passender Tisch frei ist, es aber passende gibt (Konzept Abschnitt 5).
+  const choice = filtering && partySize !== null
+    ? waitlistChoice(tables.map(t => ({ capacity: t.capacity, bookable: t.bookable, free: t.state === 'free' })), partySize, minFillRatio, booking.waitlist)
+    : null
 
   const visuals = new Map<string, UnitVisual>()
   const byKey = new Map<string, UnitVisual>()
@@ -124,15 +136,44 @@ export default function EventPlan({ layout, backgroundUrl, tables, tableSeats, m
           : `${freeCount} von ${tables.length} Tischen frei.`}
       </p>
 
+      {booking.open && !busy && !selected && !waitlistOpen && choice === 'waitlist' && (
+        <div className="flex flex-wrap items-center gap-3 text-sm">
+          <span>Trag dich auf die Warteliste ein – wird ein passender Tisch frei, bekommst du ein Angebot per Mail.</span>
+          <button type="button" onClick={() => { setWaitlistOpen(true); setSelectedKey(null) }} className="bg-blue-600 text-white font-bold py-1.5 px-3 rounded hover:bg-blue-700">
+            Auf die Warteliste
+          </button>
+        </div>
+      )}
+      {choice === 'too-large' && <p className="text-sm text-gray-700">Für so viele Personen gibt es keinen passenden Tisch.</p>}
+
       <PlanViewer
         layout={layout} backgroundUrl={backgroundUrl} units={visuals} title={title}
-        onUnitClick={booking.open && !pendingReservation ? select : undefined}
+        onUnitClick={booking.open && !busy ? select : undefined}
       />
 
-      {booking.open && (pendingReservation || selected) && (
+      {booking.open && (busy || selected || waitlistOpen) && (
         <div ref={panelRef} className="border-2 border-blue-200 rounded-lg p-4 scroll-mt-4">
           {pendingReservation ? (
-            <PendingPanel state={pendingReservation} />
+            <PendingPanel bookingId={pendingReservation.bookingId} resendHint="Die Reservierung verlängert sich dadurch nicht.">
+              <strong>{pendingReservation.tableLabel}</strong> ist bis {pendingReservation.expiresAtText} für dich reserviert. Wir haben eine Mail an{' '}
+              <strong>{pendingReservation.email}</strong> geschickt – bitte bestätige deine Adresse mit dem Link oder dem Code aus der Mail.
+              Ohne Bestätigung wird der Tisch danach wieder frei.
+            </PendingPanel>
+          ) : pendingWaitlist ? (
+            <PendingPanel bookingId={pendingWaitlist.bookingId} resendHint="Die Frist verlängert sich dadurch nicht.">
+              Wir haben eine Mail an <strong>{pendingWaitlist.email}</strong> geschickt. Bitte bestätige deine Adresse bis {pendingWaitlist.expiresAtText} mit
+              dem Link oder dem Code aus der Mail – erst dann stehst du auf der Warteliste.
+            </PendingPanel>
+          ) : waitlistOpen && partySize !== null ? (
+            <WaitlistForm
+              eventId={booking.eventId}
+              partySize={partySize}
+              requirePhone={booking.requirePhone}
+              action={joinWaitlist}
+              pending={joining}
+              errors={waitlistState?.step === 'form' ? waitlistState.errors : []}
+              onClose={() => setWaitlistOpen(false)}
+            />
           ) : selected && (
             <ReserveForm
               key={selected.key}
@@ -148,7 +189,7 @@ export default function EventPlan({ layout, backgroundUrl, tables, tableSeats, m
           )}
         </div>
       )}
-      {booking.open && !selected && !pendingReservation && (
+      {booking.open && !selected && !busy && !waitlistOpen && (
         <p className="text-sm text-gray-700">Tippe im Plan auf einen freien Tisch oder wähle ihn unten in der Liste, um ihn zu buchen.</p>
       )}
 
@@ -172,7 +213,7 @@ export default function EventPlan({ layout, backgroundUrl, tables, tableSeats, m
                 <th scope="col" className="py-1 pr-2">Plätze</th>
                 <th scope="col" className="py-1 pr-2">Status</th>
                 {filtering && <th scope="col" className="py-1 pr-2">Für {partySize}</th>}
-                {booking.open && !pendingReservation && <th scope="col" className="py-1"><span className="sr-only">Aktion</span></th>}
+                {booking.open && !busy && <th scope="col" className="py-1"><span className="sr-only">Aktion</span></th>}
               </tr>
             </thead>
             <tbody>
@@ -182,7 +223,7 @@ export default function EventPlan({ layout, backgroundUrl, tables, tableSeats, m
                   <td className="py-1 pr-2">{table.capacity}</td>
                   <td className="py-1 pr-2">{STATE_TEXT[table.state]}</td>
                   {filtering && <td className="py-1 pr-2">{table.state !== 'free' ? '–' : fits(table) ? 'passt' : 'passt nicht'}</td>}
-                  {booking.open && !pendingReservation && (
+                  {booking.open && !busy && (
                     <td className="py-1 text-right">
                       {table.state === 'free' && (!filtering || fits(table)) && (
                         <button

@@ -10,11 +10,13 @@ import { loadEventForUser } from '../../lib/events/store'
 import { sendBroadcastTestMail } from '../../lib/booking-mail'
 import { BROADCAST_LIMITS } from '../../lib/mail-blocks'
 import {
-  adminCancelBooking, adminChangeBooking, adminConfirmBooking, adminCorrectEmail, adminCreateBooking, adminDeleteBooking,
+  adminAssignWaitlist, adminCancelBooking, adminChangeBooking, adminConfirmBooking, adminCorrectEmail, adminCreateBooking, adminDeleteBooking,
   adminRenewManageLink, adminResendVerification, adminSetNote, loadAdminBooking, type AdminResult
 } from '../../lib/events/admin-booking'
 import { formFlag, parseAdminChange, parseAdminCreate, parseAdminNote, parseRecipientFilter, parseUpdatedAt } from '../../lib/events/admin-rules'
-import { processBroadcastQueue, queueBroadcast } from '../../lib/events/broadcast'
+import { queueBroadcast } from '../../lib/events/broadcast'
+import { processMailQueue } from '../../lib/events/mail-queue'
+import { offerAfterResponse } from '../../lib/events/waitlist'
 
 /**
  * Buchungsverwaltung durch Veranstalter*innen (docs/KONZEPT.md Abschnitt 8). JEDE Aktion prüft selbst:
@@ -41,8 +43,10 @@ async function bookingContext(formData: FormData) {
 }
 
 /** Nach Erfolg zurück auf die Buchung, mit Rückmeldung (und Hinweis, falls die Mail scheiterte). */
-function finish(slug: string, path: string, result: AdminResult & { ok: true }, done: string): never {
-  revalidatePath(`/${slug}`)
+async function finish(event: { id: string; slug: string }, path: string, result: AdminResult & { ok: true }, done: string): Promise<never> {
+  // Ein Tisch kann frei geworden sein (Storno, Tischwechsel, Löschen): der Warteliste anbieten.
+  offerAfterResponse(event.id)
+  revalidatePath(`/${event.slug}`)
   redirect(`${path}?done=${result.changed ? done : 'unchanged'}${result.mailFailed ? '&mail=failed' : ''}`)
 }
 
@@ -56,7 +60,7 @@ export async function changeBookingAdmin(_previous: BookingFormState, formData: 
 
   const result = await adminChangeBooking(event, booking, parsed.input, expected, formFlag(formData, 'notify'), user.id)
   if (!result.ok) return { errors: result.errors }
-  finish(event.slug, path, result, 'changed')
+  return finish(event, path, result, 'changed')
 }
 
 export async function saveAdminNote(_previous: BookingFormState, formData: FormData): Promise<BookingFormState> {
@@ -64,7 +68,7 @@ export async function saveAdminNote(_previous: BookingFormState, formData: FormD
   if (!booking || !path) return { errors: [NOT_FOUND] }
   const result = await adminSetNote(booking, parseAdminNote(formData), user.id)
   if (!result.ok) return { errors: result.errors }
-  finish(event.slug, path, result, 'note')
+  return finish(event, path, result, 'note')
 }
 
 export async function cancelBookingAdmin(_previous: BookingFormState, formData: FormData): Promise<BookingFormState> {
@@ -72,7 +76,7 @@ export async function cancelBookingAdmin(_previous: BookingFormState, formData: 
   if (!booking || !path) return { errors: [NOT_FOUND] }
   const result = await adminCancelBooking(event, booking, formFlag(formData, 'notify'), user.id)
   if (!result.ok) return { errors: result.errors }
-  finish(event.slug, path, result, 'cancelled')
+  return finish(event, path, result, 'cancelled')
 }
 
 export async function deleteBookingAdmin(_previous: BookingFormState, formData: FormData): Promise<BookingFormState> {
@@ -80,6 +84,8 @@ export async function deleteBookingAdmin(_previous: BookingFormState, formData: 
   if (!booking) return { errors: [NOT_FOUND] }
   const result = await adminDeleteBooking(event, booking, formFlag(formData, 'notify'), user.id)
   if (!result.ok) return { errors: result.errors }
+  // Ein Tisch kann frei geworden sein (Storno, Tischwechsel, Löschen): der Warteliste anbieten.
+  offerAfterResponse(event.id)
   revalidatePath(`/${event.slug}`)
   redirect(`/admin/events/${event.id}/bookings?deleted=1${result.mailFailed ? '&mail=failed' : ''}`)
 }
@@ -89,7 +95,7 @@ export async function confirmBookingAdmin(_previous: BookingFormState, formData:
   if (!booking || !path) return { errors: [NOT_FOUND] }
   const result = await adminConfirmBooking(event, booking, formFlag(formData, 'notify'), user.id)
   if (!result.ok) return { errors: result.errors }
-  finish(event.slug, path, result, 'confirmed')
+  return finish(event, path, result, 'confirmed')
 }
 
 export async function resendVerificationAdmin(_previous: BookingFormState, formData: FormData): Promise<BookingFormState> {
@@ -97,7 +103,7 @@ export async function resendVerificationAdmin(_previous: BookingFormState, formD
   if (!booking || !path) return { errors: [NOT_FOUND] }
   const result = await adminResendVerification(event, booking, formFlag(formData, 'renew'), user.id)
   if (!result.ok) return { errors: result.errors }
-  finish(event.slug, path, result, 'resent')
+  return finish(event, path, result, 'resent')
 }
 
 export async function correctEmailAdmin(_previous: BookingFormState, formData: FormData): Promise<BookingFormState> {
@@ -107,7 +113,7 @@ export async function correctEmailAdmin(_previous: BookingFormState, formData: F
   if (!email) return { errors: ['Bitte gib eine gültige E-Mail-Adresse an.'] }
   const result = await adminCorrectEmail(event, booking, email, formFlag(formData, 'renew'), user.id)
   if (!result.ok) return { errors: result.errors }
-  finish(event.slug, path, result, 'email')
+  return finish(event, path, result, 'email')
 }
 
 export async function renewManageLinkAdmin(_previous: BookingFormState, formData: FormData): Promise<BookingFormState> {
@@ -115,7 +121,15 @@ export async function renewManageLinkAdmin(_previous: BookingFormState, formData
   if (!booking || !path) return { errors: [NOT_FOUND] }
   const result = await adminRenewManageLink(event, booking, formFlag(formData, 'notify'), user.id)
   if (!result.ok) return { errors: result.errors }
-  finish(event.slug, path, result, 'link')
+  return finish(event, path, result, 'link')
+}
+
+export async function assignWaitlistAdmin(_previous: BookingFormState, formData: FormData): Promise<BookingFormState> {
+  const { user, event, booking, path } = await bookingContext(formData)
+  if (!booking || !path) return { errors: [NOT_FOUND] }
+  const result = await adminAssignWaitlist(event, booking, formString(formData, 'unitKey', 40), formFlag(formData, 'notify'), user.id)
+  if (!result.ok) return { errors: result.errors }
+  return finish(event, path, result, 'assigned')
 }
 
 export async function createBookingAdmin(_previous: BookingFormState, formData: FormData): Promise<BookingFormState> {
@@ -124,7 +138,7 @@ export async function createBookingAdmin(_previous: BookingFormState, formData: 
   if (!parsed.ok) return { errors: parsed.errors }
   const result = await adminCreateBooking(event, parsed.input, user.id)
   if (!result.ok || !result.bookingId) return { errors: result.ok ? [NOT_FOUND] : result.errors }
-  finish(event.slug, `/admin/events/${event.id}/bookings/${result.bookingId}`, result, 'created')
+  return finish(event, `/admin/events/${event.id}/bookings/${result.bookingId}`, result, 'created')
 }
 
 // --- Rundmail -----------------------------------------------------------------------------------
@@ -158,6 +172,6 @@ export async function sendBroadcast(_previous: BookingFormState, formData: FormD
   const { count } = await queueBroadcast(event, content, filter, user.id)
   if (count === 0) return { errors: ['Zu dieser Auswahl gibt es keine Empfänger*innen.'] }
   // Verschickt wird nach der Antwort, gedrosselt - die Seite zeigt den Fortschritt.
-  after(() => processBroadcastQueue())
+  after(() => processMailQueue())
   redirect(`/admin/events/${event.id}/mail?queued=${count}`)
 }

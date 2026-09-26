@@ -7,6 +7,7 @@ import { formString } from '../lib/form'
 import { bookingSecretsConfigured } from '../lib/booking-tokens'
 import { parseContact, parsePartySize } from '../lib/events/booking-rules'
 import { cancelBooking, changeBooking, loadManagedBooking } from '../lib/events/booking'
+import { acceptOffer, declineOffer, leaveWaitlist, offerAfterResponse } from '../lib/events/waitlist'
 
 /**
  * Aktionen über den persönlichen Verwaltungslink (docs/KONZEPT.md Abschnitt 4, Schritt 7). Berechtigt
@@ -38,6 +39,7 @@ export async function changeBookingAction(_previous: ManageState, formData: Form
 
   const result = await changeBooking(booking, { ...contact, partySize, unitKey })
   if (!result.ok) return { errors: result.errors }
+  if (unitKey !== booking.table?.key) offerAfterResponse(booking.eventId)
   revalidatePath(`/${booking.event.slug}`)
   redirect(`${path}?${result.changed ? 'changed' : 'unchanged'}=1`)
 }
@@ -47,6 +49,36 @@ export async function cancelBookingAction(_previous: ManageState, formData: Form
   if (!context) return { errors: ['Dieser Link ist ungültig.'] }
   const result = await cancelBooking(context.booking)
   if (!result.ok) return { errors: result.errors }
+  offerAfterResponse(context.booking.eventId)
   revalidatePath(`/${context.booking.event.slug}`)
   redirect(`${context.path}?cancelled=1`)
+}
+
+// --- Warteliste (docs/KONZEPT.md Abschnitt 5) ----------------------------------------------------
+
+export async function acceptOfferAction(_previous: ManageState, formData: FormData): Promise<ManageState> {
+  const context = await managed(formData)
+  if (!context) return { errors: ['Dieser Link ist ungültig.'] }
+  const result = await acceptOffer(context.booking)
+  if (!result.ok) return { errors: result.errors }
+  revalidatePath(`/${context.booking.event.slug}`)
+  redirect(`${context.path}?accepted=1`)
+}
+
+export async function declineOfferAction(_previous: ManageState, formData: FormData): Promise<ManageState> {
+  const context = await managed(formData)
+  if (!context) return { errors: ['Dieser Link ist ungültig.'] }
+  const result = await declineOffer(context.booking)
+  if (!result.ok) return { errors: result.errors }
+  offerAfterResponse(context.booking.eventId)
+  revalidatePath(`/${context.booking.event.slug}`)
+  redirect(`${context.path}?declined=1`)
+}
+
+export async function leaveWaitlistAction(_previous: ManageState, formData: FormData): Promise<ManageState> {
+  const context = await managed(formData)
+  if (!context) return { errors: ['Dieser Link ist ungültig.'] }
+  const result = await leaveWaitlist(context.booking)
+  if (!result.ok) return { errors: result.errors }
+  redirect(`${context.path}?left=1`)
 }

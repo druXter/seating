@@ -1,12 +1,14 @@
 // app/lib/events/booking.ts
 import { randomBytes } from 'node:crypto'
-import type { Booking, Event } from '@prisma/client'
+import type { Booking, Event, Prisma } from '@prisma/client'
 import { prisma } from '../prisma'
 import { CODE_MAX_ATTEMPTS, codeMatches, hashVerifyToken, ipHash, manageTokenValid, newVerifyCode, newVerifyToken } from '../booking-tokens'
-import { sendAlreadyBookedMail, sendCancelledMail, sendChangedMail, sendConfirmedMail, sendVerifyMail } from '../booking-mail'
+import {
+  sendAlreadyBookedMail, sendCancelledMail, sendChangedMail, sendConfirmedMail, sendVerifyMail, sendWaitlistConfirmedMail, sendWaitlistVerifyMail
+} from '../booking-mail'
 import { HOLDING_STATUSES, tableFits } from './occupancy'
 import { auditDiff, calendarRelevant, changeLabels, changeRows, diffBooking } from './booking-changes'
-import { activeWhere, audit, isUniqueViolation, lockEvent, releaseStaleHolds, tableSeatsTaken } from './booking-tx'
+import { audit, emailBlockingWhere, isUniqueViolation, lockEvent, queueOfferExpiredMail, releaseStaleHolds, tableSeatsTaken } from './booking-tx'
 import { MAX_PENDING_PER_IP, canSelfEdit, type ContactFields, type ReservationInput } from './booking-rules'
 
 /**
@@ -19,7 +21,7 @@ import { MAX_PENDING_PER_IP, canSelfEdit, type ContactFields, type ReservationIn
  */
 
 /** Unauffällige Schein-id für die Antwort, wenn nichts reserviert wurde (siehe reserveTable). */
-function decoyId(): string {
+export function decoyId(): string {
   return `c${randomBytes(12).toString('hex').slice(0, 24)}`
 }
 
@@ -59,7 +61,7 @@ export async function reserveTable(event: Event, input: ReservationInput, ip: st
       if (await tableSeatsTaken(tx, event.id, unit.key, now)) return { kind: 'taken' as const }
 
       if (event.oneBookingPerEmail) {
-        const existing = await tx.booking.findFirst({ where: { eventId: event.id, email: input.email, ...activeWhere(now) } })
+        const existing = await tx.booking.findFirst({ where: { eventId: event.id, email: input.email, ...emailBlockingWhere(now) } })
         if (existing) return { kind: 'duplicate' as const, existing }
       }
       const pendingFromIp = await tx.booking.count({ where: { eventId: event.id, pendingIpHash: pendingIp, status: 'PENDING', expiresAt: { gt: now } } })
@@ -102,6 +104,7 @@ export async function reserveTable(event: Event, input: ReservationInput, ip: st
 
 export type ConfirmResult =
   | { kind: 'confirmed'; bookingId: string; manageTokenVersion: number }
+  | { kind: 'waitlisted'; bookingId: string; eventId: string; manageTokenVersion: number }
   | { kind: 'already' }
   | { kind: 'expired' }
   | { kind: 'wrong-code' }
@@ -114,8 +117,33 @@ export async function tableOf(bookingId: string): Promise<{ id: string; key: str
   return allocation?.unit ?? null
 }
 
+/**
+ * Was sich per Link oder Code bestätigen lässt: eine Reservierung (PENDING) oder ein noch
+ * unbestätigter Eintrag auf der Warteliste - jeweils nur innerhalb der Frist.
+ */
+function verifiable(now: Date): Prisma.BookingWhereInput {
+  return { expiresAt: { gt: now }, OR: [{ status: 'PENDING' }, { status: 'WAITLISTED', emailVerifiedAt: null }] }
+}
+
+/**
+ * Eintrag auf der Warteliste bestätigt: ab jetzt zählt er (waitlistedAt bestimmt die Reihenfolge).
+ * Ein Angebot stößt die aufrufende Server Action an (app/lib/events/waitlist.ts).
+ */
+async function markWaitlisted(booking: Booking, now: Date): Promise<ConfirmResult> {
+  const updated = await prisma.booking.updateMany({
+    where: { id: booking.id, status: 'WAITLISTED', emailVerifiedAt: null, expiresAt: { gt: now } },
+    data: { emailVerifiedAt: now, waitlistedAt: now, expiresAt: null, verifyTokenHash: null, verifyCodeHmac: null, verifyAttempts: 0, pendingIpHash: null }
+  })
+  if (updated.count === 0) return explain(booking.id, now)
+  await audit(prisma, { eventId: booking.eventId, bookingId: booking.id, actor: 'customer', action: 'waitlist-confirmed' })
+  const event = await prisma.event.findUniqueOrThrow({ where: { id: booking.eventId } })
+  await sendWaitlistConfirmedMail(event, booking)
+  return { kind: 'waitlisted', bookingId: booking.id, eventId: booking.eventId, manageTokenVersion: booking.manageTokenVersion }
+}
+
 /** PENDING (mit gültiger Frist) -> CONFIRMED, Geheimnisse löschen, Bestätigungsmail mit .ics. */
 async function markConfirmed(booking: Booking, now: Date): Promise<ConfirmResult> {
+  if (booking.status === 'WAITLISTED') return markWaitlisted(booking, now)
   const updated = await prisma.booking.updateMany({
     where: { id: booking.id, status: 'PENDING', expiresAt: { gt: now } },
     data: {
@@ -133,10 +161,11 @@ async function markConfirmed(booking: Booking, now: Date): Promise<ConfirmResult
 
 /** Status einer Buchung, deren Link/Code nicht (mehr) passt - für eine verständliche Meldung. */
 async function explain(bookingId: string, now: Date): Promise<ConfirmResult> {
-  const booking = await prisma.booking.findUnique({ where: { id: bookingId }, select: { status: true, expiresAt: true, verifyAttempts: true } })
+  const booking = await prisma.booking.findUnique({ where: { id: bookingId }, select: { status: true, expiresAt: true, verifyAttempts: true, emailVerifiedAt: true } })
   if (!booking) return { kind: 'invalid' }
-  if (booking.status === 'CONFIRMED') return { kind: 'already' }
-  if (booking.status !== 'PENDING' || !booking.expiresAt || booking.expiresAt <= now) return { kind: 'expired' }
+  if (booking.status === 'CONFIRMED' || booking.status === 'OFFERED' || (booking.status === 'WAITLISTED' && booking.emailVerifiedAt)) return { kind: 'already' }
+  const open = booking.status === 'PENDING' || booking.status === 'WAITLISTED'
+  if (!open || !booking.expiresAt || booking.expiresAt <= now) return { kind: 'expired' }
   if (booking.verifyAttempts >= CODE_MAX_ATTEMPTS) return { kind: 'locked' }
   return { kind: 'invalid' }
 }
@@ -169,7 +198,7 @@ export async function bookingForVerifyLink(bookingId: string, token: string) {
  */
 export async function confirmByCode(bookingId: string, input: string, now = new Date()): Promise<ConfirmResult> {
   const counted = await prisma.booking.updateMany({
-    where: { id: bookingId, status: 'PENDING', expiresAt: { gt: now }, verifyAttempts: { lt: CODE_MAX_ATTEMPTS } },
+    where: { id: bookingId, ...verifiable(now), verifyAttempts: { lt: CODE_MAX_ATTEMPTS } },
     data: { verifyAttempts: { increment: 1 } }
   })
   if (counted.count === 0) {
@@ -191,12 +220,16 @@ export async function confirmByCode(bookingId: string, input: string, now = new 
  * Verfall NICHT (sonst ließe sich ein Tisch beliebig lange blockieren). Antwortet immer gleich.
  */
 export async function resendVerification(bookingId: string, now = new Date()): Promise<void> {
-  const booking = await prisma.booking.findFirst({ where: { id: bookingId, status: 'PENDING', expiresAt: { gt: now } }, include: { event: true } })
+  const booking = await prisma.booking.findFirst({ where: { id: bookingId, ...verifiable(now) }, include: { event: true } })
   if (!booking || !booking.expiresAt) return
   const verify = newVerifyToken()
   const code = newVerifyCode(booking.id)
   await prisma.booking.update({ where: { id: booking.id }, data: { verifyTokenHash: verify.hash, verifyCodeHmac: code.hmac, verifyAttempts: 0 } })
   await audit(prisma, { eventId: booking.eventId, bookingId: booking.id, actor: 'customer', action: 'verification-resent' })
+  if (booking.status === 'WAITLISTED') {
+    await sendWaitlistVerifyMail(booking.event, booking, verify.token, code.code, booking.expiresAt)
+    return
+  }
   const table = await tableOf(booking.id)
   await sendVerifyMail(booking.event, booking, table?.label ?? 'Tisch', verify.token, code.code, booking.expiresAt)
 }
@@ -206,13 +239,17 @@ export async function resendVerification(bookingId: string, now = new Date()): P
 export type ManagedBooking = Booking & { event: Event; table: { id: string; key: string; label: string; capacity: number } | null }
 
 /**
- * Buchung zu einem Verwaltungslink - oder null bei falschem Token. Nur bestätigte und stornierte
- * Buchungen haben einen (unbestätigte bekommen den Link erst mit der Bestätigungsmail).
+ * Buchung zu einem Verwaltungslink - oder null bei falschem Token. Den Link bekommt man erst mit der
+ * Bestätigung (Buchung oder Eintrag auf der Warteliste); unbestätigte Reservierungen und Einträge
+ * haben also keinen. Beendete Einträge der Warteliste (abgelehnt, verfallen) zeigen ihren Stand.
  */
 export async function loadManagedBooking(bookingId: string, token: string): Promise<ManagedBooking | null> {
   if (!/^[a-z0-9]{10,40}$/.test(bookingId)) return null
   const booking = await prisma.booking.findUnique({ where: { id: bookingId }, include: { event: true } })
-  if (!booking || (booking.status !== 'CONFIRMED' && booking.status !== 'CANCELLED')) return null
+  if (!booking) return null
+  const linked = booking.status === 'CONFIRMED' || booking.status === 'CANCELLED' || booking.status === 'OFFERED'
+    || ((booking.status === 'WAITLISTED' || booking.status === 'EXPIRED') && booking.waitlistedAt !== null)
+  if (!linked) return null
   if (!manageTokenValid(booking.id, booking.manageTokenVersion, token)) return null
   return { ...booking, table: await tableOf(booking.id) }
 }
@@ -298,19 +335,31 @@ export async function cancelBooking(managed: ManagedBooking, now = new Date()): 
   return { ok: true, changed: true }
 }
 
-/** Cron: abgelaufene Holds (PENDING/OFFERED) auf EXPIRED setzen, Tische freigeben. */
-export async function expireStaleBookings(now = new Date()): Promise<number> {
-  const stale = await prisma.booking.findMany({ where: { status: { in: [...HOLDING_STATUSES] }, expiresAt: { lte: now } }, select: { id: true, eventId: true } })
+/**
+ * Hintergrund-Durchlauf und Cron: abgelaufene Holds (PENDING/OFFERED) und unbestätigte Einträge der
+ * Warteliste auf EXPIRED setzen, Tische freigeben. Ein verfallenes Angebot bekommt die Mail
+ * "Angebot verfallen" (Warteschlange). Gibt die betroffenen Events zurück - dort kann jetzt ein
+ * Angebot aus der Warteliste folgen.
+ */
+export async function expireStaleBookings(now = new Date()): Promise<string[]> {
+  const expiring = [...HOLDING_STATUSES, 'WAITLISTED' as const]
+  const stale = await prisma.booking.findMany({
+    where: { status: { in: expiring }, expiresAt: { lte: now } },
+    select: { id: true, eventId: true, status: true, email: true }
+  })
+  const events = new Set<string>()
   for (const booking of stale) {
     await prisma.$transaction(async tx => {
       const updated = await tx.booking.updateMany({
-        where: { id: booking.id, status: { in: [...HOLDING_STATUSES] }, expiresAt: { lte: now } },
+        where: { id: booking.id, status: booking.status, expiresAt: { lte: now } },
         data: { status: 'EXPIRED', pendingIpHash: null, verifyTokenHash: null, verifyCodeHmac: null }
       })
       if (updated.count === 0) return
       await tx.allocation.deleteMany({ where: { bookingId: booking.id } })
       await audit(tx, { eventId: booking.eventId, bookingId: booking.id, actor: 'system', action: 'expired' })
+      if (booking.status === 'OFFERED') await queueOfferExpiredMail(tx, booking)
+      events.add(booking.eventId)
     })
   }
-  return stale.length
+  return [...events]
 }

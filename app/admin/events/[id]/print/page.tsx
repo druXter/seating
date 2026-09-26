@@ -26,7 +26,7 @@ export default async function PrintPage({ params, searchParams }: { params: Prom
     where: { eventId: event.id, booking: activeWhere(now) },
     select: { unit: { select: { label: true } }, booking: { select: { id: true, name: true, partySize: true, note: true, status: true, expiresAt: true } } }
   })
-  const rows = allocations.map(a => ({ label: a.unit.label, ...a.booking, pending: effectiveStatus(a.booking, now) !== 'CONFIRMED' })).sort(byLabel)
+  const rows = allocations.map(a => ({ label: a.unit.label, ...a.booking, open: effectiveStatus(a.booking, now) })).sort(byLabel)
   const guests = rows.reduce((sum, r) => sum + r.partySize, 0)
 
   return (
@@ -74,7 +74,7 @@ export default async function PrintPage({ params, searchParams }: { params: Prom
                 {rows.map(row => (
                   <tr key={row.id} className="border-b border-gray-300 align-top break-inside-avoid">
                     <td className="py-1 pr-3 font-medium">{row.label}</td>
-                    <td className="py-1 pr-3">{row.name}{row.pending && <span className="text-xs text-amber-800"> (unbestätigt)</span>}</td>
+                    <td className="py-1 pr-3">{row.name}{row.open === 'PENDING' && <span className="text-xs text-amber-800"> (unbestätigt)</span>}{row.open === 'OFFERED' && <span className="text-xs text-amber-800"> (Angebot offen)</span>}</td>
                     <td className="py-1 pr-3">{row.partySize}</td>
                     <td className="py-1 pr-3 whitespace-pre-line">{row.note}</td>
                     <td className="py-1"><span className="inline-block w-4 h-4 border border-gray-800" aria-hidden="true" /></td>

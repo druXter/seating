@@ -121,7 +121,7 @@ test('Bestätigung per Code; nach 5 falschen Codes gesperrt; neue Mail setzt zur
   expect((await prisma.booking.findUniqueOrThrow({ where: { id: booking.id } })).status).toBe('PENDING')
 
   await page.getByRole('button', { name: 'Keine Mail bekommen? Erneut senden' }).click()
-  await expect(page.getByText('Falls die Reservierung noch besteht, ist eine neue Mail unterwegs.')).toBeVisible()
+  await expect(page.getByText('Falls die Reservierung bzw. der Eintrag noch besteht, ist eine neue Mail unterwegs.')).toBeVisible()
   const second = verifyLinkOf((await waitForMail(email, 2)).text ?? '')
   const resent = await prisma.booking.findUniqueOrThrow({ where: { id: booking.id } })
   expect(resent.verifyAttempts).toBe(0)

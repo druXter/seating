@@ -19,19 +19,23 @@ export const ADMIN_NOTE_MAX = 1000
 
 type StatusLike = { status: BookingStatus; expiresAt: Date | null }
 
-/** Anzeige-Status: ein abgelaufener Hold gilt schon beim Lesen als verfallen (Konzept Abschnitt 5). */
+/**
+ * Anzeige-Status: ein abgelaufener Hold gilt schon beim Lesen als verfallen (Konzept Abschnitt 5),
+ * ebenso ein unbestätigter Eintrag der Warteliste nach seiner Frist (bestätigte haben keine Frist).
+ */
 export function effectiveStatus(booking: StatusLike, now: Date): BookingStatus {
   if ((booking.status === 'PENDING' || booking.status === 'OFFERED') && !holdsUnits(booking, now)) return 'EXPIRED'
+  if (booking.status === 'WAITLISTED' && booking.expiresAt !== null && booking.expiresAt <= now) return 'EXPIRED'
   return booking.status
 }
 
 // --- Liste ------------------------------------------------------------------------------------
 
-export const LIST_FILTERS = ['active', 'confirmed', 'pending', 'cancelled', 'expired', 'all'] as const
+export const LIST_FILTERS = ['active', 'confirmed', 'pending', 'waitlist', 'cancelled', 'expired', 'all'] as const
 export type ListFilter = (typeof LIST_FILTERS)[number]
 
 export const LIST_FILTER_LABELS: Record<ListFilter, string> = {
-  active: 'aktiv', confirmed: 'bestätigt', pending: 'unbestätigt', cancelled: 'storniert', expired: 'verfallen', all: 'alle'
+  active: 'aktiv', confirmed: 'bestätigt', pending: 'unbestätigt', waitlist: 'Warteliste', cancelled: 'storniert', expired: 'verfallen', all: 'alle'
 }
 
 export function parseListFilter(value: string | undefined): ListFilter {
@@ -45,6 +49,7 @@ export function matchesListFilter(booking: StatusLike, filter: ListFilter, now: 
     case 'active': return status === 'CONFIRMED' || status === 'PENDING' || status === 'OFFERED'
     case 'confirmed': return status === 'CONFIRMED'
     case 'pending': return status === 'PENDING'
+    case 'waitlist': return status === 'WAITLISTED' || status === 'OFFERED'
     case 'cancelled': return status === 'CANCELLED'
     case 'expired': return status === 'EXPIRED'
   }
@@ -162,6 +167,10 @@ export const MAIL_TYPE_LABELS: Record<string, string> = {
   cancelled: 'Stornierung',
   'already-booked': 'Hinweis „bereits gebucht“',
   'manage-link': 'Neuer Verwaltungslink',
+  'waitlist-verify': 'Bestätigungsanfrage (Warteliste)',
+  'waitlist-confirmed': 'Eintrag auf der Warteliste bestätigt',
+  offer: 'Angebot aus der Warteliste',
+  'offer-expired': 'Angebot verfallen',
   broadcast: 'Rundmail',
   'broadcast-test': 'Rundmail (Test)'
 }

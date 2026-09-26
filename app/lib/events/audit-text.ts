@@ -19,7 +19,14 @@ const ACTION_LABELS: Record<string, string> = {
   'email-corrected': 'E-Mail-Adresse korrigiert',
   'manage-link-renewed': 'Verwaltungslink neu erzeugt',
   deleted: 'Buchung endgültig gelöscht',
-  broadcast: 'Rundmail verschickt'
+  broadcast: 'Rundmail verschickt',
+  'waitlist-joined': 'auf die Warteliste eingetragen (unbestätigt)',
+  'waitlist-confirmed': 'Eintrag auf der Warteliste bestätigt',
+  offered: 'Tisch aus der Warteliste angeboten',
+  'offer-accepted': 'Angebot angenommen',
+  'offer-declined': 'Angebot abgelehnt',
+  'waitlist-left': 'von der Warteliste ausgetragen',
+  assigned: 'Tisch direkt zugewiesen (Warteliste)'
 }
 
 export type AuditEntry = { actor: string; action: string; diff: unknown; createdAt: Date }

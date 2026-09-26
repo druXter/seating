@@ -6,6 +6,7 @@ import { formString } from '../lib/form'
 import { clientIp, codeRules, reserve } from '../lib/throttle'
 import { bookingSecretsConfigured, manageToken } from '../lib/booking-tokens'
 import { confirmByToken } from '../lib/events/booking'
+import { offerAfterResponse } from '../lib/events/waitlist'
 
 export type VerifyState = { message: string } | null
 
@@ -24,8 +25,13 @@ export async function confirmLinkAction(_previous: VerifyState, formData: FormDa
   switch (result.kind) {
     case 'confirmed':
       redirect(`/b/${result.bookingId}/${manageToken(result.bookingId, result.manageTokenVersion)}?confirmed=1`)
+    case 'waitlisted': {
+      const eventId = result.eventId
+      offerAfterResponse(eventId)
+      redirect(`/b/${result.bookingId}/${manageToken(result.bookingId, result.manageTokenVersion)}?waitlisted=1`)
+    }
     case 'already':
-      return { message: 'Diese Buchung ist bereits bestätigt. Den Link zu deiner Buchung findest du in der Bestätigungsmail.' }
+      return { message: 'Das ist bereits bestätigt. Den Link zu deiner Buchung bzw. deinem Eintrag findest du in der Bestätigungsmail.' }
     case 'expired':
       return { message: 'Die Reservierung ist abgelaufen, der Tisch ist wieder frei. Bitte buche neu.' }
     default:

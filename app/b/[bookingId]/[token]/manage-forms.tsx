@@ -78,3 +78,29 @@ export function CancelForm({ bookingId, token }: { bookingId: string; token: str
     </form>
   )
 }
+
+/** Ein Button für eine Aktion über den Verwaltungslink (Angebot annehmen/ablehnen, austragen). */
+export function ManageButtonForm({ action, bookingId, token, label, confirmMessage, primary = false }: {
+  action: (previous: ManageState, formData: FormData) => Promise<ManageState>
+  bookingId: string
+  token: string
+  label: string
+  confirmMessage?: string
+  primary?: boolean
+}) {
+  const [state, dispatch, pending] = useActionState(action, null)
+  return (
+    <form
+      action={dispatch}
+      className="space-y-2"
+      onSubmit={confirmMessage ? event => { if (!confirm(confirmMessage)) event.preventDefault() } : undefined}
+    >
+      <input type="hidden" name="bookingId" value={bookingId} />
+      <input type="hidden" name="token" value={token} />
+      <Errors state={state} />
+      {primary
+        ? <SubmitButton disabled={pending}>{label}</SubmitButton>
+        : <button type="submit" disabled={pending} className="text-sm text-red-700 hover:underline disabled:opacity-50">{label}</button>}
+    </form>
+  )
+}

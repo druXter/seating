@@ -65,7 +65,7 @@ export default async function EventPublicPage({ params }: { params: Promise<{ sl
   const { units, states } = await loadUnitStates(event.id, now)
   const tables: PublicTable[] = units
     .filter(unit => unit.kind === 'TABLE')
-    .map(unit => ({ key: unit.key, label: unit.label, capacity: unit.capacity, state: publicState(states.get(unit.key) ?? 'free') }))
+    .map(unit => ({ key: unit.key, label: unit.label, capacity: unit.capacity, bookable: unit.bookable, state: publicState(states.get(unit.key) ?? 'free') }))
   const tableSeats = units
     .filter(unit => unit.kind === 'SEAT' && unit.tableKey !== null)
     .map(unit => ({ key: unit.key, tableKey: unit.tableKey as string }))
@@ -99,7 +99,7 @@ export default async function EventPublicPage({ params }: { params: Promise<{ sl
             tableSeats={tableSeats}
             minFillRatio={event.minFillRatio}
             title={`Raumplan ${event.title}`}
-            booking={{ eventId: event.id, open: booking.open, requirePhone: event.requirePhone }}
+            booking={{ eventId: event.id, open: booking.open, requirePhone: event.requirePhone, waitlist: event.waitlistEnabled }}
           />
         </div>
       </div>

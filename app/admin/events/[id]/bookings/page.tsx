@@ -39,7 +39,7 @@ export default async function BookingsPage({ params, searchParams }: { params: P
       orderBy: { createdAt: 'asc' },
       select: {
         id: true, name: true, email: true, phone: true, partySize: true, note: true, adminNote: true, status: true, source: true,
-        expiresAt: true, createdAt: true, allocations: { select: { unit: { select: { key: true, label: true } } } }
+        expiresAt: true, createdAt: true, waitlistedAt: true, emailVerifiedAt: true, allocations: { select: { unit: { select: { key: true, label: true } } } }
       }
     }),
     prisma.auditLog.findMany({ where: { eventId: event.id, bookingId: null }, orderBy: { createdAt: 'desc' }, take: 20 })
@@ -47,9 +47,12 @@ export default async function BookingsPage({ params, searchParams }: { params: P
   const counts = countStates(units, states, 'TABLE')
   const confirmed = all.filter(b => effectiveStatus(b, now) === 'CONFIRMED')
   const guests = confirmed.reduce((sum, b) => sum + b.partySize, 0)
+  const waitlist = all.filter(b => effectiveStatus(b, now) === 'WAITLISTED' && b.waitlistedAt !== null)
   const bookings = all
     .filter(b => matchesListFilter(b, filter, now))
     .filter(b => matchesSearch({ ...b, tables: b.allocations.map(a => a.unit.label) }, query))
+  // Warteliste in ihrer Reihenfolge (Zeitpunkt der Bestätigung; unbestätigte zuletzt).
+  if (filter === 'waitlist') bookings.sort((a, b) => (a.waitlistedAt?.getTime() ?? Infinity) - (b.waitlistedAt?.getTime() ?? Infinity))
   const auditContext = await loadAuditContext(event.id, eventLog.map(e => e.actor))
 
   const exportQuery = new URLSearchParams({ status: filter, ...(query ? { q: query } : {}) }).toString()
@@ -70,6 +73,8 @@ export default async function BookingsPage({ params, searchParams }: { params: P
           <p className="text-sm text-gray-700" data-testid="booking-counts">
             Tische: {counts.free} frei · {counts.held} reserviert (unbestätigt) · {counts.confirmed} belegt
             {counts.unavailable > 0 && ` · ${counts.unavailable} nicht buchbar`} — {confirmed.length} bestätigte Buchung{confirmed.length === 1 ? '' : 'en'} mit {guests} Person{guests === 1 ? '' : 'en'}
+            {waitlist.length > 0 && <> — <Link href={`${base}/bookings?status=waitlist`} className="text-blue-700 hover:underline">{waitlist.length} auf der Warteliste</Link></>}
+            {!event.waitlistEnabled && ' — Warteliste aus'}
           </p>
           <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
             <Link href={`${base}/bookings/new`} className="text-blue-700 hover:underline">Buchung anlegen</Link>
@@ -130,6 +135,10 @@ export default async function BookingsPage({ params, searchParams }: { params: P
                         <td className="py-1 pr-3">
                           <BookingStatusBadge status={status} />
                           {status === 'PENDING' && booking.expiresAt && <span className="block text-xs text-gray-600">bis {formatDeadline(booking.expiresAt, tz, now)}</span>}
+                          {status === 'OFFERED' && booking.expiresAt && <span className="block text-xs text-gray-600">angeboten bis {formatDeadline(booking.expiresAt, tz, now)}</span>}
+                          {status === 'WAITLISTED' && (
+                            <span className="block text-xs text-gray-600">{booking.waitlistedAt ? `seit ${formatShort(booking.waitlistedAt, tz)}` : 'noch unbestätigt'}</span>
+                          )}
                         </td>
                         <td className="py-1 text-xs text-gray-600">
                           {formatShort(booking.createdAt, tz)}

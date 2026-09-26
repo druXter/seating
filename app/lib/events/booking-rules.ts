@@ -76,13 +76,13 @@ export function parsePartySize(value: string): number | null {
 }
 
 export type ReservationInput = ContactFields & { email: string; partySize: number; unitKey: string }
+export type WaitlistInput = ContactFields & { email: string; partySize: number }
 
 /**
- * Buchungsformular: Gruppengröße wird zur Kontrolle zweimal abgefragt (Konzept Abschnitt 4,
- * Schritt 3), der Datenschutzhinweis muss bestätigt sein.
+ * Angaben zur Person - beim Buchen und beim Eintrag auf die Warteliste: Gruppengröße wird zur Kontrolle
+ * zweimal abgefragt (Konzept Abschnitt 4, Schritt 3), der Datenschutzhinweis muss bestätigt sein.
  */
-export function parseReservation(formData: FormData, requirePhone: boolean): { ok: true; input: ReservationInput } | { ok: false; errors: string[] } {
-  const errors: string[] = []
+function parsePerson(formData: FormData, requirePhone: boolean, errors: string[]): (ContactFields & { email: string | null; partySize: number | null }) {
   const contact = parseContact(formData, requirePhone, errors)
   const email = normalizeEmail(formString(formData, 'email', 254))
   if (!email) errors.push('Bitte gib eine gültige E-Mail-Adresse an.')
@@ -91,11 +91,30 @@ export function parseReservation(formData: FormData, requirePhone: boolean): { o
   const confirm = parsePartySize(formString(formData, 'partySizeConfirm', 5))
   if (partySize === null) errors.push('Bitte gib an, wie viele Personen ihr seid.')
   else if (confirm !== partySize) errors.push('Die beiden Angaben zur Personenzahl stimmen nicht überein.')
+  return { ...contact, email, partySize }
+}
 
+function requirePrivacy(formData: FormData, errors: string[]) {
+  if (formData.get('privacy') !== 'on') errors.push('Bitte bestätige, dass du den Datenschutzhinweis gelesen hast.')
+}
+
+/** Buchungsformular (Tisch gewählt). */
+export function parseReservation(formData: FormData, requirePhone: boolean): { ok: true; input: ReservationInput } | { ok: false; errors: string[] } {
+  const errors: string[] = []
+  const person = parsePerson(formData, requirePhone, errors)
   const unitKey = formString(formData, 'unitKey', 40)
   if (!/^t[1-9][0-9]{0,5}$/.test(unitKey)) errors.push('Bitte wähle einen Tisch.')
-  if (formData.get('privacy') !== 'on') errors.push('Bitte bestätige, dass du den Datenschutzhinweis gelesen hast.')
+  requirePrivacy(formData, errors)
 
-  if (errors.length > 0 || !email || partySize === null) return { ok: false, errors }
-  return { ok: true, input: { ...contact, email, partySize, unitKey } }
+  if (errors.length > 0 || !person.email || person.partySize === null) return { ok: false, errors }
+  return { ok: true, input: { ...person, email: person.email, partySize: person.partySize, unitKey } }
+}
+
+/** Eintrag auf die Warteliste (ohne Tisch). */
+export function parseWaitlistEntry(formData: FormData, requirePhone: boolean): { ok: true; input: WaitlistInput } | { ok: false; errors: string[] } {
+  const errors: string[] = []
+  const person = parsePerson(formData, requirePhone, errors)
+  requirePrivacy(formData, errors)
+  if (errors.length > 0 || !person.email || person.partySize === null) return { ok: false, errors }
+  return { ok: true, input: { ...person, email: person.email, partySize: person.partySize } }
 }

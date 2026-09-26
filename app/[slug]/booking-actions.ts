@@ -8,8 +8,9 @@ import { clientIp, codeRules, reserve, reserveRules, resendRules } from '../lib/
 import { bookingSecretsConfigured } from '../lib/booking-tokens'
 import { bookingAvailable, manageUrl } from '../lib/booking-mail'
 import { formatDeadline } from '../lib/timezone'
-import { bookingWindow, parseReservation } from '../lib/events/booking-rules'
+import { bookingWindow, parseReservation, parseWaitlistEntry } from '../lib/events/booking-rules'
 import { confirmByCode, reserveTable, resendVerification } from '../lib/events/booking'
+import { joinWaitlist, offerAfterResponse } from '../lib/events/waitlist'
 
 /**
  * Öffentliche Buchung (Modus TABLE, Zugang OPEN). Kein Konto - jede Aktion prüft selbst, ob das Event
@@ -22,8 +23,14 @@ export type ReserveState =
   | { step: 'pending'; bookingId: string; tableLabel: string; expiresAtText: string; email: string }
   | null
 
+export type WaitlistState =
+  | { step: 'form'; errors: string[] }
+  | { step: 'pending'; bookingId: string; expiresAtText: string; email: string }
+  | null
+
 export type CodeState =
   | { kind: 'confirmed'; manageUrl: string }
+  | { kind: 'waitlisted'; manageUrl: string }
   | { kind: 'error'; message: string }
   | null
 
@@ -69,6 +76,35 @@ export async function reserveAction(_previous: ReserveState, formData: FormData)
   }
 }
 
+/**
+ * Auf die Warteliste (docs/KONZEPT.md Abschnitt 5). Gleiche Drosselung wie beim Reservieren; der
+ * Server prüft selbst, dass wirklich kein passender Tisch frei ist.
+ */
+export async function joinWaitlistAction(_previous: WaitlistState, formData: FormData): Promise<WaitlistState> {
+  const { event, message } = await bookableEvent(formString(formData, 'eventId', 50))
+  if (!event) return { step: 'form', errors: [message ?? 'Eintragen nicht möglich.'] }
+
+  const parsed = parseWaitlistEntry(formData, event.requirePhone)
+  if (!parsed.ok) return { step: 'form', errors: parsed.errors }
+
+  const ip = await clientIp()
+  if (!(await reserve(reserveRules(ip, parsed.input.email)))) return { step: 'form', errors: [BUSY] }
+
+  const result = await joinWaitlist(event, parsed.input)
+  switch (result.kind) {
+    case 'joined':
+      return { step: 'pending', bookingId: result.bookingId, email: result.email, expiresAtText: formatDeadline(result.expiresAt, event.timezone) }
+    case 'free':
+      return { step: 'form', errors: ['Gerade ist ein passender Tisch frei – du kannst ihn direkt buchen. Lade die Seite neu, um ihn zu sehen.'] }
+    case 'too-large':
+      return { step: 'form', errors: [`Für ${parsed.input.partySize} Personen gibt es keinen passenden Tisch.`] }
+    case 'off':
+      return { step: 'form', errors: ['Für diese Veranstaltung gibt es keine Warteliste.'] }
+    case 'mail-failed':
+      return { step: 'form', errors: ['Die Bestätigungsmail konnte nicht verschickt werden. Bitte prüfe die Adresse oder versuche es später erneut.'] }
+  }
+}
+
 export async function confirmCodeAction(_previous: CodeState, formData: FormData): Promise<CodeState> {
   const bookingId = formString(formData, 'bookingId', 50)
   const ip = await clientIp()
@@ -79,8 +115,14 @@ export async function confirmCodeAction(_previous: CodeState, formData: FormData
   switch (result.kind) {
     case 'confirmed':
       return { kind: 'confirmed', manageUrl: manageUrl({ id: result.bookingId, manageTokenVersion: result.manageTokenVersion }) }
+    case 'waitlisted': {
+      // Vielleicht ist inzwischen ein Tisch frei geworden - dann kommt gleich das Angebot.
+      const eventId = result.eventId
+      offerAfterResponse(eventId)
+      return { kind: 'waitlisted', manageUrl: manageUrl({ id: result.bookingId, manageTokenVersion: result.manageTokenVersion }) }
+    }
     case 'already':
-      return { kind: 'error', message: 'Diese Buchung ist bereits bestätigt. Den Link zu deiner Buchung findest du in der Bestätigungsmail.' }
+      return { kind: 'error', message: 'Das ist bereits bestätigt. Den Link zu deiner Buchung bzw. deinem Eintrag findest du in der Bestätigungsmail.' }
     case 'expired':
       return { kind: 'error', message: 'Die Reservierung ist abgelaufen, der Tisch ist wieder frei. Bitte buche neu.' }
     case 'locked':

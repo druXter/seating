@@ -66,6 +66,9 @@ export default defineConfig({
       MANAGE_LINK_SECRET_PREVIOUS: process.env.MANAGE_LINK_SECRET_PREVIOUS!,
       // Rundmail-Warteschlange zügig abarbeiten (100 ms Pause statt 2 s).
       BROADCAST_MAILS_PER_MINUTE: '600',
+      // Kein Hintergrund-Durchlauf: Die Tests lösen ihn gezielt über den Cron aus (sonst hinge ihr
+      // Ergebnis davon ab, wann die Minute umspringt).
+      SWEEP_INTERVAL_SECONDS: '0',
       TZ: 'Europe/Berlin'
     }
   }

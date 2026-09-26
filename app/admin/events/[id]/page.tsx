@@ -145,6 +145,8 @@ export default async function EventPage({ params, searchParams }: { params: Prom
                 selfEditHoursBefore: event.selfEditHoursBefore,
                 oneBookingPerEmail: event.oneBookingPerEmail,
                 requirePhone: event.requirePhone,
+                waitlistEnabled: event.waitlistEnabled,
+                offerTtlHours: event.offerTtlHours,
                 replyTo: event.replyTo ?? '',
                 mailNote: event.mailNote
               }}

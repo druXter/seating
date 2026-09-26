@@ -4,6 +4,7 @@ import { formString, normalizeEmail } from '../form'
 import { validateSlug } from '../slugs'
 import { DEFAULT_TIMEZONE, zonedInputToUtc } from '../timezone'
 import { PENDING_TTL_RANGE, SELF_EDIT_HOURS_MAX } from './booking-rules'
+import { OFFER_TTL_RANGE } from './waitlist-rules'
 
 export const EVENT_LIMITS = { title: 200, location: 200, description: 5000, mailNote: 1000 } as const
 
@@ -53,6 +54,8 @@ export type BookingSettings = {
   requirePhone: boolean
   replyTo: string | null
   mailNote: string
+  waitlistEnabled: boolean
+  offerTtlHours: number
 }
 
 export type ParsedEvent =
@@ -143,6 +146,9 @@ function parseBookingSettings(formData: FormData, errors: string[]): BookingSett
   const selfEditHoursBefore = intInRange(formData, 'selfEditHoursBefore', 0, SELF_EDIT_HOURS_MAX)
   if (selfEditHoursBefore === null) errors.push(`Änderungsfrist: 0 bis ${SELF_EDIT_HOURS_MAX} Stunden vor Beginn.`)
 
+  const offerTtlHours = intInRange(formData, 'offerTtlHours', OFFER_TTL_RANGE.min, OFFER_TTL_RANGE.max)
+  if (offerTtlHours === null) errors.push(`Angebot aus der Warteliste: ${OFFER_TTL_RANGE.min} bis ${OFFER_TTL_RANGE.max} Stunden.`)
+
   const replyInput = formString(formData, 'replyTo', 254)
   const replyTo = replyInput ? normalizeEmail(replyInput) : null
   if (replyInput && !replyTo) errors.push('Antwortadresse: keine gültige E-Mail-Adresse.')
@@ -153,6 +159,8 @@ function parseBookingSettings(formData: FormData, errors: string[]): BookingSett
     oneBookingPerEmail: formData.get('oneBookingPerEmail') === 'on',
     requirePhone: formData.get('requirePhone') === 'on',
     replyTo,
-    mailNote: cleanText(formString(formData, 'mailNote', EVENT_LIMITS.mailNote)).trim()
+    mailNote: cleanText(formString(formData, 'mailNote', EVENT_LIMITS.mailNote)).trim(),
+    waitlistEnabled: formData.get('waitlistEnabled') === 'on',
+    offerTtlHours: offerTtlHours ?? 24
   }
 }

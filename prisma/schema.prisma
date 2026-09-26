@@ -171,6 +171,8 @@ enum EventStatus {
 // selfEditHoursBefore: Buchende ändern/stornieren selbst bis startsAt minus so viele Stunden (0 = bis
 // Beginn) - als Abstand gespeichert, damit die Frist mitwandert, wenn das Event verschoben wird.
 // replyTo/mailNote: Antwortadresse und freier Hinweis in den Buchungsmails.
+// waitlistEnabled/offerTtlHours: Warteliste mit Nachrück-Angebot, das so viele Stunden gilt
+// (docs/KONZEPT.md Abschnitt 5, app/lib/events/waitlist.ts).
 // ownerId: wie bei FloorPlan, SetNull nur als Sicherheitsnetz (beim Löschen eines Kontos werden
 // Events umgehängt).
 model Event {
@@ -194,6 +196,8 @@ model Event {
   requirePhone        Boolean @default(false)
   replyTo             String?
   mailNote            String  @default("")
+  waitlistEnabled     Boolean @default(true)
+  offerTtlHours       Int     @default(24)
   layout          Json
   layoutVersion   Int           @default(1)
   backgroundFile  String?
@@ -280,6 +284,10 @@ enum BookingSource {
 // Verwaltungslink: nicht gespeichert, sondern HMAC(MANAGE_LINK_SECRET, id:manageTokenVersion) -
 // "Link neu erzeugen" erhöht die Version (app/lib/booking-tokens.ts).
 //
+// Warteliste: WAITLISTED ohne Allocation. Bis zur Bestätigung der Adresse (emailVerifiedAt leer) zählt
+// der Eintrag nicht und verfällt mit expiresAt; waitlistedAt (Zeitpunkt der Bestätigung) bestimmt die
+// Reihenfolge. OFFERED: Angebot mit Allocation bis expiresAt.
+//
 // email: nur bei source = ADMIN leer (telefonische Reservierung ohne Adresse) - solche Buchungen sind
 // direkt bestätigt und bekommen keine Mails. adminNote: interne Notiz der Veranstalter*innen, nie in
 // Mails, auf der Verwaltungsseite oder öffentlich sichtbar.
@@ -301,6 +309,7 @@ model Booking {
   cancelledAt DateTime?
 
   emailVerifiedAt    DateTime?
+  waitlistedAt       DateTime?
   verifyTokenHash    String?   @unique
   verifyCodeHmac     String?
   verifyAttempts     Int       @default(0)

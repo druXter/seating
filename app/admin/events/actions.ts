@@ -14,6 +14,7 @@ import type { SaveResult } from '../../lib/floorplan/editor-state'
 import { loadEventForUser } from '../../lib/events/store'
 import { parseEventForm } from '../../lib/events/settings'
 import { initialUnits, replaceEventLayout } from '../../lib/events/save-layout'
+import { offerAfterResponse } from '../../lib/events/waitlist'
 
 // Die Berechtigung prüft JEDE Aktion selbst (über loadEventForUser -> eventLevel), nie nur die Seite.
 // owner: Besitzer*in oder Admin, moderator: per Freigabe - darf alles außer löschen und freigeben.
@@ -85,6 +86,8 @@ export async function updateEventSettings(_previous: FormState, formData: FormDa
     if (isUniqueViolation(error)) return { errors: [SLUG_TAKEN] }
     throw error
   }
+  // Warteliste eingeschaltet, Mindestbelegung gesenkt, Event veröffentlicht ...: vielleicht passt jetzt ein Tisch.
+  offerAfterResponse(event.id)
   redirect(`/admin/events/${event.id}?settings=1`)
 }
 
@@ -102,7 +105,10 @@ export async function saveEventLayout(eventId: string, baseVersion: number, layo
   if (!parsed.ok) return { ok: false, reason: 'invalid', errors: parsed.errors }
   if (!Number.isInteger(baseVersion)) return { ok: false, reason: 'conflict' }
 
-  return replaceEventLayout(event.id, baseVersion, parsed.layout)
+  const result = await replaceEventLayout(event.id, baseVersion, parsed.layout)
+  // Neue oder größere Tische: der Warteliste anbieten.
+  if (result.ok) offerAfterResponse(event.id)
+  return result
 }
 
 /**
@@ -134,6 +140,7 @@ export async function resyncEventFromTemplate(_previous: FormState, formData: Fo
     data: { backgroundFile, backgroundType: backgroundFile ? record?.backgroundType : null }
   })
   await deleteUpload(event.backgroundFile)
+  offerAfterResponse(event.id)
   redirect(`/admin/events/${event.id}?resynced=1`)
 }
 

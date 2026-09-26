@@ -7,6 +7,7 @@ import { createEvent, resyncEventFromTemplate, updateEventSettings, type FormSta
 import { suggestSlug, SLUG_MAX_LENGTH } from '../../lib/slugs'
 import { AVAILABLE_MODES, EVENT_LIMITS, MODE_LABELS, STATUS_HINTS, STATUS_LABELS } from '../../lib/events/settings'
 import { PENDING_TTL_RANGE, SELF_EDIT_HOURS_MAX } from '../../lib/events/booking-rules'
+import { OFFER_TTL_RANGE } from '../../lib/events/waitlist-rules'
 import SubmitButton from '../../ui/submit-button'
 import Notice from '../../ui/notice'
 
@@ -40,6 +41,8 @@ export type EventFormValues = {
   selfEditHoursBefore: number
   oneBookingPerEmail: boolean
   requirePhone: boolean
+  waitlistEnabled: boolean
+  offerTtlHours: number
   replyTo: string
   mailNote: string
 }
@@ -211,6 +214,21 @@ export function EventSettingsForm({ eventId, values, baseUrl }: { eventId: strin
           <input type="checkbox" name="requirePhone" defaultChecked={values.requirePhone} className="mt-1" />
           <span>Telefonnummer verpflichtend</span>
         </label>
+        <label className="flex items-start gap-2 text-sm">
+          <input type="checkbox" name="waitlistEnabled" defaultChecked={values.waitlistEnabled} className="mt-1" />
+          <span>
+            Warteliste
+            <span className="block text-xs text-gray-600">
+              Ist kein passender Tisch frei, können sich Gruppen eintragen. Wird ein Tisch frei, bekommt der am längsten wartende passende
+              Eintrag ein befristetes Angebot per Mail.
+            </span>
+          </span>
+        </label>
+        <div>
+          <label htmlFor="event-offerttl" className={labelClass}>Angebot aus der Warteliste gilt (Stunden)</label>
+          <input id="event-offerttl" name="offerTtlHours" type="number" required min={OFFER_TTL_RANGE.min} max={OFFER_TTL_RANGE.max} defaultValue={values.offerTtlHours} className={input} />
+          <p className="text-xs text-gray-600 mt-1">Höchstens bis Buchungsschluss. So lange ist der Tisch für die Gruppe reserviert.</p>
+        </div>
         <div>
           <label htmlFor="event-replyto" className={labelClass}>Antwortadresse für Buchungsmails (optional)</label>
           <input id="event-replyto" name="replyTo" type="email" maxLength={254} defaultValue={values.replyTo} className={input} />

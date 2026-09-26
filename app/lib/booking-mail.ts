@@ -5,7 +5,7 @@ import { isMailConfigured, sendMail, type MailAttachment } from './mail'
 import { broadcastBlocks, detailRows, renderHtml, renderText, type Block } from './mail-blocks'
 import { prisma } from './prisma'
 import { buildIcs } from './ics'
-import { formatDateTime } from './timezone'
+import { formatDateTime, formatRange } from './timezone'
 import { bookingSecretsConfigured, manageToken } from './booking-tokens'
 import { selfEditDeadline } from './events/booking-rules'
 
@@ -20,8 +20,9 @@ import { selfEditDeadline } from './events/booking-rules'
 
 export type MailType =
   | 'verify' | 'confirmed' | 'changed' | 'admin-changed' | 'cancelled' | 'already-booked' | 'manage-link' | 'broadcast' | 'broadcast-test'
+  | 'waitlist-verify' | 'waitlist-confirmed' | 'offer' | 'offer-expired'
 
-type MailEvent = Pick<Event, 'id' | 'slug' | 'title' | 'location' | 'startsAt' | 'endsAt' | 'timezone' | 'replyTo' | 'mailNote' | 'selfEditHoursBefore'>
+type MailEvent = Pick<Event, 'id' | 'slug' | 'title' | 'location' | 'startsAt' | 'endsAt' | 'timezone' | 'replyTo' | 'mailNote' | 'selfEditHoursBefore' | 'offerTtlHours'>
 type MailBooking = { id: string; name: string; email: string | null; partySize: number; manageTokenVersion: number; icsSequence: number }
 
 export function manageUrl(booking: { id: string; manageTokenVersion: number }): string {
@@ -151,17 +152,75 @@ export async function sendBroadcastTestMail(event: MailEvent, to: string, conten
     broadcastBlocks(event, sample, 'Tisch 1', content.body, `${baseUrl()}/b/beispiel/persoenlicher-link`))
 }
 
+// --- Warteliste (Konzept Abschnitt 5) ------------------------------------------------------------
+
+function waitlistRows(event: MailEvent, booking: MailBooking): Block {
+  return {
+    kind: 'rows',
+    rows: [
+      ['Veranstaltung', event.title],
+      ['Wann', formatRange(event.startsAt, event.endsAt, event.timezone)],
+      ['Personen', String(booking.partySize)],
+      ['Name', booking.name]
+    ]
+  }
+}
+
+export async function sendWaitlistVerifyMail(event: MailEvent, booking: MailBooking, token: string, code: string, expiresAt: Date) {
+  return deliver(event, booking.id, 'waitlist-verify', booking.email, `Bitte bestätige deinen Eintrag auf der Warteliste – ${event.title}`, 'Bitte bestätige deinen Eintrag auf der Warteliste', [
+    { kind: 'p', text: `Bitte bestätige deine E-Mail-Adresse bis ${formatDateTime(expiresAt, event.timezone)}. Erst dann stehst du auf der Warteliste.` },
+    waitlistRows(event, booking),
+    { kind: 'button', label: 'Eintrag bestätigen', href: verifyUrl(booking.id, token) },
+    { kind: 'p', text: `Oder gib auf der Seite der Veranstaltung diesen Code ein: ${code}` },
+    { kind: 'small', text: 'Falls du dich nicht eingetragen hast, ignoriere diese Mail einfach – der Eintrag verfällt dann von selbst.' }
+  ])
+}
+
+export async function sendWaitlistConfirmedMail(event: MailEvent, booking: MailBooking) {
+  return deliver(event, booking.id, 'waitlist-confirmed', booking.email, `Du stehst auf der Warteliste – ${event.title}`, 'Du stehst auf der Warteliste', [
+    { kind: 'p', text: `Wird ein passender Tisch frei, bekommst du ein Angebot per Mail. Es gilt ${event.offerTtlHours} ${event.offerTtlHours === 1 ? 'Stunde' : 'Stunden'} (höchstens bis Buchungsschluss) – nimmst du es in dieser Zeit nicht an, geht der Tisch an die nächste Gruppe.` },
+    waitlistRows(event, booking),
+    { kind: 'button', label: 'Eintrag ansehen oder zurückziehen', href: manageUrl(booking) },
+    { kind: 'small', text: 'Der Link ist dein persönlicher Zugang – gib ihn nicht weiter. Über ihn nimmst du später auch ein Angebot an.' }
+  ])
+}
+
+export async function sendOfferMail(event: MailEvent, booking: MailBooking, tableLabel: string, expiresAt: Date, logId?: string) {
+  return deliver(event, booking.id, 'offer', booking.email, `Ein Tisch ist für euch frei – ${event.title}`, 'Ein Tisch ist für euch frei', [
+    { kind: 'p', text: `Gute Nachricht: ${tableLabel} ist frei geworden und passt zu eurer Gruppe. Wir halten ihn bis ${formatDateTime(expiresAt, event.timezone)} für euch frei – bitte nimm das Angebot bis dahin an oder lehne es ab.` },
+    detailRows(event, booking, tableLabel),
+    { kind: 'button', label: 'Angebot ansehen und annehmen', href: manageUrl(booking) },
+    { kind: 'small', text: 'Nimmst du das Angebot nicht rechtzeitig an, verfällt es und der Tisch geht an die nächste Gruppe auf der Warteliste.' }
+  ], { logId })
+}
+
+export async function sendOfferExpiredMail(event: MailEvent, booking: MailBooking, logId?: string) {
+  return deliver(event, booking.id, 'offer-expired', booking.email, `Angebot verfallen – ${event.title}`, 'Dein Angebot ist verfallen', [
+    { kind: 'p', text: 'Du hast das Angebot nicht rechtzeitig angenommen, der Tisch geht an die nächste Gruppe. Dein Eintrag auf der Warteliste ist damit beendet.' },
+    waitlistRows(event, booking),
+    { kind: 'button', label: 'Zur Veranstaltung', href: `${baseUrl()}/${event.slug}` },
+    { kind: 'small', text: 'Du kannst dich auf der Seite der Veranstaltung erneut eintragen, solange noch gebucht werden kann.' }
+  ], { logId })
+}
+
+/** Hat diese Buchung schon einen Verwaltungslink bekommen (und darf ihn deshalb erneut sehen)? */
+export function hasManageLink(booking: { status: string; emailVerifiedAt: Date | null; source: string }): boolean {
+  if (booking.status === 'CONFIRMED' || booking.status === 'OFFERED') return true
+  return booking.status === 'WAITLISTED' && booking.emailVerifiedAt !== null
+}
+
 /**
- * Für diese Adresse gibt es schon eine aktive Buchung (oneBookingPerEmail). Die Seite antwortet
- * wie bei einer neuen Reservierung und verrät nichts - die Information geht nur an die Adresse.
+ * Für diese Adresse gibt es schon eine aktive Buchung oder einen Eintrag auf der Warteliste
+ * (oneBookingPerEmail). Die Seite antwortet wie bei Erfolg und verrät nichts - die Information geht
+ * nur an die Adresse.
  */
-export async function sendAlreadyBookedMail(event: MailEvent, existing: MailBooking & { status: string }) {
-  const confirmed = existing.status === 'CONFIRMED'
+export async function sendAlreadyBookedMail(event: MailEvent, existing: MailBooking & { status: string; emailVerifiedAt: Date | null; source: string }) {
+  const linked = hasManageLink(existing)
   return deliver(event, existing.id, 'already-booked', existing.email, `Deine Buchung – ${event.title}`, 'Du hast bereits gebucht', [
-    { kind: 'p', text: `Mit dieser E-Mail-Adresse wurde gerade versucht, für „${event.title}“ noch einmal zu buchen. Pro Adresse ist nur eine Buchung möglich – es wurde deshalb nichts reserviert.` },
-    ...(confirmed
-      ? [{ kind: 'button' as const, label: 'Bestehende Buchung ansehen oder ändern', href: manageUrl(existing) }]
-      : [{ kind: 'p' as const, text: 'Deine bisherige Reservierung ist noch nicht bestätigt. Bestätige sie mit dem Link oder Code aus der früheren Mail. Läuft sie ab, kannst du neu buchen.' }]),
+    { kind: 'p', text: `Mit dieser E-Mail-Adresse wurde gerade versucht, für „${event.title}“ noch einmal zu buchen oder sich auf die Warteliste zu setzen. Pro Adresse ist nur eine Buchung bzw. ein Eintrag möglich – es wurde deshalb nichts angelegt.` },
+    ...(linked
+      ? [{ kind: 'button' as const, label: existing.status === 'WAITLISTED' ? 'Bestehenden Eintrag ansehen' : 'Bestehende Buchung ansehen oder ändern', href: manageUrl(existing) }]
+      : [{ kind: 'p' as const, text: 'Deine bisherige Reservierung bzw. dein Eintrag ist noch nicht bestätigt. Bestätige ihn mit dem Link oder Code aus der früheren Mail. Läuft die Frist ab, kannst du es neu versuchen.' }]),
     { kind: 'small', text: 'Warst du das nicht, kannst du diese Mail ignorieren.' }
   ])
 }

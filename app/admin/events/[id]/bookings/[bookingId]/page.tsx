@@ -12,7 +12,7 @@ import { bookingSecretsConfigured } from '../../../../../lib/booking-tokens'
 import { manageUrl } from '../../../../../lib/booking-mail'
 import { formatDeadline, formatShort } from '../../../../../lib/timezone'
 import {
-  cancelBookingAdmin, changeBookingAdmin, confirmBookingAdmin, correctEmailAdmin, deleteBookingAdmin, renewManageLinkAdmin,
+  assignWaitlistAdmin, cancelBookingAdmin, changeBookingAdmin, confirmBookingAdmin, correctEmailAdmin, deleteBookingAdmin, renewManageLinkAdmin,
   resendVerificationAdmin, saveAdminNote
 } from '../../../booking-actions'
 import ActionForm from '../../../../../ui/action-form'
@@ -32,7 +32,8 @@ const DONE: Record<string, string> = {
   confirmed: 'Buchung bestätigt.',
   resent: 'Neuer Bestätigungslink und Code verschickt.',
   email: 'E-Mail-Adresse korrigiert, die Bestätigungsmail ging an die neue Adresse.',
-  link: 'Neuer Verwaltungslink erzeugt – der bisherige gilt nicht mehr.'
+  link: 'Neuer Verwaltungslink erzeugt – der bisherige gilt nicht mehr.',
+  assigned: 'Tisch zugewiesen, die Buchung ist bestätigt.'
 }
 
 const input = 'w-full border border-gray-300 p-2 rounded'
@@ -67,10 +68,13 @@ export default async function BookingPage({ params, searchParams }: {
   const tz = event.timezone
   const status = effectiveStatus(booking, now)
   const active = status === 'CONFIRMED' || status === 'PENDING'
+  const waiting = status === 'WAITLISTED'
+  const offered = status === 'OFFERED'
+  const cancellable = active || waiting || offered
   const mailable = booking.email !== null
 
   const [tables, auditLog, mailLog] = await Promise.all([
-    active ? tableChoices(event.id, booking.table?.key ?? null, now) : Promise.resolve([]),
+    active || waiting ? tableChoices(event.id, booking.table?.key ?? null, now) : Promise.resolve([]),
     prisma.auditLog.findMany({ where: { bookingId: booking.id }, orderBy: { createdAt: 'desc' } }),
     prisma.mailLog.findMany({ where: { bookingId: booking.id }, orderBy: { createdAt: 'desc' } })
   ])
@@ -116,6 +120,9 @@ export default async function BookingPage({ params, searchParams }: {
                 <dt className="text-gray-600">Quelle</dt><dd>{BOOKING_SOURCE_LABELS[booking.source]}</dd>
                 <dt className="text-gray-600">Gebucht</dt><dd>{formatShort(booking.createdAt, tz)}</dd>
                 {status === 'PENDING' && booking.expiresAt && <><dt className="text-gray-600">Reserviert bis</dt><dd>{formatDeadline(booking.expiresAt, tz, now)}</dd></>}
+                {booking.waitlistedAt && <><dt className="text-gray-600">Warteliste seit</dt><dd>{formatShort(booking.waitlistedAt, tz)}</dd></>}
+                {waiting && !booking.emailVerifiedAt && booking.expiresAt && <><dt className="text-gray-600">Unbestätigt bis</dt><dd>{formatDeadline(booking.expiresAt, tz, now)}</dd></>}
+                {offered && booking.expiresAt && <><dt className="text-gray-600">Angebot gilt bis</dt><dd>{formatDeadline(booking.expiresAt, tz, now)}</dd></>}
                 {booking.cancelledAt && <><dt className="text-gray-600">Storniert</dt><dd>{formatShort(booking.cancelledAt, tz)}</dd></>}
               </dl>
             </div>
@@ -177,6 +184,44 @@ export default async function BookingPage({ params, searchParams }: {
           </div>
 
           <div className="space-y-4">
+            {waiting && (
+              <div className={card}>
+                <h2 className="font-bold">Warteliste</h2>
+                <p className="text-sm text-gray-700">
+                  {booking.emailVerifiedAt
+                    ? 'Wird ein passender Tisch frei, bekommt der am längsten wartende passende Eintrag automatisch ein Angebot. Du kannst auch direkt einen Tisch zuweisen – am Nachrück-Verfahren vorbei.'
+                    : 'Die Person hat ihre Adresse noch nicht bestätigt – bis dahin zählt der Eintrag nicht. Direkt zuweisen geht trotzdem.'}
+                </p>
+                {tables.length === 0 ? <p className="text-sm text-gray-600">Gerade ist kein Tisch frei.</p> : (
+                  <ActionForm action={assignWaitlistAdmin}>
+                    {hidden}
+                    <div>
+                      <label htmlFor="assign-table" className={labelClass}>Tisch zuweisen</label>
+                      <select id="assign-table" name="unitKey" className={input}>
+                        {tables.map(table => (
+                          <option key={table.key} value={table.key}>{table.label} ({table.capacity} Plätze){table.bookable ? '' : ' – nicht buchbar'}</option>
+                        ))}
+                      </select>
+                    </div>
+                    {mailable && <Checkbox name="notify" label="Bestätigungsmail mit Kalendereintrag und Verwaltungslink schicken" />}
+                    <button type="submit" className="text-sm bg-blue-600 text-white font-bold rounded px-3 py-1 hover:bg-blue-700">Tisch zuweisen und bestätigen</button>
+                  </ActionForm>
+                )}
+              </div>
+            )}
+
+            {offered && (
+              <div className={card}>
+                <h2 className="font-bold">Angebot aus der Warteliste</h2>
+                <p className="text-sm text-gray-700">{booking.table?.label} ist der Gruppe angeboten. Nimmt sie nicht rechtzeitig an, geht der Tisch an den nächsten passenden Eintrag.</p>
+                <ActionForm action={confirmBookingAdmin}>
+                  {hidden}
+                  {mailable && <Checkbox name="notify" label="Bestätigungsmail mit Kalendereintrag schicken" />}
+                  <button type="submit" className="text-sm bg-blue-600 text-white font-bold rounded px-3 py-1 hover:bg-blue-700">Für die Gruppe annehmen</button>
+                </ActionForm>
+              </div>
+            )}
+
             {status === 'PENDING' && (
               <div className={card}>
                 <h2 className="font-bold">Unbestätigt</h2>
@@ -222,11 +267,11 @@ export default async function BookingPage({ params, searchParams }: {
 
             <div className={card}>
               <h2 className="font-bold">Stornieren oder löschen</h2>
-              {active && (
-                <ActionForm action={cancelBookingAdmin} confirm="Buchung stornieren? Der Tisch wird sofort wieder frei.">
+              {cancellable && (
+                <ActionForm action={cancelBookingAdmin} confirm={waiting || offered ? 'Eintrag beenden? Die Gruppe steht dann nicht mehr auf der Warteliste.' : 'Buchung stornieren? Der Tisch wird sofort wieder frei.'}>
                   {hidden}
                   {status === 'CONFIRMED' && mailable && <Checkbox name="notify" label="Kund*in per Mail benachrichtigen (Kalendereintrag wird entfernt)" />}
-                  <button type="submit" className="text-sm text-red-700 border border-red-300 rounded px-3 py-1 hover:bg-red-50">Buchung stornieren</button>
+                  <button type="submit" className="text-sm text-red-700 border border-red-300 rounded px-3 py-1 hover:bg-red-50">{waiting || offered ? 'Eintrag beenden' : 'Buchung stornieren'}</button>
                 </ActionForm>
               )}
               <ActionForm action={deleteBookingAdmin} confirm="Buchung endgültig löschen? Alle Daten dazu – auch Verlauf und Mailprotokoll – werden gelöscht.">

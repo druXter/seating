@@ -58,19 +58,22 @@ describe('parseEventForm', () => {
 })
 
 describe('Buchungs-Einstellungen', () => {
-  const settings = { pendingTtlMinutes: '45', selfEditHoursBefore: '0', oneBookingPerEmail: 'on', replyTo: ' Info@Verein.DE ', mailNote: 'Einlass 18:30' }
+  const settings = { pendingTtlMinutes: '45', selfEditHoursBefore: '0', oneBookingPerEmail: 'on', replyTo: ' Info@Verein.DE ', mailNote: 'Einlass 18:30', offerTtlHours: '12' }
 
   it('nur im Einstellungsformular - beim Anlegen null', () => {
     const created = parseEventForm(form(valid))
     expect(created.ok && created.booking).toBeNull()
     const result = parseEventForm(form({ ...valid, ...settings }))
     expect(result.ok && result.booking).toEqual({
-      pendingTtlMinutes: 45, selfEditHoursBefore: 0, oneBookingPerEmail: true, requirePhone: false, replyTo: 'info@verein.de', mailNote: 'Einlass 18:30'
+      pendingTtlMinutes: 45, selfEditHoursBefore: 0, oneBookingPerEmail: true, requirePhone: false, replyTo: 'info@verein.de', mailNote: 'Einlass 18:30',
+      waitlistEnabled: false, offerTtlHours: 12
     })
+    const withWaitlist = parseEventForm(form({ ...valid, ...settings, waitlistEnabled: 'on' }))
+    expect(withWaitlist.ok && withWaitlist.booking && withWaitlist.booking.waitlistEnabled).toBe(true)
   })
 
   it('lehnt Werte außerhalb der Grenzen und ungültige Antwortadressen ab', () => {
-    for (const patch of [{ pendingTtlMinutes: '4' }, { pendingTtlMinutes: '1441' }, { selfEditHoursBefore: '-1' }, { selfEditHoursBefore: '337' }, { replyTo: 'keine-adresse' }]) {
+    for (const patch of [{ pendingTtlMinutes: '4' }, { pendingTtlMinutes: '1441' }, { selfEditHoursBefore: '-1' }, { selfEditHoursBefore: '337' }, { replyTo: 'keine-adresse' }, { offerTtlHours: '0' }, { offerTtlHours: '169' }]) {
       expect(parseEventForm(form({ ...valid, ...settings, ...patch })).ok, JSON.stringify(patch)).toBe(false)
     }
   })
