@@ -17,7 +17,8 @@ Fachliche Grundlage und Fahrplan: [docs/KONZEPT.md](docs/KONZEPT.md).
 | 3 | Tischbuchung mit Verifizierung, Verfall, `.ics`, Verwaltungslink | ✅ umgesetzt |
 | 4 | Buchungsverwaltung: ändern, verschieben, stornieren, löschen, anlegen, Rundmail, Audit, Export, Druckansicht | ✅ umgesetzt |
 | 4b | Warteliste mit befristetem Nachrück-Angebot | ✅ umgesetzt |
-| 5–8 | Modi `SEAT`/`ASSIGNED`, rsvp-app, Föderation | offen |
+| 5 | Modus `SEAT`: Einzelplätze (Kino, Ball) | ✅ umgesetzt |
+| 6–8 | Modus `ASSIGNED`, rsvp-app, Föderation | offen |
 
 Tische lassen sich online buchen (Modus `TABLE`, Zugang `OPEN`), Veranstalter\*innen verwalten die Buchungen im
 Admin-Bereich.
@@ -86,8 +87,9 @@ Unter `/admin/events` legen Creator und Admins Events an, Moderator\*innen sehen
 
 * **Anlegen** aus einem Raumplan (eigene oder gemeinsame Vorlage): Titel, Adresse (Vorschlag aus dem Titel), Beginn,
   Ende, Ort, Beschreibung. Plan **und** Hintergrundbild werden kopiert. Neue Events sind ein Entwurf.
-* **Modus:** vorerst nur „Tischbuchung für Gruppen“ (`TABLE`, Zugang `OPEN`). Einzelplätze und Sitzordnung
-  erscheinen im Formular als „folgt“, der Server lehnt sie ab.
+* **Modus:** „Tischbuchung für Gruppen“ (`TABLE`) oder „Einzelplätze“ (`SEAT`, Kino, Ball), jeweils mit Zugang
+  `OPEN`. Die Sitzordnung (`ASSIGNED`) erscheint im Formular als „folgt“, der Server lehnt sie ab. Der Modus lässt
+  sich nur wechseln, solange es keine aktiven Buchungen oder Wartelisten-Einträge gibt.
 * **Status:** Entwurf und Archiviert sind öffentlich nicht sichtbar (404), Konten mit Zugriff sehen eine Vorschau.
   Veröffentlicht und Geschlossen sind sichtbar, Geschlossen ohne Buchungsmöglichkeit.
 * **Einstellungen:** Adresse (Slug; reservierte Namen und vergebene Adressen werden abgelehnt), Zeiten in der Zeitzone
@@ -132,6 +134,27 @@ Unter `/admin/events` legen Creator und Admins Events an, Moderator\*innen sehen
 * Die Seite ist **per iFrame einbettbar** (wie in rsvp-app, `frame-ancestors *`) und nicht indexiert (`noindex`).
   Die Header werden beim Build festgeschrieben: Wer nur bestimmte Seiten einbetten lassen will, ändert
   `EMBEDDABLE` in `next.config.ts` und baut neu.
+
+### Einzelplätze (Modus `SEAT`)
+
+* **Plätze wählen:** im Plan antippen (an/ab) oder – gleichwertig, auch per Tastatur und Screenreader – in der Liste
+  ankreuzen (nach Reihe bzw. Tisch gruppiert). „Plätze vorschlagen“ sucht N Plätze nebeneinander: in einer Reihe ohne
+  Gang oder Lücke dazwischen, an einem Tisch beliebige Plätze desselben Tisches; gewählt wird der erste Treffer.
+  Buchbar sind Plätze aus Reihenblöcken, einzelne Stühle und Plätze an Tischen.
+* **Obergrenze** pro Buchung: „Plätze pro Buchung höchstens“ (Standard 10, 1–50). Die Personenzahl ist die Zahl der
+  Plätze.
+* **Reservieren, Bestätigen, Verfall, `.ics`, Verwaltungslink** wie bei Tischen. Alle Plätze einer Buchung
+  entstehen in einer Transaktion – ist einer gerade vergeben worden, scheitert die ganze Buchung am Unique-Index.
+  Mails, Kalender und Listen fassen die Plätze kurz zusammen („Reihe A, Plätze 3–5; Tisch 2, Platz 1“).
+* **Verwaltungslink:** Plätze neu wählen oder einzelne abgeben, bis zur Änderungsfrist.
+* **Admin:** Buchung anlegen und ändern mit derselben Platzwahl, ohne Obergrenze und auch mit nicht buchbaren
+  Plätzen; Klick auf einen Platz im Plan führt zur Buchung bzw. zum Anlegen. Liste, CSV und Druckansicht
+  (Platzliste, Platzkarten) zeigen die Plätze je Buchung.
+* **Warteliste:** Angebote nur für N Plätze nebeneinander. Findet „Plätze vorschlagen“ keine, bietet die Seite die
+  Warteliste an. Verstreute Plätze kann der Admin direkt zuweisen.
+* **Lückenregel** (keinen einzelnen Platz zwischen zwei Buchungen frei lassen): vorbereitet und getestet
+  (`singleGapProblems` in `app/lib/events/seat-rules.ts`), aber noch nicht eingeschaltet – die Seite zeigt nur einen
+  Hinweis. Zum Nachrüsten ein Event-Feld plus Checkbox ergänzen und in `gapRuleFor` zurückgeben.
 
 ### Warteliste
 
@@ -283,7 +306,8 @@ npm test            # Unit-Tests (vitest): Passwort, Drossel-IP, Formular-Helfer
                     # Event-Rechte, Belegung, Plan-Änderungen, Event-Formular, .ics (Faltung, Escaping),
                     # Buchungs-Tokens (HMAC, Rotation), Buchungsregeln, Admin-Regeln (Filter, Suche,
                     # Formulare, Rundmail-Empfänger), Änderungs-Diff, Audit-Texte, CSV (Formel-Schutz),
-                    # Mail-Bausteine (Maskierung), Warteliste (Zuteilung, Frist, Wahl)
+                    # Mail-Bausteine (Maskierung), Warteliste (Zuteilung, Frist, Wahl), Platzregeln
+                    # (nebeneinander, Vorschlag, Lückenregel, Kurzform der Platznamen)
 npm run test:e2e    # Playwright gegen eine frisch gebaute Instanz auf http://127.0.0.1:3701
 ```
 
@@ -323,6 +347,10 @@ Löschfristen. Für die Buchungsverwaltung:
   * Verfall per Cron mit Mail → der Nächste, abgelaufenes Angebot nicht annehmbar, 6 gleichzeitige Durchläufe
     → genau ein Angebot;
   * austragen, Warteliste abgeschaltet, Admin (Reihenfolge, direkt zuweisen, beenden, fremdes Konto).
+* Einzelplätze: Vorschlag, Plan (Mausklick) und Liste, reservieren und bestätigen, Mails und `.ics` mit Plätzen,
+  8 gleichzeitige Buchungen mit überlappenden Plätzen (genau eine gewinnt), Obergrenze, erfundene, belegte und nicht
+  buchbare Plätze, Plätze tauschen und abgeben über den Verwaltungslink, Moduswechsel gesperrt, Admin (anlegen mit
+  verstreuten Plätzen, ändern, Platzliste), Warteliste nur für zusammenhängende Plätze.
 * Berechtigung: Moderator\*in, fremdes Konto, Buchung eines anderen Events, ohne Sitzung.
 * Druckansicht.
 

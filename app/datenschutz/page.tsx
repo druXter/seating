@@ -7,7 +7,7 @@ import Link from 'next/link'
 // Raumpläne mit Hintergrundbildern, Events mit öffentlicher Planansicht und Freigaben, Tischbuchung
 // ohne Konto mit Mail-Bestätigung, Verwaltungslink, Buchungsmails mit .ics und Löschfristen;
 // Buchungsverwaltung durch Veranstalter*innen mit interner Notiz, Rundmail und CSV-Export;
-// Warteliste mit Nachrück-Angebot, Phase 4b).
+// Warteliste mit Nachrück-Angebot, Phase 4b; Einzelplätze, Phase 5).
 //
 // Liest Verantwortlichen- und Infrastruktur-Angaben zur Laufzeit aus der (nicht
 // versionierten) .env, analog zu app/impressum/page.tsx - force-dynamic verhindert, dass
@@ -102,7 +102,7 @@ export default function DatenschutzPage() {
           <h2 className="font-bold text-lg">5. Buchen eines Tisches (ohne Konto)</h2>
           <p className="mt-2">
             Wenn du einen Tisch buchst, speichern wir deinen <strong>Namen</strong>, deine{' '}
-            <strong>E-Mail-Adresse</strong>, die <strong>Personenzahl</strong>, den gewählten Tisch, eine optionale
+            <strong>E-Mail-Adresse</strong>, die <strong>Personenzahl</strong>, den gewählten Tisch bzw. die gewählten Plätze, eine optionale
             Anmerkung und – nur wenn du sie angibst oder die Veranstaltung sie verlangt – deine{' '}
             <strong>Telefonnummer</strong>, dazu die Zeitpunkte von Buchung, Bestätigung, Änderungen und Stornierung.
             Rechtsgrundlage ist die Durchführung der Buchung (Art. 6 Abs. 1 lit. b DSGVO).

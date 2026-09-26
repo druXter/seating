@@ -83,6 +83,29 @@ Auswählen, Ziehen, Drehen, Duplizieren, Mehrfachauswahl, Raster mit Einrasten, 
 Tastatursteuerung für Feinjustierung (Pfeiltasten). Kein schwergewichtiges Canvas-Framework nötig; SVG + Pointer Events
 reicht für die zu erwartende Elementzahl (ein paar hundert).
 
+### Modus `SEAT` (Phase 5, umgesetzt)
+
+Umgesetzt in `app/lib/events/seat-rules.ts` (Regeln), `places.ts` (Prüfung gegen die Belegung, Belegung setzen) und
+`app/ui/plan/seat-picker.tsx` (Platzwahl), mit diesen Festlegungen:
+
+* Buchbar sind alle Platz-Einheiten: Plätze aus Reihenblöcken, einzelne Stühle, Plätze an Tischen (einzeln – ein
+  belegter Platz sperrt den Tisch als Ganzes, aber nicht die übrigen Plätze daran; korrigiert in Phase 5, vorher
+  hat die Belegungslogik einen Platz auf alle Plätze des Tisches übertragen). Tische selbst sind im Modus `SEAT`
+  nicht buchbar.
+* **Platzwahl:** selbst wählen (Plan oder gleichwertige Liste) plus „N Plätze nebeneinander vorschlagen“ (erster
+  Treffer). Nebeneinander heißt: gleiche Reihe, aufeinanderfolgende Positionen ohne Gang (`aisles`) oder
+  ausgelassenen Platz dazwischen; an einem Tisch beliebige Plätze desselben Tisches.
+* `maxSeatsPerBooking` (Standard 10, 1–50) gilt für Buchende, nicht für Veranstalter\*innen; diese dürfen auch nicht
+  buchbare, freie Plätze vergeben. `partySize` ist die Zahl der Plätze.
+* **Lückenregel** (kein einzelner freier Platz zwischen Buchungen): **nicht erzwungen**, nur ein Hinweis – soll aber
+  schnell nachrüstbar bleiben. Die Prüfung ist fertig und getestet (`singleGapProblems`, eingebunden in
+  `validateSeatSelection` über `forbidSingleGaps`); `gapRuleFor(event)` liefert vorerst immer `false`. Nachrüsten:
+  Event-Feld plus Checkbox, Wert in `gapRuleFor` zurückgeben.
+* **Moduswechsel** `TABLE` ↔ `SEAT` nur ohne aktive Buchungen und Wartelisten-Einträge.
+* Mails, `.ics`, Listen: Plätze in Kurzform (`compactSeatLabels`), Zeile „Plätze“ statt „Tisch“.
+* Nebenbei behoben: Ein Mausklick auf eine Einheit im Plan kam wegen Pointer-Capture (für das Ziehen) nie bei ihr an;
+  die Einheit wird jetzt beim Drücken gemerkt.
+
 ### Kundenansicht
 
 * Plan mit Zoom/Pan, touchtauglich (die meisten buchen am Handy).
@@ -291,7 +314,9 @@ Umgesetzt in Phase 4b (`app/lib/events/waitlist.ts`, Regeln in `waitlist-rules.t
   angeboten.
 * „Event absagen“ (Abschnitt 8) ist weiterhin nicht umgesetzt.
 
-* **`SEAT`:** Das Angebot gilt für N konkrete Plätze. Welche (möglichst nebeneinander), wird mit Phase 5 entschieden.
+* **`SEAT`:** Das Angebot gilt für N konkrete Plätze, **nur nebeneinander** (entschieden in Phase 5): in einer Reihe
+  ohne Gang oder Lücke dazwischen oder an einem Tisch; der am längsten wartende Eintrag zuerst, jeweils der erste
+  Treffer. Sind nur verstreute Plätze frei, wartet der Eintrag weiter – der Admin kann direkt zuweisen.
 * **Zugang `RSVP`:** keine eigene Warteliste – dort wartet man in rsvp-app; wer nachrückt, kommt über den normalen Weg
   (Abschnitt 9 A) zur Platzwahl.
 
@@ -516,7 +541,7 @@ optional `TURNSTILE_*`.
 | 3 | Tischbuchung `TABLE`+`OPEN`: Reservierung, Verifizierung, Verfall, Bestätigung, `.ics`, Verwaltungslink (umgesetzt, Buchungsliste für Veranstalter*innen nur zum Lesen) |
 | 4 | Admin-Buchungsverwaltung: Verschieben, Ändern, Löschen, Änderungsmails, Rundmail, erneute Verifizierung, Audit, Export (umgesetzt; Ziehen im Plan → Phase 6, siehe Abschnitt 8) |
 | 4b | Warteliste mit Nachrück-Angebot (Abschnitt 5) (umgesetzt; „Event absagen“ aus Abschnitt 8 weiterhin offen) |
-| 5 | Modus `SEAT` (Kino/Winterball) |
+| 5 | Modus `SEAT` (Kino/Winterball) (umgesetzt mit Zugang `OPEN`; `RSVP` folgt mit Phase 7) |
 | 6 | Modus `ASSIGNED` (Hochzeit) mit manueller/CSV-Gästeliste, Drag & Drop im Plan (auch zum Verschieben von Buchungen) |
 | 7 | rsvp-app-Anbindung (A und B), Änderungen in rsvp-app |
 | 8 | Konto-Föderation über `suite-kit`, Eintrag im suite-kit-README |
