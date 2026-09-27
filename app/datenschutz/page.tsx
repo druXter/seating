@@ -9,7 +9,7 @@ import Link from 'next/link'
 // Buchungsverwaltung durch Veranstalter*innen mit interner Notiz, Rundmail und CSV-Export;
 // Warteliste mit Nachrück-Angebot, Phase 4b; Einzelplätze, Phase 5; Sitzordnung mit Gästeliste der
 // Veranstalter*innen, Phase 6; Anbindung an rsvp-app, Phase 7; Anmeldung mit Konten anderer Tools der
-// Suite, Phase 8).
+// Suite, Phase 8; installierbare App mit Service Worker).
 //
 // Liest Verantwortlichen- und Infrastruktur-Angaben zur Laufzeit aus der (nicht
 // versionierten) .env, analog zu app/impressum/page.tsx - force-dynamic verhindert, dass
@@ -259,6 +259,13 @@ export default function DatenschutzPage() {
             <li><code>__Host-suite-state</code> - nur während einer Anmeldung über ein anderes Tool (höchstens 10 Minuten)</li>
             <li><code>invite_link</code> - nur kurz (2 Minuten), wenn ein Konto einen Einladungslink zum Weitergeben angezeigt bekommt</li>
           </ul>
+          <p className="mt-2">
+            <strong>Installation als App:</strong> Seating lässt sich auf dem Gerät als App installieren. Dafür
+            registriert dein Browser einen Service Worker. Er speichert ausschließlich eine statische Seite
+            (&quot;Du bist offline&quot;) zwischen - keine Buchungen, keine Konto- oder Verwaltungsseiten und keine
+            personenbezogenen Daten. Er schickt nichts an uns und ist über die Website-Einstellungen deines Browsers
+            jederzeit entfernbar.
+          </p>
         </div>
 
         <div>

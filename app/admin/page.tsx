@@ -2,6 +2,7 @@
 import Link from 'next/link'
 import { requireUser } from '../lib/auth'
 import { canCreateEvents } from '../lib/permissions'
+import InstallHint from '../ui/install-hint'
 
 export const dynamic = 'force-dynamic'
 
@@ -17,7 +18,7 @@ export default async function AdminPage() {
           <p className="text-gray-700">Hallo {user.name || user.email}!</p>
           <p className="text-sm text-gray-600">
             {canCreateEvents(user)
-              ? 'Hier legst du Raumpläne und Events an – die Online-Buchung folgt.'
+              ? 'Hier legst du Raumpläne und Events an und verwaltest Buchungen und Sitzordnungen.'
               : 'Hier findest du die Events, die für dich freigegeben wurden.'}
           </p>
           <ul className="text-sm list-disc list-inside">
@@ -30,6 +31,7 @@ export default async function AdminPage() {
             )}
             <li><Link href="/account" className="text-blue-700 hover:underline">Mein Konto</Link></li>
           </ul>
+          <InstallHint />
         </div>
       </div>
     </main>

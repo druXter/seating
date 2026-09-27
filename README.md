@@ -346,6 +346,27 @@ Events. Ältere Meldungen als die zuletzt angewandte (`iat`) werden ignoriert.
 * **Absender** ist immer `SMTP_FROM` (pro Event frei wählbare Absender würden SPF/DMARC verletzen), pro Event gibt es ein
   Reply-To.
 
+## Als App installieren (PWA)
+
+Wie Abstimmungstool und rsvp-app ist Seating eine Progressive Web App: Im Browser (Chrome/Edge/Android: „Installieren“
+bzw. „Als App installieren“ auf der Start- und der Verwaltungsseite; iPhone/iPad: Safari → Teilen → „Zum
+Home-Bildschirm“) lässt es sich mit eigenem Symbol und ohne Browserleiste starten. Gedacht für Veranstalter\*innen –
+die App startet im Admin-Bereich. Buchende brauchen das nicht, jeder Event- und Verwaltungslink funktioniert im Browser.
+
+* **Manifest** (`app/manifest.ts`): Name, Farben, Icons (auch maskierbar für Android), Shortcuts zu „Events“, „Neues
+  Event“ und „Raumpläne“.
+* **Logo:** runder Tisch von oben mit sechs Stühlen, einer hervorgehoben („dein Platz“) – im Stil der anderen Tools
+  (weißes Symbol auf blauem Kreis). Quelle `app/icon.svg`; daraus gerendert `app/favicon.ico` (16/32/48),
+  `app/apple-icon.png` (180, vollflächig) und `public/icons/` (192, 512, maskierbar 512 mit Inhalt in der sicheren Zone).
+* **Service Worker** (`public/sw.js`) ist bewusst minimal: Er macht die App installierbar und zeigt ohne Verbindung eine
+  Offline-Seite (`public/offline.html`). **Es wird nichts Persönliches zwischengespeichert** – Navigationen gehen immer
+  ans Netz, Server Actions, `/api/*`, Bilder und fremde Herkunft fasst er nicht an; im Cache liegt nur die statische
+  Offline-Seite. So bleiben Buchungslisten nach dem Abmelden auf einem geteilten Gerät nicht lesbar. Ändert sich
+  `offline.html`, `VERSION` in `sw.js` erhöhen.
+* `sw.js` wird nie zwischengespeichert (Header in `next.config.ts`, auch für Cloudflare). Registriert wird der Worker nur
+  in der Produktion und nicht in eingebetteten Eventseiten (`app/ui/pwa-register.tsx`).
+* Bewusst **keine Push-Benachrichtigungen** und kein Offline-Betrieb.
+
 ## Sicherheit
 
 Übernommen aus dem Abstimmungstool (Referenzimplementierung der Suite, siehe README von `suite-kit`):
@@ -524,6 +545,9 @@ Löschfristen. Für die Buchungsverwaltung:
   unberührt, nicht verknüpft in rsvp-app, fremdes Konto.
 * Berechtigung: Moderator\*in, fremdes Konto, Buchung eines anderen Events, ohne Sitzung.
 * Druckansicht.
+* Installierbare App: Manifest (Start, Shortcuts, maskierbares Icon), alle Icons erreichbar, Verweise im Seitenkopf,
+  `sw.js` ohne Cache und mit eigener CSP, Offline-Seite nicht einbettbar; Worker registriert sich, zeigt offline die
+  Offline-Seite, im Cache liegt nur sie (keine Admin-Seite) – wieder online die echte Seite (Positivkontrolle).
 * Konto-Föderation (gegen zwei Test-Doppel anderer Tools, `tests/e2e/suite-server.ts`): erster Login legt ein Konto an
   (Admin dort wird hier Creator, Moderator\*in bleibt), erneuter Login in anderem Browser mit nachgezogener Adresse,
   ohne `autoProvision` kein Konto, vorhandene Adresse → abgelehnt statt zusammengeführt, Verknüpfen aus „Mein Konto“

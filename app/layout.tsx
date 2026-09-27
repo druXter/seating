@@ -1,8 +1,9 @@
 // app/layout.tsx
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import AccountNav from "./ui/account-nav";
+import PwaRegister from "./ui/pwa-register";
 import { APP_NAME } from "./lib/app";
 import "./globals.css";
 
@@ -10,6 +11,14 @@ export const metadata: Metadata = {
   title: APP_NAME,
   description: "Raumpläne, Tischreservierung, Platzwahl und Sitzordnung",
   applicationName: APP_NAME,
+  // iOS: als App vom Home-Bildschirm ohne Safari-Leiste starten (Icons: app/icon.svg, app/apple-icon.png,
+  // app/favicon.ico und public/icons/ - Manifest in app/manifest.ts).
+  appleWebApp: { capable: true, title: APP_NAME, statusBarStyle: "default" },
+};
+
+export const viewport: Viewport = {
+  // Färbt die Statusleiste/Titelleiste der installierten App (passend zu manifest.ts).
+  themeColor: "#2563eb",
 };
 
 export default function RootLayout({
@@ -30,6 +39,7 @@ export default function RootLayout({
           {" · "}
           <Link href="/datenschutz" className="hover:underline">Datenschutz</Link>
         </footer>
+        <PwaRegister />
       </body>
     </html>
   );

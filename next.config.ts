@@ -36,6 +36,7 @@ const nextConfig: NextConfig = {
   //      bewusst HINTER Regel 3, damit sie deren Freigabe überschreiben - und die sensiblen
   //      Bereiche mit weiteren Headern.
   //   5. Föderations-Endpunkte (Referrer-Policy)
+  //   6. Service Worker der installierbaren App (nie cachen, eigene CSP)
   //
   // Nicht gesetzt: eine vollständige Content-Security-Policy. Sie würde für Next.js Nonces
   // pro Anfrage brauchen (siehe node_modules/next/dist/docs/01-app/02-guides/
@@ -66,6 +67,8 @@ const nextConfig: NextConfig = {
       // 4. Einteilige Seiten des Tools wieder ohne Einbetten. Neue einteilige Routen hier ergänzen
       //    (tests/e2e/headers.spec.ts prüft die ausgelieferten Header).
       { source: "/:page(impressum|datenschutz|logout)", headers: NO_FRAMING },
+      // Offline-Seite der installierten App (public/offline.html, siehe public/sw.js).
+      { source: "/offline.html", headers: NO_FRAMING },
       // Sensible Bereiche. `/admin/:path*` umfasst auch `/admin` selbst.
       { source: "/admin/:path*", headers: PRIVATE_PAGE },
       { source: "/account", headers: PRIVATE_PAGE },
@@ -103,6 +106,19 @@ const nextConfig: NextConfig = {
         //    state) in der URL. Überschreibt die Referrer-Policy der allgemeinen Regel.
         source: "/api/suite/:path*",
         headers: [{ key: "Referrer-Policy", value: "no-referrer" }],
+      },
+
+      {
+        // 6. Der Service Worker (public/sw.js) darf NIE aus einem Cache kommen (Browser, Cloudflare),
+        //    sonst blieben Nutzer*innen auf einer alten Version hängen. Eigene CSP: Er lädt nur
+        //    Ressourcen derselben Herkunft. Steht NACH Regel 3 (/:slug passt auch auf /sw.js) und
+        //    ersetzt deren CSP.
+        source: "/sw.js",
+        headers: [
+          { key: "Content-Type", value: "application/javascript; charset=utf-8" },
+          { key: "Cache-Control", value: "no-cache, no-store, must-revalidate" },
+          { key: "Content-Security-Policy", value: "default-src 'self'; script-src 'self'; frame-ancestors 'none'" },
+        ],
       },
     ];
   },

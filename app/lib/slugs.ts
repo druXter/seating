@@ -16,6 +16,8 @@ export const RESERVED_SLUGS: ReadonlySet<string> = new Set([
   // Next.js und Web-Standards (enthalten zum Teil Zeichen, die das Slug-Format ohnehin
   // ausschließt - trotzdem hier, damit die Liste vollständig ist)
   '_next', '.well-known', 'favicon.ico', 'icon', 'apple-icon', 'manifest', 'robots.txt', 'sitemap.xml', 'sw.js',
+  // Installierbare App (PWA): Manifest, Icons, Offline-Seite
+  'manifest.webmanifest', 'icon.svg', 'apple-icon.png', 'icons', 'offline', 'offline.html',
   // Naheliegende Namen, die künftige Seiten brauchen könnten
   'static', 'public', 'assets', 'new', 'events', 'users', 'settings', 'help', 'hilfe', 'kontakt'
 ])

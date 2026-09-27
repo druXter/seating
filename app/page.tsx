@@ -1,6 +1,7 @@
 // app/page.tsx
 import Link from 'next/link'
 import { APP_NAME } from './lib/app'
+import InstallHint from './ui/install-hint'
 
 /**
  * Startseite. Buchende kommen über den Link zu ihrem Event (/<slug>) und sehen
@@ -20,6 +21,7 @@ export default function HomePage() {
         <p className="text-sm">
           <Link href="/login" className="text-blue-700 hover:underline">Anmelden für Veranstalter*innen</Link>
         </p>
+        <InstallHint />
       </div>
     </main>
   )

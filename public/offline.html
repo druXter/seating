@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#2563eb">
+  <meta name="robots" content="noindex">
+  <title>Offline - Seating</title>
+  <style>
+    body { margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 1rem;
+           background: #f9fafb; color: #111827; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+    main { max-width: 26rem; text-align: center; }
+    .icon { width: 5rem; height: 5rem; margin: 0 auto 1.25rem; }
+    h1 { font-size: 1.5rem; margin: 0 0 .5rem; }
+    p { color: #4b5563; line-height: 1.5; margin: 0 0 1.25rem; }
+    button { background: #2563eb; color: #fff; border: 0; border-radius: .5rem; padding: .7rem 1.4rem; font-size: 1rem; font-weight: 700; cursor: pointer; }
+    button:hover { background: #1d4ed8; }
+  </style>
+</head>
+<body>
+  <main>
+    <img class="icon" src="/icons/icon-192.png" alt="">
+    <h1>Du bist offline</h1>
+    <p>Zum Buchen und Verwalten brauchst du eine Internetverbindung. Sobald du wieder online bist, geht es hier weiter – gespeicherte Buchungen und Pläne bleiben erhalten.</p>
+    <button type="button" onclick="location.reload()">Erneut versuchen</button>
+  </main>
+</body>
+</html>
