@@ -581,9 +581,18 @@ Umgesetzt in Phase 7 auf der Seite von Seating (`app/lib/rsvp/`, Einstieg `app/r
   (`EventAccess`, analog `PollAccess`) gibt es seit Phase 2: Besitzer*in oder Admin gibt einem bestehenden Konto frei,
   freigegebene Konten dürfen alles außer löschen und weiter freigeben (`eventLevel` in `app/lib/permissions.ts`).
   Die Kontoverwaltung (`/admin/users`) gibt es seit Phase 0.
-* Föderation nach `suite-kit` (Endpunkte, Env wie im suite-kit-README). Für Seating sinnvoll: andere Tools als
-  `SUITE_IDPS` mit `autoProvision: false`, `mapAdminRole` aus.
-* Ob mehrere Admins pro Event mit unterschiedlichen Rechten nötig sind, siehe offene Entscheidungen.
+* **Föderation nach `suite-kit` (Phase 8, umgesetzt)** – Endpunkte und Env wie im suite-kit-README, Code nach dem
+  Abstimmungstool (`app/lib/suite.ts`, `app/lib/suite-flow.ts`, `app/api/suite/*`, `/.well-known/suite-identity`,
+  Zwischenseite `/login/continue`). Seating ist Empfänger (`SUITE_IDPS`) und Anbieter (`SUITE_SIGNING_KEY`,
+  `SUITE_TRUSTED_APPS`); ohne Konfiguration gibt es weder Buttons noch Endpunkte. Empfehlung für den Betrieb: andere
+  Tools als `SUITE_IDPS` mit `autoProvision: false` eintragen (Konten brauchen nur Veranstalter\*innen, sie werden
+  eingeladen und verknüpfen unter „Mein Konto“), `mapAdminRole` aus. Identität ist (Anbieter, Konto-ID), kein
+  Zusammenführen über die E-Mail, keine Ketten (nur Konten mit Passwort werden für andere bestätigt), die letzte
+  Anmeldemöglichkeit eines Kontos ohne Passwort lässt sich nicht entfernen.
+  Abweichend vom Abstimmungstool: Fehler beim Verknüpfen landen auf „Mein Konto“ statt auf der Login-Seite (die
+  eingeloggte Person würde dort sofort weitergeleitet und sähe die Meldung nie); die Kontoverwaltung zeigt, über
+  welches Tool sich ein Konto anmeldet.
+* Mehrere Konten pro Event mit unterschiedlichen Rechten: entschieden (Freigabe pro Event), siehe Abschnitt 13 Nr. 9.
 
 ---
 
@@ -616,7 +625,7 @@ optional `TURNSTILE_*`.
 | 5 | Modus `SEAT` (Kino/Winterball) (umgesetzt mit Zugang `OPEN`; `RSVP` folgt mit Phase 7) |
 | 6 | Modus `ASSIGNED` (Hochzeit) mit manueller/CSV-Gästeliste, Drag & Drop im Plan (auch zum Verschieben von Buchungen) (umgesetzt; Namen öffentlich zeigen aus Abschnitt 11 weiterhin offen) |
 | 7 | rsvp-app-Anbindung (A und B), Änderungen in rsvp-app (umgesetzt auf der Seite von Seating, siehe Abschnitt 9; rsvp-app folgt als eigener Schritt dort) |
-| 8 | Konto-Föderation über `suite-kit`, Eintrag im suite-kit-README |
+| 8 | Konto-Föderation über `suite-kit`, Eintrag im suite-kit-README (umgesetzt auf der Seite von Seating; der Eintrag im suite-kit-README folgt als eigener Schritt dort) |
 
 Jede Phase endet mit Tests (Unit mit vitest in `tests/unit`, Playwright in `tests/e2e` gegen eine frisch gebaute
 Instanz mit eigener Test-Datenbank), README-Update, Commit. Die anderen Tools der Suite haben (Stand Phase 0) kein

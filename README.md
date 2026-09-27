@@ -20,7 +20,7 @@ Fachliche Grundlage und Fahrplan: [docs/KONZEPT.md](docs/KONZEPT.md).
 | 5 | Modus `SEAT`: Einzelplätze (Kino, Ball) | ✅ umgesetzt |
 | 6 | Modus `ASSIGNED`: Sitzordnung (Hochzeit) mit Gästeliste und Drag & Drop, Buchungen im Plan verschieben | ✅ umgesetzt |
 | 7 | Anbindung an rsvp-app: Platzwahl über Zusagen, Gästeliste abgleichen, Platzierung zurückmelden | ✅ umgesetzt (Seating-Seite; rsvp-app folgt) |
-| 8 | Konto-Föderation über `suite-kit` | offen |
+| 8 | Konto-Föderation über `suite-kit`: mit Konten anderer Tools anmelden, für andere Tools bestätigen | ✅ umgesetzt |
 
 Tische und Einzelplätze lassen sich online buchen (Modus `TABLE` bzw. `SEAT`, Zugang `OPEN` oder nur über eine Zusage
 aus rsvp-app), Veranstalter\*innen verwalten die Buchungen im Admin-Bereich. Für eine Sitzordnung (Modus `ASSIGNED`) legen sie die Gäste selbst an und
@@ -57,6 +57,42 @@ Passwort **selbst** fest. Ohne `SMTP_HOST` zeigt die Seite den Link dem einladen
 Admins vergeben die Rollen CREATOR/ADMIN; Creator laden ausschließlich Moderator\*innen ein. Admin-Konten lassen sich in
 der Oberfläche bewusst weder ändern noch löschen (Schutz vor Aussperren) und haben keinen Passwort-Reset per Mail – das
 geht nur per `create-user.js`.
+
+### Anmelden mit einem Konto aus einem anderen Tool (Föderation)
+
+Optional und nach dem Protokoll von [`suite-kit`](https://github.com/druXter/suite-kit) (Ed25519-signierte
+Login-Bestätigungen, kein gemeinsames Geheimnis). Seating kann beides sein:
+
+* **Empfänger** (`SUITE_IDPS`): Die Login-Seite zeigt „Mit … anmelden“ für jedes eingetragene Tool. Beim ersten Login
+  entsteht ein Konto ohne Passwort, sofern `autoProvision` für dieses Tool an ist. **Empfohlen für Seating:**
+  `autoProvision: false`, weil Konten hier nur Veranstalter\*innen brauchen – dann meldet sich nur an, wer hier schon
+  eingeladen wurde und sein Konto unter „Mein Konto“ verknüpft hat. Die Rolle beim ersten Login: Admin nur mit
+  `mapAdminRole`, sonst Creator; Moderator\*in bleibt Moderator\*in. Danach vergeben nur lokale Admins Rollen.
+* **Anbieter** (`SUITE_SIGNING_KEY`, `SUITE_TRUSTED_APPS`): Andere Tools können Seating-Konten für ihren Login nutzen.
+  Bestätigt werden nur Konten mit eigenem Passwort (keine Ketten), nur für die eingetragenen Tools.
+
+Regeln wie in der ganzen Suite: Identität ist (Tool, Konto-ID), **nie die E-Mail** – gibt es hier schon ein Konto mit
+derselben Adresse, wird der Login abgelehnt, statt es zu übernehmen. Verknüpft wird bewusst unter „Mein Konto“ aus einer
+bestehenden Sitzung; dort lässt sich eine Verknüpfung auch entfernen, außer sie ist die einzige Anmeldemöglichkeit.
+Ändert sich die Adresse beim anderen Tool, zieht Seating sie bei rein föderierten Konten beim nächsten Login nach.
+Die Kontoverwaltung zeigt, über welches Tool sich ein Konto anmeldet.
+
+Einrichten (Beispiel Seating `https://plaetze.example.de` und rsvp-app `https://rsvp.example.de`, gegenseitig):
+
+```bash
+node node_modules/suite-kit/bin/suite-keygen.js   # eigenes Schlüsselpaar, nur in die .env von Seating
+```
+
+| Wo | Eintrag |
+| --- | --- |
+| Seating | `SUITE_SIGNING_KEY=<privater Schlüssel>`, `SUITE_TRUSTED_APPS=https://rsvp.example.de`, `SUITE_IDPS=[{"issuer":"https://rsvp.example.de","label":"rsvp-app","autoProvision":false}]` |
+| rsvp-app | `https://plaetze.example.de` in `SUITE_IDPS` (und in `SUITE_TRUSTED_APPS`, wenn rsvp-app Anmeldungen für Seating bestätigen soll) |
+
+`BASE_URL` muss exakt die Adresse sein, unter der die anderen Tools Seating erreichen – sie ist die Kennung (`iss`/`aud`).
+Endpunkte: `/.well-known/suite-identity` (Discovery, ohne Schlüssel 404), `/api/suite/authorize` (Anbieter),
+`/api/suite/login` und `/api/suite/callback` (Empfänger), `/login/continue` (Zwischenseite, damit ein Login mitten im
+Anbieter-Ablauf per echtem Seitenwechsel weitergeht). Ohne `SUITE_*` gibt es weder Buttons noch Endpunkte – Seating
+bleibt ein einzelnes Tool.
 
 ## Raumpläne
 
@@ -311,6 +347,10 @@ Events. Ältere Meldungen als die zuletzt angewandte (`iat`) werden ignoriert.
   mit Einmal-Werten in der URL `Referrer-Policy: no-referrer`; Hintergrundbilder `sandbox`. Die Reihenfolge der
   Regeln ist wichtig (die spätere gewinnt, ein Header lässt sich nur überschreiben, nicht entfernen) und in der Datei
   kommentiert. Neue einteilige Seiten des Tools brauchen dort einen Eintrag, sonst wären sie einbettbar.
+* **Föderation** (`app/api/suite/*`): Bestätigungen gelten 60 s, nur zusammen mit dem einmaligen `state`-Cookie
+  desselben Browsers (`__Host-suite-state`, 10 Minuten, wird bei jedem Rücksprung gelöscht); Signatur, Anbieter, Empfänger
+  und `nonce` werden geprüft, der genaue Ablehnungsgrund steht nur im Server-Log. Unbekannte Schlüssel-ID: Discovery
+  höchstens einmal pro Minute neu laden (Schlüsselrotation). Antworten mit `no-store` und `no-referrer`.
 * **Reservierte Adressen:** Events liegen unter `/<slug>`. Alle Pfade des Tools stehen in `app/lib/slugs.ts`;
   ein Test schlägt fehl, sobald eine neue Route dort fehlt.
 
@@ -396,7 +436,8 @@ npm test            # Unit-Tests (vitest): Passwort, Drossel-IP, Formular-Helfer
                     # Mail-Bausteine (Maskierung), Warteliste (Zuteilung, Frist, Wahl), Platzregeln
                     # (nebeneinander, Vorschlag, Lückenregel, Kurzform der Platznamen), CSV lesen,
                     # Sitzordnung (Gruppen-Formulare, Gäste-CSV, Gruppe zusammen setzen, „getrennt“,
-                    # Initialen), rsvp-app-Vertrag (Signatur, typ/aud/exp, Inhalte), Abgleich-Regeln
+                    # Initialen), rsvp-app-Vertrag (Signatur, typ/aud/exp, Inhalte), Abgleich-Regeln,
+                    # Föderation (Rollen beim ersten Login, Ziel der Zwischenseite, state-Cookie, Konfiguration)
 npm run test:e2e    # Playwright gegen eine frisch gebaute Instanz auf http://127.0.0.1:3701
 ```
 
@@ -458,6 +499,14 @@ Löschfristen. Für die Buchungsverwaltung:
   unberührt, nicht verknüpft in rsvp-app, fremdes Konto.
 * Berechtigung: Moderator\*in, fremdes Konto, Buchung eines anderen Events, ohne Sitzung.
 * Druckansicht.
+* Konto-Föderation (gegen zwei Test-Doppel anderer Tools, `tests/e2e/suite-server.ts`): erster Login legt ein Konto an
+  (Admin dort wird hier Creator, Moderator\*in bleibt), erneuter Login in anderem Browser mit nachgezogener Adresse,
+  ohne `autoProvision` kein Konto, vorhandene Adresse → abgelehnt statt zusammengeführt, Verknüpfen aus „Mein Konto“
+  und Login darüber, dieselbe Identität für ein zweites Konto abgelehnt, Entfernen (nicht die letzte Anmeldemöglichkeit;
+  Positivkontrolle mit Passwort; fremde Verknüpfung per gefälschtem Formular), Wiedergabe der Bestätigung im selben und
+  in einem fremden Browser, manipulierte Signatur/Empfänger/`nonce`/Anbieter, unbekannter Schlüssel, nicht
+  konfigurierter Anbieter; als Anbieter: Discovery, nicht freigegebenes Tool, Login mit Fortsetzung über die
+  Zwischenseite und gültiger Bestätigung, keine Ketten, Zwischenseite nur zum eigenen Endpunkt.
 
 Mails fängt ein Test-SMTP ab (`tests/e2e/mail-server.ts`, Pakete `smtp-server` und `mailparser`, nur für die Tests), der
 sie als `.eml` in `data/test-mails` ablegt; Empfänger unter `@nomail.test` lehnt er ab (gescheiterter Versand). Zur
@@ -492,7 +541,7 @@ Siehe `.env.example` (mit Erklärungen). Kurzüberblick:
 | Variable | Zweck |
 | --- | --- |
 | `DATABASE_URL` | SQLite-Datei (in Docker per Compose gesetzt) |
-| `BASE_URL` | öffentliche Adresse ohne Slash – für Links in Mails, später auch Kennung in der Suite |
+| `BASE_URL` | öffentliche Adresse ohne Slash – für Links in Mails und zugleich Kennung in der Suite |
 | `TRUST_PROXY_HOPS` | Anzahl eigener Reverse Proxys (für die IP der Drosselung) |
 | `CRON_SECRET` | Schutz des Aufräum-Endpunkts |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` | Mailversand – ohne ist die Online-Buchung abgeschaltet |
@@ -502,6 +551,7 @@ Siehe `.env.example` (mit Erklärungen). Kurzüberblick:
 | `SWEEP_INTERVAL_SECONDS` | optional: Hintergrund-Durchlauf für Verfall und Angebote (Standard 60, 0 = aus) |
 | `IMPRESSUM_*` | Angaben für Impressum und Datenschutzerklärung |
 | `RSVP_SEATING_SECRET`, `RSVP_APP_BASE_URL` | optional: Anbindung an rsvp-app (gemeinsames Secret, mind. 32 Zeichen; Adresse von rsvp-app) |
+| `SUITE_IDPS`, `SUITE_SIGNING_KEY`, `SUITE_SIGNING_KEY_PREVIOUS`, `SUITE_TRUSTED_APPS`, `SUITE_APP_NAME` | optional: Konto-Föderation (siehe [oben](#anmelden-mit-einem-konto-aus-einem-anderen-tool-föderation) und README von `suite-kit`) |
 | `UPLOAD_DIR` | optional: Ablage hochgeladener Bilder (Standard `data/uploads` im Arbeitsverzeichnis) |
 
-Später kommen dazu: `SUITE_*` (Phase 8), optional `TURNSTILE_*`.
+Später evtl.: `TURNSTILE_*` (Bot-Schutz für das Buchungsformular).
