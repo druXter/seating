@@ -45,10 +45,13 @@ export async function GET(request: NextRequest) {
     response.cookies.set(SUITE_STATE_COOKIE, '', { ...cookieOptions(0), maxAge: 0 })
     return response
   }
-  // Beim Verknüpfen ist man eingeloggt - /login würde sofort weiterleiten und die Meldung verschlucken.
-  const fail = (code: string, detail?: string): NextResponse => {
+  // Beim Verknüpfen mit Sitzung auf die Konto-Seite - /login würde eine eingeloggte Person sofort
+  // weiterleiten und die Meldung verschlucken. Ohne Sitzung (abgelaufen, anderswo abgemeldet) umgekehrt:
+  // /account leitete selbst zum Login und der Fehlercode ginge verloren.
+  const fail = async (code: string, detail?: string): Promise<NextResponse> => {
     if (detail) console.warn(`[suite] Anmeldung abgelehnt (${code}): ${detail}`)
-    return finish(redirectResponse(flow?.mode === 'link' ? `/account?error=${code}` : `/login?error=${code}`, requestOrigin))
+    const toAccount = flow?.mode === 'link' && (await getCurrentUser()) !== null
+    return finish(redirectResponse(`${toAccount ? '/account' : '/login'}?error=${code}`, requestOrigin))
   }
 
   const assertion = request.nextUrl.searchParams.get('assertion')

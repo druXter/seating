@@ -593,9 +593,10 @@ Umgesetzt in Phase 7 auf der Seite von Seating (`app/lib/rsvp/`, Einstieg `app/r
   eingeladen und verknüpfen unter „Mein Konto“), `mapAdminRole` aus. Identität ist (Anbieter, Konto-ID), kein
   Zusammenführen über die E-Mail, keine Ketten (nur Konten mit Passwort werden für andere bestätigt), die letzte
   Anmeldemöglichkeit eines Kontos ohne Passwort lässt sich nicht entfernen.
-  Abweichend vom Abstimmungstool: Fehler beim Verknüpfen landen auf „Mein Konto“ statt auf der Login-Seite (die
-  eingeloggte Person würde dort sofort weitergeleitet und sähe die Meldung nie); die Kontoverwaltung zeigt, über
-  welches Tool sich ein Konto anmeldet.
+  Wie in rsvp-app: Fehler beim Verknüpfen landen auf „Mein Konto“, solange eine Sitzung besteht (die Login-Seite würde
+  eine eingeloggte Person sofort weiterleiten und die Meldung verschlucken), sonst auf der Login-Seite (die Konto-Seite
+  leitete ohne Sitzung selbst zum Login, der Fehlercode ginge verloren). Die Kontoverwaltung zeigt, über welches Tool
+  sich ein Konto anmeldet.
 * Mehrere Konten pro Event mit unterschiedlichen Rechten: entschieden (Freigabe pro Event), siehe Abschnitt 13 Nr. 9.
 
 ---

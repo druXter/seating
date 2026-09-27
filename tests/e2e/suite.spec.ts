@@ -250,6 +250,45 @@ test.describe('Seating als Empfänger', () => {
   })
 })
 
+test.describe('Fehler im Rücksprung: wohin mit der Meldung', () => {
+  // Das state-Cookie setzt der echte Start-Endpunkt (/api/suite/login) im Browser - von Hand gesetzte
+  // __Host-Cookies nimmt Chrome über http nicht an, und API-Anfragen von Playwright schicken das Secure-
+  // Sitzungscookie über http nicht mit. Ohne Identität beim Test-Doppel bleibt der Browser dort stehen; ein
+  // falscher state im Rücksprung genügt dann, um fail('sso') ohne echten Anbieter auszulösen.
+  async function startAndFail(page: Page, mode: 'login' | 'link', beforeReturn: () => Promise<void> = async () => {}) {
+    setIdentity('a', null)
+    await page.goto(`/api/suite/login?idp=${encodeURIComponent(SUITE_TOOLS.a.origin)}${mode === 'link' ? '&mode=link' : ''}`)
+    expect(new URL(page.url()).origin, 'Start leitet zum Anbieter').toBe(SUITE_TOOLS.a.origin)
+    expect((await page.context().cookies()).some(c => c.name.includes('suite-state'))).toBe(true)
+    await beforeReturn()
+    await page.goto(`/api/suite/callback?assertion=x.y.z&state=${'b'.repeat(43)}`)
+    expect((await page.context().cookies()).some(c => c.name.includes('suite-state')), 'state-Cookie gelöscht').toBe(false)
+  }
+  const target = (page: Page) => new URL(page.url()).pathname + new URL(page.url()).search
+
+  test('Verknüpfen mit Sitzung -> Konto-Seite mit Meldung', async ({ page }) => {
+    const user = await createAccount('CREATOR')
+    await login(page, user.email)
+    await startAndFail(page, 'link')
+    expect(target(page)).toBe('/account?error=sso')
+    await expect(page.getByText('Die Verknüpfung mit dem anderen Tool ist fehlgeschlagen')).toBeVisible()
+  })
+
+  test('Verknüpfen, Sitzung inzwischen beendet (anderswo abgemeldet) -> Login-Seite mit Meldung', async ({ page }) => {
+    const user = await createAccount('CREATOR')
+    await login(page, user.email)
+    await startAndFail(page, 'link', async () => { await prisma.session.deleteMany({ where: { userId: user.id } }) })
+    expect(target(page)).toBe('/login?error=sso')
+    await expect(page.getByText('Die Anmeldung über das andere Tool ist fehlgeschlagen')).toBeVisible()
+  })
+
+  test('Anmelden -> Login-Seite mit Meldung', async ({ page }) => {
+    await startAndFail(page, 'login')
+    expect(target(page)).toBe('/login?error=sso')
+    await expect(page.getByText('Die Anmeldung über das andere Tool ist fehlgeschlagen')).toBeVisible()
+  })
+})
+
 test.describe('Seating als Anbieter', () => {
   const state = () => `${'s'.repeat(20)}${Date.now().toString(36)}${++counter}`.padEnd(43, 'x')
 
