@@ -5,7 +5,7 @@ import { createAccount, createEventRecord, uniqueSlug } from './helpers'
 // gewinnt): sensible Bereiche müssen ihre strengeren Werte behalten.
 
 const PUBLIC = ['/', '/impressum', '/datenschutz']
-const PRIVATE = ['/login', '/forgot-password', '/reset-password', '/account', '/admin', '/admin/users']
+const PRIVATE = ['/login', '/login/continue', '/forgot-password', '/reset-password', '/account', '/admin', '/admin/users']
 
 async function headersOf(request: import('@playwright/test').APIRequestContext, path: string) {
   const response = await request.get(path, { maxRedirects: 0 })
@@ -75,10 +75,16 @@ test('Einmal-Links und Verwaltungslinks gehen nicht per Referer weiter', async (
   }
 })
 
-test('Föderations-Pfade: Referrer-Policy überschreibt die allgemeine Regel', async ({ request }) => {
-  const h = await headersOf(request, '/api/suite/authorize')
-  expect(h['referrer-policy']).toBe('no-referrer')
-  expect(h['x-content-type-options']).toBe('nosniff')
+test('Föderations-Pfade: Referrer-Policy überschreibt die allgemeine Regel, kein Caching', async ({ request }) => {
+  for (const path of ['/api/suite/authorize', '/api/suite/login', '/api/suite/callback']) {
+    const h = await headersOf(request, path)
+    expect(h['referrer-policy'], path).toBe('no-referrer')
+    expect(h['x-content-type-options'], path).toBe('nosniff')
+    expect(h['cache-control'], path).toContain('no-store')
+  }
+  // Das Discovery-Dokument ist öffentlich und darf kurz gecacht werden.
+  const discovery = await headersOf(request, '/.well-known/suite-identity')
+  expect(discovery['cache-control']).toBe('public, max-age=300')
 })
 
 test('Buchungsverwaltung (Phase 4): noindex, kein Caching, kein Einbetten - auch Export und Druckansicht', async ({ request }) => {

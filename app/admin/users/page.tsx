@@ -6,6 +6,7 @@ import { INVITE_LINK_COOKIE, requireUser } from '../../lib/auth'
 import { ROLE_LABELS } from '../../lib/roles'
 import { createUser, deleteUser, resendInvite, updateUserRole } from '../../auth-actions'
 import { isMailConfigured } from '../../lib/mail'
+import { issuerLabel } from '../../lib/suite'
 import SubmitButton from '../../ui/submit-button'
 import Notice from '../../ui/notice'
 import ConfirmForm from '../../ui/confirm-form'
@@ -38,7 +39,8 @@ export default async function UsersPage({
         orderBy: { createdAt: 'asc' },
         select: {
           id: true, email: true, name: true, role: true, passwordHash: true,
-          _count: { select: { identities: true, floorPlans: true } }
+          identities: { select: { issuer: true }, orderBy: { createdAt: 'asc' } },
+          _count: { select: { floorPlans: true } }
         }
       })
     : []
@@ -93,7 +95,8 @@ export default async function UsersPage({
             <h2 className="font-bold mb-3">Alle Konten ({users.length})</h2>
             <ul className="divide-y text-sm">
               {users.map(u => {
-                const pending = !u.passwordHash && u._count.identities === 0
+                const pending = !u.passwordHash && u.identities.length === 0
+                const via = u.identities.map(i => issuerLabel(i.issuer)).join(', ')
                 const protectedAccount = u.role === 'ADMIN'
                 return (
                   <li key={u.id} className="py-3 flex flex-wrap items-center gap-x-4 gap-y-2">
@@ -102,7 +105,8 @@ export default async function UsersPage({
                       <div className="text-xs text-gray-600">
                         {ROLE_LABELS[u.role]}
                         {' · '}
-                        {pending ? 'Einladung offen' : u.passwordHash ? 'Passwort' : 'Anmeldung über anderes Tool'}
+                        {pending ? 'Einladung offen' : u.passwordHash ? 'Passwort' : `Anmeldung über ${via}`}
+                        {u.passwordHash && via && ` und ${via}`}
                         {' · '}
                         {u._count.floorPlans} Raumpl{u._count.floorPlans === 1 ? 'an' : 'äne'}
                       </div>

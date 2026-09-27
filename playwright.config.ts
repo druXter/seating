@@ -1,6 +1,7 @@
 import { defineConfig, devices } from '@playwright/test'
 import { SMTP_PORT } from './tests/e2e/mail-server'
 import { RSVP_ORIGIN, TEST_RSVP_SECRET } from './tests/e2e/rsvp-server'
+import { TEST_SEATING_SIGNING_KEY, TEST_SUITE_IDPS, TEST_SUITE_TRUSTED_APPS } from './tests/e2e/suite-server'
 
 // E2E-Tests gegen eine echte, frisch gebaute Instanz (next build + next start) mit eigener
 // Datenbank (prisma/test.db) - nie gegen die Entwicklungs- oder Produktivdatenbank.
@@ -70,6 +71,12 @@ export default defineConfig({
       MANAGE_LINK_SECRET_PREVIOUS: process.env.MANAGE_LINK_SECRET_PREVIOUS!,
       RSVP_SEATING_SECRET: TEST_RSVP_SECRET,
       RSVP_APP_BASE_URL: RSVP_ORIGIN,
+      // Konto-Föderation (Phase 8): zwei andere Tools aus tests/e2e/suite-server.ts - Seating nimmt
+      // Anmeldungen von beiden an und stellt selbst welche für Tool A aus.
+      SUITE_IDPS: TEST_SUITE_IDPS,
+      SUITE_TRUSTED_APPS: TEST_SUITE_TRUSTED_APPS,
+      SUITE_SIGNING_KEY: TEST_SEATING_SIGNING_KEY,
+      SUITE_APP_NAME: 'Seating Test',
       // Rundmail-Warteschlange zügig abarbeiten (100 ms Pause statt 2 s).
       BROADCAST_MAILS_PER_MINUTE: '600',
       // Kein Hintergrund-Durchlauf: Die Tests lösen ihn gezielt über den Cron aus (sonst hinge ihr

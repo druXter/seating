@@ -2,7 +2,7 @@
 'use server'
 
 // Übernommen aus dem Abstimmungstool (app/auth-actions.ts), angepasst an die Pfade dieses
-// Tools. Ohne die Föderations-Aktionen (unlinkIdentity), die kommen mit Phase 8.
+// Tools, samt Verknüpfungen mit Konten anderer Tools der Suite (unlinkIdentity, Phase 8).
 
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
@@ -20,6 +20,7 @@ import {
   clearFailures, clientIp, loginRules, passwordChangeRule, refund, reserve, resetRules
 } from './lib/throttle'
 import { sendInviteEmail, sendPasswordResetEmail } from './lib/mail'
+import { AUTHORIZE_CONTINUE_PREFIX } from './lib/suite'
 
 const INVITE_VALID_MS = 7 * 24 * 60 * 60 * 1000
 const RESET_VALID_MS = 60 * 60 * 1000
@@ -71,6 +72,9 @@ export async function loginUser(formData: FormData) {
   await clearFailures([rules.email])
   await createSession(userId)
 
+  // Geht der Login im Anbieter-Ablauf für ein anderes Tool weiter, braucht es einen echten
+  // Seitenwechsel statt eines Client-Router-Übergangs (siehe app/login/continue).
+  if (next.startsWith(AUTHORIZE_CONTINUE_PREFIX)) redirect(`/login/continue?to=${encodeURIComponent(next)}`)
   redirect(next)
 }
 
@@ -170,6 +174,24 @@ export async function changePassword(formData: FormData) {
   await clearFailures([rule])
 
   redirect('/account?passwordChanged=1')
+}
+
+/**
+ * Entfernt die Verknüpfung mit einem Konto eines anderen Tools (Föderation, app/api/suite/callback).
+ * Nur die eigene; nie die letzte Anmeldemöglichkeit eines Kontos ohne Passwort - sonst käme die
+ * Person nicht mehr hinein (föderierte Konten haben kein Passwort und bekommen auch keinen Reset-Link).
+ */
+export async function unlinkIdentity(formData: FormData) {
+  const user = await requireUser('/account')
+
+  const identity = await prisma.externalIdentity.findUnique({ where: { id: formString(formData, 'identityId', 50) } })
+  if (!identity || identity.userId !== user.id) redirect('/account')
+
+  const others = await prisma.externalIdentity.count({ where: { userId: user.id, id: { not: identity.id } } })
+  if (!user.hasPassword && others === 0) redirect('/account?error=lastlogin')
+
+  await prisma.externalIdentity.delete({ where: { id: identity.id } })
+  redirect('/account?unlinked=1')
 }
 
 /** Legt für ein Konto einen Einladungs-Link an, verschickt ihn (falls SMTP da ist) und zeigt ihn sonst einmalig an. */

@@ -69,7 +69,8 @@ const nextConfig: NextConfig = {
       // Sensible Bereiche. `/admin/:path*` umfasst auch `/admin` selbst.
       { source: "/admin/:path*", headers: PRIVATE_PAGE },
       { source: "/account", headers: PRIVATE_PAGE },
-      { source: "/login", headers: PRIVATE_PAGE },
+      // `/login/:path*` umfasst `/login` und die Zwischenseite `/login/continue` (Föderation, Phase 8).
+      { source: "/login/:path*", headers: PRIVATE_PAGE },
       { source: "/forgot-password", headers: PRIVATE_PAGE },
       {
         // Der Einmal-Link steht in der URL - er darf weder per Referer weitergegeben
@@ -98,7 +99,7 @@ const nextConfig: NextConfig = {
       },
 
       {
-        // 5. Die Föderations-Endpunkte (ab Phase 8) tragen Einmal-Werte (Login-Bestätigung,
+        // 5. Die Föderations-Endpunkte (Phase 8) tragen Einmal-Werte (Login-Bestätigung,
         //    state) in der URL. Überschreibt die Referrer-Policy der allgemeinen Regel.
         source: "/api/suite/:path*",
         headers: [{ key: "Referrer-Policy", value: "no-referrer" }],
