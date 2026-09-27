@@ -8,7 +8,7 @@ import Link from 'next/link'
 // ohne Konto mit Mail-Bestätigung, Verwaltungslink, Buchungsmails mit .ics und Löschfristen;
 // Buchungsverwaltung durch Veranstalter*innen mit interner Notiz, Rundmail und CSV-Export;
 // Warteliste mit Nachrück-Angebot, Phase 4b; Einzelplätze, Phase 5; Sitzordnung mit Gästeliste der
-// Veranstalter*innen, Phase 6).
+// Veranstalter*innen, Phase 6; Anbindung an rsvp-app, Phase 7).
 //
 // Liest Verantwortlichen- und Infrastruktur-Angaben zur Laufzeit aus der (nicht
 // versionierten) .env, analog zu app/impressum/page.tsx - force-dynamic verhindert, dass
@@ -175,6 +175,26 @@ export default function DatenschutzPage() {
         </div>
 
         <div>
+          <h2 className="font-bold text-lg">5c. Sitzplatz über deine Zusage in rsvp-app</h2>
+          <p className="mt-2">
+            Manche Veranstaltungen sind mit einem Termin in rsvp-app verknüpft, dem Anmeldetool der Veranstalter*innen. Wählst
+            du dort bei deiner Zusage „Sitzplatz wählen“, übergibt rsvp-app uns über einen kurz gültigen, signierten Link
+            deinen <strong>Namen</strong>, ggf. deine <strong>E-Mail-Adresse</strong>, die Zahl und – falls angegeben – die
+            <strong> Namen deiner Begleitungen</strong> sowie eine Kennung deiner Zusage. Damit legen wir deine Buchung an
+            (ohne weitere Bestätigung per Mail) und schicken dir, wenn wir eine Adresse haben, die Bestätigung mit
+            Kalendereintrag. Ändert sich deine Zusage oder sagst du ab, teilt rsvp-app uns das mit; eine Absage storniert
+            deine Buchung.
+          </p>
+          <p className="mt-2">
+            Bei einer Sitzordnung (Punkt 5b) können die Veranstalter*innen die Gästeliste aus rsvp-app übernehmen – dann
+            speichern wir die Namen von dort, aber keine Kontaktdaten. In beiden Fällen melden wir <strong>deinen Platz</strong>
+            (z. B. „Tisch 7, Plätze 3, 4“) an rsvp-app zurück, damit du ihn dort siehst und er beim Einlass angezeigt werden kann.
+            Rechtsgrundlage ist die Durchführung deiner Anmeldung und Buchung (Art. 6 Abs. 1 lit. b DSGVO); zur Speicherdauer
+            siehe Punkt 10.
+          </p>
+        </div>
+
+        <div>
           <h2 className="font-bold text-lg">6. Schutz vor Missbrauch (Drosselung)</h2>
           <p className="mt-2">
             Um das Erraten von Passwörtern und das massenhafte Auslösen von Mails zu verhindern, zählen wir
@@ -220,6 +240,11 @@ export default function DatenschutzPage() {
             <strong>E-Mail-Versand:</strong> Einladungs-, Passwort-Reset- und Buchungsmails versenden wir über den
             E-Mail-Server <code>{smtpHost}</code>. Mit dem Betreiber dieses Servers besteht, soweit es sich um einen
             externen Anbieter handelt, ein Vertrag zur Auftragsverarbeitung nach Art. 28 DSGVO.
+          </p>
+          <p className="mt-2">
+            <strong>rsvp-app:</strong> Bei Veranstaltungen, die mit rsvp-app verknüpft sind, tauschen beide Tools die unter
+            Punkt 5c genannten Angaben direkt miteinander aus (signiert, über eine verschlüsselte Verbindung). Andere
+            Veranstaltungen sind davon nicht betroffen.
           </p>
           <p className="mt-2">
             <strong>Hosting:</strong> Diese Anwendung wird auf einem vom Verantwortlichen selbst betriebenen und

@@ -19,10 +19,11 @@ Fachliche Grundlage und Fahrplan: [docs/KONZEPT.md](docs/KONZEPT.md).
 | 4b | Warteliste mit befristetem Nachrück-Angebot | ✅ umgesetzt |
 | 5 | Modus `SEAT`: Einzelplätze (Kino, Ball) | ✅ umgesetzt |
 | 6 | Modus `ASSIGNED`: Sitzordnung (Hochzeit) mit Gästeliste und Drag & Drop, Buchungen im Plan verschieben | ✅ umgesetzt |
-| 7–8 | rsvp-app, Föderation | offen |
+| 7 | Anbindung an rsvp-app: Platzwahl über Zusagen, Gästeliste abgleichen, Platzierung zurückmelden | ✅ umgesetzt (Seating-Seite; rsvp-app folgt) |
+| 8 | Konto-Föderation über `suite-kit` | offen |
 
-Tische und Einzelplätze lassen sich online buchen (Modus `TABLE` bzw. `SEAT`, Zugang `OPEN`), Veranstalter\*innen
-verwalten die Buchungen im Admin-Bereich. Für eine Sitzordnung (Modus `ASSIGNED`) legen sie die Gäste selbst an und
+Tische und Einzelplätze lassen sich online buchen (Modus `TABLE` bzw. `SEAT`, Zugang `OPEN` oder nur über eine Zusage
+aus rsvp-app), Veranstalter\*innen verwalten die Buchungen im Admin-Bereich. Für eine Sitzordnung (Modus `ASSIGNED`) legen sie die Gäste selbst an und
 setzen sie auf Plätze.
 
 ## Konten
@@ -90,8 +91,8 @@ Unter `/admin/events` legen Creator und Admins Events an, Moderator\*innen sehen
 * **Anlegen** aus einem Raumplan (eigene oder gemeinsame Vorlage): Titel, Adresse (Vorschlag aus dem Titel), Beginn,
   Ende, Ort, Beschreibung. Plan **und** Hintergrundbild werden kopiert. Neue Events sind ein Entwurf.
 * **Modus:** „Tischbuchung für Gruppen“ (`TABLE`) oder „Einzelplätze“ (`SEAT`, Kino, Ball), jeweils mit Zugang
-  `OPEN`, oder „Sitzordnung durch Veranstalter\*innen“ (`ASSIGNED`, Hochzeit) mit Zugang `NONE` – der Zugang folgt
-  vorerst aus dem Modus. Der Modus lässt sich nur wechseln, solange es keine aktiven Buchungen, Gruppen oder
+  `OPEN` oder `RSVP` (nur über eine Zusage aus rsvp-app, siehe unten), oder „Sitzordnung durch Veranstalter\*innen“
+  (`ASSIGNED`, Hochzeit) mit Zugang `NONE`. Der Modus lässt sich nur wechseln, solange es keine aktiven Buchungen, Gruppen oder
   Wartelisten-Einträge gibt.
 * **Status:** Entwurf und Archiviert sind öffentlich nicht sichtbar (404), Konten mit Zugriff sehen eine Vorschau.
   Veröffentlicht und Geschlossen sind sichtbar, Geschlossen ohne Buchungsmöglichkeit.
@@ -169,8 +170,8 @@ Seite: `/admin/events/<id>/arrange` („Sitzordnung“).
   oder als **CSV** – eine Zeile pro Person mit den Spalten `Name` (Pflicht), `Gruppe` (gleiche Gruppe = eine Gruppe)
   und `Notiz`, Trenner Semikolon oder Komma, UTF-8. Erst kommt eine Vorschau, dann wird übernommen; bei einem Fehler
   (mit Zeilennummer) wird nichts übernommen. Ein Import ergänzt immer, er löscht nichts.
-* **Keine Kontaktdaten, keine Mails, kein Verwaltungslink:** Gäste bekommen von Seating nichts. Kontaktdaten und
-  „Dein Platz“ kommen mit der Anbindung an rsvp-app (Phase 7). Die Rundmail und „Buchung anlegen“ führen zur
+* **Keine Kontaktdaten, keine Mails, kein Verwaltungslink:** Gäste bekommen von Seating nichts. Mit einer
+  Verknüpfung zu rsvp-app kommen die Gäste per Abgleich und sehen ihren Platz dort (siehe „Anbindung an rsvp-app“). Die Rundmail und „Buchung anlegen“ führen zur
   Sitzordnung.
 * **Setzen:** Personen aus der Liste auf einen Platz ziehen (auf einen Tisch gezogen: erster freier Platz daran),
   eine ganze Gruppe mit „zusammen setzen“ – alle ohne Platz kommen an denselben Tisch bzw. nebeneinander in dieselbe
@@ -196,6 +197,51 @@ Buchung bleiben). Ohne Maus: in der Liste wählen und das Ziel antippen oder aus
 echte Buchungen samt Mail daran hängen, fragt die Seite **vor dem Verschieben nach**; „Kund\*innen benachrichtigen“
 (Standard an) schickt bestätigten Buchungen die Änderungsmail mit neuer `.ics`. Es gelten dieselben Regeln wie im
 Ändern-Formular (Kapazität, Konflikterkennung, Audit-Log).
+
+### Anbindung an rsvp-app
+
+Optional und pro Event: Seating übernimmt Zusagen aus einem Termin in rsvp-app (docs/KONZEPT.md Abschnitt 9).
+Voraussetzung: `RSVP_SEATING_SECRET` und `RSVP_APP_BASE_URL` sind gesetzt, in rsvp-app dasselbe Secret.
+
+* **Verknüpfen – beide Seiten stimmen zu:** In den Event-Einstellungen die id des rsvp-Termins eintragen. Seating
+  zeigt dann den **Sitzplatz-Link** (`https://…/rsvp/<event-id>`), den die Besitzer\*in des Termins in rsvp-app
+  einträgt. Erst mit beiden Einträgen gilt die Verknüpfung – so kann kein Seating-Konto mit einer fremden rsvp-id
+  eine Gästeliste abrufen.
+* **Platzwahl über Zusagen** (Tisch- oder Platzbuchung, Zugang „nur mit Zusage aus rsvp-app“):
+  * „Sitzplatz wählen“ in rsvp-app führt mit einem kurz gültigen, signierten Link auf `/rsvp/<event-id>`. Der Aufruf
+    ändert nichts; er zeigt passende Tische bzw. die Platzwahl für genau so viele Personen, wie die Zusage hat
+    (1 + Begleitung). Name, Adresse und Personenzahl kommen aus rsvp-app.
+  * Gebucht wird per Knopf: sofort bestätigt (keine Mail-Bestätigung – die Zusage ist die Bestätigung), mit Adresse
+    Bestätigungsmail mit `.ics`. Höchstens eine aktive Buchung pro Zusage; ein erneuter Link führt zur Buchung.
+  * Verwaltungsseite: Tisch bzw. Plätze ändern und stornieren; Name und Personenzahl ändern sich nur in rsvp-app.
+    Meldet rsvp-app eine andere Personenzahl, zeigen Verwaltungsseite und Buchungsliste einen Hinweis, bis die
+    Plätze angepasst sind.
+  * **Absage in rsvp-app storniert die Buchung automatisch** (Webhook), mit Storno-Mail und `.ics` CANCEL.
+  * Keine Warteliste – dort wartet man in rsvp-app. Die öffentliche Seite zeigt nur den Plan.
+* **Sitzordnung** (Modus `ASSIGNED`): „Mit rsvp-app abgleichen“ holt die aktuellen Zusagen und zeigt **neue**,
+  **geänderte** (Name, Begleitung dazu/weg) und **nicht mehr zugesagte**. Übernommen wird nur, was ausgewählt ist;
+  Absagen sind nicht vorausgewählt – nichts wird still gelöscht. Gruppen aus rsvp-app haben die Personen „Name“ und
+  „Begleitung“ (ohne Namen „Begleitung von …“), keine Kontaktdaten; ändern lassen sie sich nur über den Abgleich.
+  Meldet rsvp-app eine Änderung, zeigt die Sitzordnung „bitte abgleichen“.
+* **Rückmeldung:** Nach jeder Änderung meldet Seating den vollständigen Stand der Platzierungen an rsvp-app
+  („Tisch 7, Plätze 3, 4“) – für die Gästeansicht und den Einlass. Best-effort nach der Antwort, dazu „Platzierungen
+  erneut an rsvp-app melden“. Vor dem Löschen eines Events geht ein leerer Stand raus.
+
+**Vertrag** (`app/lib/rsvp/token.ts`, Format wie zwischen rsvp-app und Abstimmungstool):
+`base64url(JSON).base64url(HMAC-SHA256(payloadPart, secret))`. Jede Nachricht trägt `typ`, `aud` (Origin des
+Empfängers), `iat`/`exp` (Unix-Sekunden, höchstens 1 Stunde gültig) sowie `seatingEventId` und `rsvpEventId`.
+Identität eines Gasts ist die Zusage (`rsvpId`), nicht die E-Mail.
+
+| Art (`typ`) | Richtung | Weg | Inhalt |
+| --- | --- | --- | --- |
+| `seat-link` | rsvp-app → Seating | Browser: `GET /rsvp/<seatingEventId>?t=…`, Buchung per POST | `rsvpId`, `name`, `email` (oder null), `companions` (Namen oder null) |
+| `rsvp-change` | rsvp-app → Seating | `POST /api/rsvp-webhook`, Body = Nachricht, `text/plain` | `rsvpId`, `attending`, `name`, `email`, `companions` |
+| `guest-list-request` | Seating → rsvp-app | `POST <RSVP_APP_BASE_URL>/api/seating/guest-list` | – |
+| `guest-list` | rsvp-app → Seating | Antwort darauf, `text/plain` | `guests`: Zusagen (bestätigt, nicht auf der Warteliste) |
+| `placements` | Seating → rsvp-app | `POST <RSVP_APP_BASE_URL>/api/seating/placements` | `placements`: vollständiger Stand `{ rsvpId, label }` |
+
+Webhook: 401 bei ungültiger Signatur, falschem Empfänger oder Ablauf; 200 ohne Wirkung für nicht so verknüpfte
+Events. Ältere Meldungen als die zuletzt angewandte (`iat`) werden ignoriert.
 
 ### Warteliste
 
@@ -350,7 +396,7 @@ npm test            # Unit-Tests (vitest): Passwort, Drossel-IP, Formular-Helfer
                     # Mail-Bausteine (Maskierung), Warteliste (Zuteilung, Frist, Wahl), Platzregeln
                     # (nebeneinander, Vorschlag, Lückenregel, Kurzform der Platznamen), CSV lesen,
                     # Sitzordnung (Gruppen-Formulare, Gäste-CSV, Gruppe zusammen setzen, „getrennt“,
-                    # Initialen)
+                    # Initialen), rsvp-app-Vertrag (Signatur, typ/aud/exp, Inhalte), Abgleich-Regeln
 npm run test:e2e    # Playwright gegen eine frisch gebaute Instanz auf http://127.0.0.1:3701
 ```
 
@@ -402,6 +448,14 @@ Löschfristen. Für die Buchungsverwaltung:
   Platz, falscher Modus.
 * Verschieben im Plan: belegtes Ziel, Abbrechen, Rückfrage mit Änderungsmail, ohne Mail, zu kleiner Tisch, veralteter
   Stand, Buchung eines fremden Events; Einzelplatz per Auswahlliste.
+* Anbindung an rsvp-app (gegen ein Test-Doppel, `tests/e2e/rsvp-server.ts`): Einstellungen (Pflichtfeld,
+  Sitzplatz-Link, Verknüpfung nicht wechselbar bei aktiven Buchungen), Tischwahl über Zusage (GET ändert nichts,
+  Mail, Rückmeldung, erneuter Link öffnet die Buchung, Tischwechsel), Platzwahl mit genau N Plätzen und geänderter
+  Begleitung per Webhook, Absage storniert mit Mail, ältere Meldung ignoriert, ungültige Signatur/Empfänger/Ablauf
+  und fremde Verknüpfung ohne Wirkung; Link abgelaufen, zu lange gültig, falscher Empfänger, falsches Secret, anderes
+  Event, nicht verknüpft, offener Zugang, manipulierter Inhalt, doppelt gleichzeitig (Positivkontrolle);
+  Sitzordnung: Abgleich neu/geändert/abgesagt mit Auswahl, Platzierung zurückgemeldet, von Hand angelegte Gruppen
+  unberührt, nicht verknüpft in rsvp-app, fremdes Konto.
 * Berechtigung: Moderator\*in, fremdes Konto, Buchung eines anderen Events, ohne Sitzung.
 * Druckansicht.
 
@@ -447,7 +501,7 @@ Siehe `.env.example` (mit Erklärungen). Kurzüberblick:
 | `BROADCAST_MAILS_PER_MINUTE` | optional: Tempo der Mail-Warteschlange (Standard 30, 1–600) |
 | `SWEEP_INTERVAL_SECONDS` | optional: Hintergrund-Durchlauf für Verfall und Angebote (Standard 60, 0 = aus) |
 | `IMPRESSUM_*` | Angaben für Impressum und Datenschutzerklärung |
+| `RSVP_SEATING_SECRET`, `RSVP_APP_BASE_URL` | optional: Anbindung an rsvp-app (gemeinsames Secret, mind. 32 Zeichen; Adresse von rsvp-app) |
 | `UPLOAD_DIR` | optional: Ablage hochgeladener Bilder (Standard `data/uploads` im Arbeitsverzeichnis) |
 
-Später kommen dazu: `RSVP_*` (Phase 7), `SUITE_*` (Phase 8), optional
-`TURNSTILE_*`.
+Später kommen dazu: `SUITE_*` (Phase 8), optional `TURNSTILE_*`.

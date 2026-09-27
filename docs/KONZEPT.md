@@ -131,8 +131,8 @@ Felder kommen mit der Phase, die sie nutzt (umgesetzt: `FloorPlan` in Phase 1; `
 Anzeige, Status, Buchungszeitraum und `minFillRatio`, `EventAccess`, `Unit`, `Booking`/`Allocation` im Kern in
 Phase 2; Buchungs-Einstellungen, Verifizierung, Verwaltungslink, `MailLog`, `AuditLog`, `BookingThrottle` in
 Phase 3; `adminNote`, `Broadcast` und die Warteschlangen-Felder von `MailLog` in Phase 4; Warteliste in Phase 4b:
-`Event.waitlistEnabled`, `Event.offerTtlHours`, `Booking.waitlistedAt`; `Attendee` in Phase 6; `externalRef` folgt
-mit Phase 7).
+`Event.waitlistEnabled`, `Event.offerTtlHours`, `Booking.waitlistedAt`; `Attendee` in Phase 6; `externalRef`,
+`Event.rsvpEventId`/`rsvpChangedAt`, `Booking.rsvpPartySize`/`rsvpSyncedAt`, `Attendee.externalKey` in Phase 7).
 Zusätzlich zum Entwurf: `Event.replyTo`, `Event.mailNote`, `Booking.pendingIpHash`, `Booking.waitlistedAt`, `Broadcast`, `MailLog.broadcastId`/`claimedAt`. **Abweichung (Phase 4):** `Booking.email` ist
 optional – nur bei `source = ADMIN` leer (telefonische Reservierung ohne Adresse, siehe Abschnitt 8).
 **Abweichung (Phase 6):** Statt `Allocation.attendeeName` gibt es eine eigene Tabelle `Attendee` (Person einer
@@ -158,7 +158,7 @@ Event            id, slug (unique), title, description, location,
                  layout (JSON, Snapshot), layoutVersion,
                  backgroundFile?, backgroundType?,   -- eigene Kopie des Bilds der Vorlage
                  ownerId?, sourcePlanId?     -- Besitz (wie FloorPlan) und "aus Vorlage X" (nur Info)
-                 rsvpLink (JSON?)            -- Verknüpfung zu rsvp-app, siehe Abschnitt 9
+                 rsvpEventId?, rsvpChangedAt?  -- Verknüpfung zu rsvp-app, siehe Abschnitt 9 (Phase 7)
 
 EventAccess      id, eventId, userId, createdAt   UNIQUE(eventId, userId)   -- Freigabe, analog PollAccess
 
@@ -174,13 +174,13 @@ Booking          id, eventId, status (PENDING|CONFIRMED|CANCELLED|EXPIRED|WAITLI
                  verifyTokenHash?, verifyCodeHmac?, verifyAttempts,   -- siehe Abschnitt 6
                  manageTokenVersion (int),                 -- siehe Abschnitt 6
                  icsSequence (int),
-                 externalRef?  (z. B. rsvp:<eventId>:<guestId>),
+                 externalRef?  (rsvp:<rsvpEventId>:<rsvpId>), rsvpPartySize?, rsvpSyncedAt?,
                  createdAt, updatedAt, cancelledAt?
 
 Allocation       id, eventId, unitId, bookingId, attendeeId? (UNIQUE)
                  UNIQUE(eventId, unitId)                   -- DIE Garantie gegen Doppelbuchung
 
-Attendee         id, eventId, bookingId, name, position, createdAt   -- Person einer Gruppe (ASSIGNED, Phase 6)
+Attendee         id, eventId, bookingId, name, position, externalKey?, createdAt   -- Person einer Gruppe (ASSIGNED, Phase 6)
 
 MailLog          id, bookingId?, eventId, broadcastId?, type, recipient, status, error?, claimedAt?, createdAt
 Broadcast        id, eventId, subject, body, includeIcs, createdById?, createdAt   -- Rundmail (Phase 4)
@@ -537,6 +537,40 @@ optional (`Event.rsvpLink`: rsvp-Event-ID, Basis-URL).
 **Nötige Änderungen in rsvp-app** (eigenes Repo, eigene Aufgabe): Button/Link mit Token, Endpunkt für Gästeliste,
 Empfang der Platzierung, Anzeige beim Einlass, Benachrichtigung bei Absage/Änderung.
 
+Umgesetzt in Phase 7 auf der Seite von Seating (`app/lib/rsvp/`, Einstieg `app/rsvp/[eventId]`, Webhook
+`app/api/rsvp-webhook`); die Gegenstücke in rsvp-app sind ein eigener Schritt dort. Festlegungen und Abweichungen:
+
+* **Identität ist die Zusage (`rsvpId`), nicht die E-Mail** – in rsvp-app ist die Adresse optional. Deshalb anders
+  als beim Abstimmungstool auch für Gäste ohne Konto (`editToken`-Link) nutzbar.
+* **Verknüpfung mit Zustimmung beider Seiten (Abweichung):** Statt `Event.rsvpLink` (JSON mit Basis-URL) nur
+  `Event.rsvpEventId`; die Basis-URL ist `RSVP_APP_BASE_URL` (eine rsvp-app-Instanz). In rsvp-app trägt die
+  Besitzer\*in des Termins den Sitzplatz-Link `<Seating>/rsvp/<seatingEventId>` ein. Jede Nachricht nennt beide ids,
+  jede Seite prüft ihre Hälfte – sonst könnte jedes Seating-Konto mit einer erratenen rsvp-id eine fremde
+  Gästeliste abrufen (das gemeinsame Secret berechtigt das ganze Tool, nicht ein Konto).
+* **Format wie beim Abstimmungstool**, aber mit eigenem Secret (`RSVP_SEATING_SECRET`) und in jeder Nachricht `typ`,
+  `aud`, `iat`, `exp` (höchstens 1 Stunde): Beide Richtungen teilen ein Secret, ohne `typ` ließe sich eine
+  Nachricht als andere ausgeben. Vertrag und Tabelle der Nachrichten: README „Anbindung an rsvp-app“.
+* **Begleitungen (Entscheidung 13 Nr. 6):** rsvp-app kennt pro Zusage eine Begleitung mit optionalem Namen; der
+  Vertrag erlaubt eine Liste (`companions`). Personenzahl = 1 + Begleitungen, ohne Namen „Begleitung von …“.
+* **A – Platzwahl:** Zugang `RSVP` nur für `TABLE`/`SEAT`. Link per GET prüfen und anzeigen, Buchung per POST;
+  sofort bestätigt, höchstens eine aktive Buchung je Zusage (in derselben Transaktion geprüft wie das Anlegen),
+  Mindestbelegung gilt, im Modus `SEAT` genau so viele Plätze wie Personen. Name und Personenzahl nur in rsvp-app
+  änderbar; weicht die gemeldete Personenzahl ab (`rsvpPartySize`), müssen die Plätze angepasst werden (Hinweis).
+  Keine Warteliste. Drosselung pro IP und pro Zusage.
+* **Synchronisation (Entscheidung 13 Nr. 7):** Push von rsvp-app (Webhook bei jeder Änderung) **und** Abgleich durch
+  Seating als Sicherheitsnetz. A: Absage storniert automatisch (Storno-Mail mit `.ics`), sonst Name/Adresse/
+  Personenzahl übernehmen; ältere Meldungen (`iat`) werden ignoriert. B: Webhook setzt nur „bitte abgleichen“
+  (`Event.rsvpChangedAt`).
+* **B – Sitzordnung:** Abgleich mit Vorschau (neu, geändert, nicht mehr zugesagt), übernommen wird nur das
+  Ausgewählte, Absagen sind nicht vorausgewählt; beim Übernehmen wird neu geholt und neu verglichen. Gruppen aus
+  rsvp-app: `source = RSVP`, ohne Kontaktdaten, Personen mit `externalKey` („guest“, „companion-1“ …), nur über den
+  Abgleich änderbar; von Hand ergänzte Personen und Gruppen bleiben unberührt.
+* **Rückmeldung (A.4):** immer der vollständige Stand aller Platzierungen eines Events (rsvp-app setzt die
+  genannten, löscht die übrigen) – nach jeder Änderung best-effort, dazu manuell; vor dem Löschen eines Events ein
+  leerer Stand.
+* **Nicht umgesetzt:** Wird die Verknüpfung in Seating geändert oder entfernt (nur ohne aktive Buchungen aus
+  Zusagen möglich), bekommt das bisherige rsvp-Event keinen leeren Stand.
+
 ---
 
 ## 10. Konten und Suite
@@ -556,7 +590,8 @@ Empfang der Platzierung, Anzeige beim Einlass, Benachrichtigung bei Absage/Ände
 ## 11. Betrieb und Datenschutz
 
 Zusätzliche Env-Variablen (neben denen der Suite): `DATABASE_URL`, `SMTP_*`, `MAIL_FROM`, `CRON_SECRET`,
-`MANAGE_LINK_SECRET`, `MANAGE_LINK_SECRET_PREVIOUS`, `VERIFY_CODE_SECRET`, ggf. `RSVP_*` für den Vertrag mit rsvp-app,
+`MANAGE_LINK_SECRET`, `MANAGE_LINK_SECRET_PREVIOUS`, `VERIFY_CODE_SECRET`, ggf. `RSVP_SEATING_SECRET` und
+`RSVP_APP_BASE_URL` für den Vertrag mit rsvp-app (Phase 7),
 optional `TURNSTILE_*`.
 
 * Löschfristen suite-weit: Inhalte 18 Monate nach Eventende (Events seit Phase 2 im Cron), Konten nach 2 Jahren ohne Anmeldung (Admins ausgenommen).
@@ -580,7 +615,7 @@ optional `TURNSTILE_*`.
 | 4b | Warteliste mit Nachrück-Angebot (Abschnitt 5) (umgesetzt; „Event absagen“ aus Abschnitt 8 weiterhin offen) |
 | 5 | Modus `SEAT` (Kino/Winterball) (umgesetzt mit Zugang `OPEN`; `RSVP` folgt mit Phase 7) |
 | 6 | Modus `ASSIGNED` (Hochzeit) mit manueller/CSV-Gästeliste, Drag & Drop im Plan (auch zum Verschieben von Buchungen) (umgesetzt; Namen öffentlich zeigen aus Abschnitt 11 weiterhin offen) |
-| 7 | rsvp-app-Anbindung (A und B), Änderungen in rsvp-app |
+| 7 | rsvp-app-Anbindung (A und B), Änderungen in rsvp-app (umgesetzt auf der Seite von Seating, siehe Abschnitt 9; rsvp-app folgt als eigener Schritt dort) |
 | 8 | Konto-Föderation über `suite-kit`, Eintrag im suite-kit-README |
 
 Jede Phase endet mit Tests (Unit mit vitest in `tests/unit`, Playwright in `tests/e2e` gegen eine frisch gebaute
@@ -602,8 +637,12 @@ Test-Setup im Repo; Seating ist das erste mit automatisierten Tests.
    vergeben will, nutzt `SEAT`.
 5. ~~**Bis wann dürfen Kund*innen selbst ändern/stornieren?**~~ **Entschieden:** Standard Eventbeginn − 24 h, pro
    Event anpassbar (`selfEditHoursBefore`), siehe Abschnitt 4.
-6. **Begleitpersonen in rsvp-app:** nur Anzahl oder mit Namen? Bestimmt, ob Seating Namen pro Platz kennt.
-7. **Synchronisation mit rsvp-app bei Absage:** Push von rsvp-app an Seating oder Abgleich durch Seating?
+6. ~~**Begleitpersonen in rsvp-app:** nur Anzahl oder mit Namen?~~ **Entschieden (Phase 7):** rsvp-app hat eine
+   Begleitung mit optionalem Namen; der Vertrag überträgt eine Liste von Namen oder null. Seating kennt damit Namen
+   pro Platz, wo es sie gibt (sonst „Begleitung von …“). Siehe Abschnitt 9.
+7. ~~**Synchronisation mit rsvp-app bei Absage:** Push oder Abgleich?~~ **Entschieden (Phase 7):** beides – Webhook
+   von rsvp-app bei jeder Änderung (Platzwahl: Absage storniert automatisch; Sitzordnung: nur Hinweis) und Abgleich
+   durch Seating mit Vorschau. Siehe Abschnitt 9.
 8. ~~**Warteliste** für ausgebuchte Events (rsvp-app hat eine) – jetzt, später oder gar nicht?~~ **Entschieden:** ja, als
    eigener Schritt nach Phase 4, mit zeitlich begrenztem Nachrück-Angebot statt automatischer Zuteilung (Abschnitt 5).
 9. ~~**Rollen:** reicht "Admin sieht alles", oder braucht es Event-bezogene Admins (z. B. Brautpaar sieht nur die eigene
