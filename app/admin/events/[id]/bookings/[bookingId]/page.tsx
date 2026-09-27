@@ -125,7 +125,13 @@ export default async function BookingPage({ params, searchParams }: {
                 </dd>
                 <dt className="text-gray-600">Telefon</dt><dd>{booking.phone ?? '–'}</dd>
                 <dt className="text-gray-600">Anmerkung</dt><dd className="whitespace-pre-line">{booking.note ?? '–'}</dd>
-                <dt className="text-gray-600">Quelle</dt><dd>{BOOKING_SOURCE_LABELS[booking.source]}</dd>
+                <dt className="text-gray-600">Quelle</dt>
+                <dd>
+                  {BOOKING_SOURCE_LABELS[booking.source]}
+                  {booking.source === 'RSVP' && booking.rsvpPartySize !== null && booking.rsvpPartySize !== booking.partySize && status === 'CONFIRMED' && (
+                    <span className="block text-xs text-amber-800" data-testid="rsvp-mismatch">In rsvp-app jetzt {booking.rsvpPartySize} Personen – Tisch bzw. Plätze passen nicht mehr.</span>
+                  )}
+                </dd>
                 <dt className="text-gray-600">Gebucht</dt><dd>{formatShort(booking.createdAt, tz)}</dd>
                 {status === 'PENDING' && booking.expiresAt && <><dt className="text-gray-600">Reserviert bis</dt><dd>{formatDeadline(booking.expiresAt, tz, now)}</dd></>}
                 {booking.waitlistedAt && <><dt className="text-gray-600">Warteliste seit</dt><dd>{formatShort(booking.waitlistedAt, tz)}</dd></>}

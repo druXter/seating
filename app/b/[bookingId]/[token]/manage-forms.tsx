@@ -20,6 +20,8 @@ const labelClass = 'block text-sm font-medium mb-1'
 
 export type ManageValues = {
   bookingId: string; token: string; name: string; phone: string; note: string; partySize: number; unitKey: string; requirePhone: boolean
+  /** Aus einer Zusage in rsvp-app: Name und Personenzahl kommen von dort und sind hier nicht änderbar. */
+  fixedFromRsvp?: boolean
   tables: { key: string; label: string; capacity: number }[]
   /** Modus SEAT: Platzwahl statt Tisch und Personenzahl. */
   seats?: { layout: Layout; backgroundUrl: string | null; seats: PickerSeat[]; groups: SeatGroup[]; initial: string[]; max: number }
@@ -40,20 +42,24 @@ export function ChangeForm({ values }: { values: ManageValues }) {
         />
       )}
       <div className="grid gap-3 sm:grid-cols-2">
-        <div>
-          <label htmlFor="manage-name" className={labelClass}>Name</label>
-          <input id="manage-name" name="name" required maxLength={BOOKING_LIMITS.name} defaultValue={values.name} className={input} />
-        </div>
+        {values.fixedFromRsvp ? <input type="hidden" name="name" value={values.name} /> : (
+          <div>
+            <label htmlFor="manage-name" className={labelClass}>Name</label>
+            <input id="manage-name" name="name" required maxLength={BOOKING_LIMITS.name} defaultValue={values.name} className={input} />
+          </div>
+        )}
         <div>
           <label htmlFor="manage-phone" className={labelClass}>Telefon{values.requirePhone ? '' : ' (optional)'}</label>
           <input id="manage-phone" name="phone" type="tel" required={values.requirePhone} maxLength={BOOKING_LIMITS.phone} defaultValue={values.phone} className={input} />
         </div>
         {!values.seats && (
           <>
-            <div>
-              <label htmlFor="manage-party" className={labelClass}>Personen</label>
-              <input id="manage-party" name="partySize" type="number" inputMode="numeric" required min={1} defaultValue={values.partySize} className={input} />
-            </div>
+            {values.fixedFromRsvp ? <input type="hidden" name="partySize" value={values.partySize} /> : (
+              <div>
+                <label htmlFor="manage-party" className={labelClass}>Personen</label>
+                <input id="manage-party" name="partySize" type="number" inputMode="numeric" required min={1} defaultValue={values.partySize} className={input} />
+              </div>
+            )}
             <div>
               <label htmlFor="manage-table" className={labelClass}>Tisch</label>
               <select id="manage-table" name="unitKey" defaultValue={values.unitKey} className={input}>
@@ -73,7 +79,8 @@ export function ChangeForm({ values }: { values: ManageValues }) {
       </div>
       <SubmitButton disabled={pending}>Änderungen speichern</SubmitButton>
       <p className="text-xs text-gray-600">
-        {values.seats ? 'Zur Auswahl stehen deine Plätze und alle gerade freien.' : 'Zur Auswahl stehen dein Tisch und alle gerade freien Tische.'} Die E-Mail-Adresse lässt sich nicht ändern.
+        {values.seats ? 'Zur Auswahl stehen deine Plätze und alle gerade freien.' : 'Zur Auswahl stehen dein Tisch und alle gerade freien Tische.'}
+        {values.fixedFromRsvp ? ` Name und Personenzahl (${values.partySize}) kommen aus deiner Zusage in rsvp-app und lassen sich dort ändern.` : ' Die E-Mail-Adresse lässt sich nicht ändern.'}
       </p>
     </form>
   )

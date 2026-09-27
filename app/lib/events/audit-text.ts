@@ -31,13 +31,18 @@ const ACTION_LABELS: Record<string, string> = {
   'party-changed': 'Gruppe geändert',
   'guests-imported': 'Gästeliste importiert',
   seated: 'Platz zugewiesen',
-  unseated: 'vom Platz genommen'
+  unseated: 'vom Platz genommen',
+  'rsvp-booked': 'über Zusage in rsvp-app gebucht',
+  'rsvp-cancelled': 'storniert (rsvp-app)',
+  'rsvp-updated': 'Stand aus rsvp-app übernommen',
+  'rsvp-synced': 'mit rsvp-app abgeglichen'
 }
 
 /** Weitere Felder im diff (neben den Änderungen aus booking-changes.ts). */
 const FIELD_LABELS: Record<string, string> = {
   email: 'E-Mail', partySize: 'Personenzahl', subject: 'Betreff', recipients: 'Empfänger*innen',
-  person: 'Person', seat: 'Platz', persons: 'Personen', renamed: 'umbenannt', parties: 'Gruppen'
+  person: 'Person', seat: 'Platz', persons: 'Personen', renamed: 'umbenannt', parties: 'Gruppen',
+  reason: 'Grund', applied: 'übernommen', guests: 'Zusagen'
 }
 
 export type AuditEntry = { actor: string; action: string; diff: unknown; createdAt: Date }
@@ -46,6 +51,7 @@ export type AuditContext = { accountEmail: (id: string) => string | null; tableL
 export function actorText(actor: string, context: AuditContext): string {
   if (actor === 'customer') return 'Kund*in'
   if (actor === 'system') return 'System'
+  if (actor === 'rsvp') return 'rsvp-app'
   return context.accountEmail(actor) ?? 'gelöschtes Konto'
 }
 
@@ -71,6 +77,8 @@ export function auditDetails(entry: AuditEntry, context: AuditContext): string[]
       if (value === true) details.push('Frist neu begonnen')
     } else if (field === 'imported') {
       if (value === true) details.push('aus CSV-Import')
+    } else if (field === 'fromRsvp') {
+      if (value === true) details.push('aus rsvp-app')
     } else if (field === 'notified') {
       details.push(value === true ? 'Kund*in benachrichtigt' : 'ohne Mail')
     } else if (label) {

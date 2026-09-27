@@ -1,5 +1,6 @@
 import { defineConfig, devices } from '@playwright/test'
 import { SMTP_PORT } from './tests/e2e/mail-server'
+import { RSVP_ORIGIN, TEST_RSVP_SECRET } from './tests/e2e/rsvp-server'
 
 // E2E-Tests gegen eine echte, frisch gebaute Instanz (next build + next start) mit eigener
 // Datenbank (prisma/test.db) - nie gegen die Entwicklungs- oder Produktivdatenbank.
@@ -21,6 +22,9 @@ process.env.VERIFY_CODE_SECRET = 'e2e-verify-code-secret-0123456789abcdef'
 process.env.MANAGE_LINK_SECRET = 'e2e-manage-link-secret-0123456789abcdef'
 process.env.MANAGE_LINK_SECRET_PREVIOUS = 'e2e-previous-manage-secret-0123456789ab'
 process.env.BASE_URL = BASE_URL
+// Anbindung an rsvp-app (Phase 7): Test-Doppel tests/e2e/rsvp-server.ts, gleiches Secret im Testprozess.
+process.env.RSVP_SEATING_SECRET = TEST_RSVP_SECRET
+process.env.RSVP_APP_BASE_URL = RSVP_ORIGIN
 
 export default defineConfig({
   testDir: './tests/e2e',
@@ -64,6 +68,8 @@ export default defineConfig({
       VERIFY_CODE_SECRET: process.env.VERIFY_CODE_SECRET!,
       MANAGE_LINK_SECRET: process.env.MANAGE_LINK_SECRET!,
       MANAGE_LINK_SECRET_PREVIOUS: process.env.MANAGE_LINK_SECRET_PREVIOUS!,
+      RSVP_SEATING_SECRET: TEST_RSVP_SECRET,
+      RSVP_APP_BASE_URL: RSVP_ORIGIN,
       // Rundmail-Warteschlange zügig abarbeiten (100 ms Pause statt 2 s).
       BROADCAST_MAILS_PER_MINUTE: '600',
       // Kein Hintergrund-Durchlauf: Die Tests lösen ihn gezielt über den Cron aus (sonst hinge ihr

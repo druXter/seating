@@ -417,7 +417,7 @@ export async function loadMoveBoard(eventId: string, now = new Date()): Promise<
 
 /** Konto-E-Mails und aktuelle Tischnamen für die Anzeige des Audit-Logs (app/lib/events/audit-text.ts). */
 export async function loadAuditContext(eventId: string, actors: string[]): Promise<AuditContext> {
-  const ids = [...new Set(actors.filter(actor => actor !== 'customer' && actor !== 'system'))]
+  const ids = [...new Set(actors.filter(actor => actor !== 'customer' && actor !== 'system' && actor !== 'rsvp'))]
   const [users, units] = await Promise.all([
     ids.length > 0 ? prisma.user.findMany({ where: { id: { in: ids } }, select: { id: true, email: true } }) : Promise.resolve([]),
     prisma.unit.findMany({ where: { eventId }, select: { key: true, label: true } })

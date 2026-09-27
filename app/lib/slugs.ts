@@ -11,8 +11,8 @@ export const RESERVED_SLUGS: ReadonlySet<string> = new Set([
   // Eigene Routen
   'admin', 'api', 'login', 'logout', 'account', 'forgot-password', 'reset-password',
   'impressum', 'datenschutz',
-  // Laut Konzept vorgesehen (Verwaltungslink, Verifizierung, Raumpläne)
-  'b', 'verify', 'plans',
+  // Laut Konzept vorgesehen (Verwaltungslink, Verifizierung, Raumpläne, Platzwahl über rsvp-app)
+  'b', 'verify', 'plans', 'rsvp',
   // Next.js und Web-Standards (enthalten zum Teil Zeichen, die das Slug-Format ohnehin
   // ausschließt - trotzdem hier, damit die Liste vollständig ist)
   '_next', '.well-known', 'favicon.ico', 'icon', 'apple-icon', 'manifest', 'robots.txt', 'sitemap.xml', 'sw.js',

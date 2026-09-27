@@ -11,7 +11,7 @@ import { createParty, importParties, placeAttendee, placeParty, updateParty } fr
 import { parseGuestCsv, parsePartyEdit, parsePartyForm, type ImportParty } from '../../lib/events/assign-rules'
 import { parseAdminNote, parseUpdatedAt } from '../../lib/events/admin-rules'
 import { SEAT_KEY } from '../../lib/events/seat-rules'
-import { offerAfterResponse } from '../../lib/events/waitlist'
+import { afterBookingChange } from '../../lib/events/waitlist'
 import type { BookingFormState } from './booking-actions'
 
 /**
@@ -56,7 +56,10 @@ export async function placeAttendeeOnPlan(eventId: string, attendeeId: string, f
   if (event.mode !== 'ASSIGNED') return { ok: false, error: 'Personen setzt du nur bei einer Sitzordnung.' }
   if (typeof attendeeId !== 'string' || !ID.test(attendeeId)) return { ok: false, error: 'Unbekannte Person.' }
   if ((from !== null && !isSeatKey(from)) || (to !== null && !isSeatKey(to))) return { ok: false, error: 'Unbekannter Platz.' }
-  return answer(await placeAttendee(event, attendeeId, from, to, user.id))
+  const result = await placeAttendee(event, attendeeId, from, to, user.id)
+  // Platzierung an rsvp-app melden (bei einer verknüpften Gästeliste).
+  if (result.ok) afterBookingChange(event.id)
+  return answer(result)
 }
 
 /** Alle Personen einer Gruppe ohne Platz zusammen ab dem Zielplatz setzen. */
@@ -67,7 +70,9 @@ export async function placePartyOnPlan(eventId: string, bookingId: string, to: s
   if (event.mode !== 'ASSIGNED') return { ok: false, error: 'Gruppen setzt du nur bei einer Sitzordnung.' }
   if (typeof bookingId !== 'string' || !ID.test(bookingId)) return { ok: false, error: 'Unbekannte Gruppe.' }
   if (!isSeatKey(to)) return { ok: false, error: 'Unbekannter Platz.' }
-  return answer(await placeParty(event, bookingId, to, user.id))
+  const result = await placeParty(event, bookingId, to, user.id)
+  if (result.ok) afterBookingChange(event.id)
+  return answer(result)
 }
 
 /** Formular "Gruppe anlegen" auf der Seite Sitzordnung. */
@@ -130,6 +135,7 @@ export async function updatePartyAction(_previous: BookingFormState, formData: F
   if (!expected) return { errors: ['Die Seite ist veraltet. Bitte lade sie neu.'] }
   const result = await updateParty(event, bookingId, parsed.input, expected, user.id)
   if (!result.ok) return { errors: [result.error] }
+  if (result.changed) afterBookingChange(event.id)
   redirect(`/admin/events/${event.id}/bookings/${bookingId}?done=${result.changed ? 'party' : 'unchanged'}`)
 }
 
@@ -157,7 +163,7 @@ export async function moveBookingOnPlan(
   const result = await adminMoveBooking(event, booking, from, to, expected, notify === true, user.id)
   if (!result.ok) return answer({ ok: false, error: result.errors.join(' ') })
   // Ein Tisch ist frei geworden: der Warteliste anbieten; öffentliche Seite neu.
-  offerAfterResponse(event.id)
+  afterBookingChange(event.id)
   revalidatePath(`/${event.slug}`)
   if (!result.changed) return answer({ ok: true, message: 'Nichts geändert.' })
   return answer({ ok: true, message: `„${booking.name}“ verschoben.${result.mailFailed ? ' Die Mail an die Kund*in konnte aber nicht verschickt werden.' : ''}` })

@@ -294,6 +294,13 @@ export async function changeBooking(
   if (managed.status !== 'CONFIRMED') return { ok: false, errors: ['Diese Buchung ist storniert.'] }
   if (!canSelfEdit(event, now)) return { ok: false, errors: ['Die Frist für Änderungen ist abgelaufen. Bitte wende dich an die Veranstalter*innen.'] }
 
+  // Aus einer Zusage (source RSVP): Name und Personenzahl kommen aus rsvp-app - die Personenzahl ist die
+  // dort zuletzt gemeldete (rsvpPartySize), im Modus SEAT braucht es genau so viele Plätze.
+  const fromRsvp = managed.source === 'RSVP'
+  if (fromRsvp) change = { ...change, name: managed.name, partySize: managed.rsvpPartySize ?? managed.partySize }
+  if (fromRsvp && event.mode === 'SEAT' && change.unitKeys.length !== change.partySize) {
+    return { ok: false, errors: [`Bitte wähle genau ${change.partySize} ${change.partySize === 1 ? 'Platz' : 'Plätze'} – so viele Personen hat eure Zusage in rsvp-app.`] }
+  }
   const target = await changeTarget(managed, change.unitKeys, change.partySize, now)
   if (!target.ok) return { ok: false, errors: target.errors }
   const partySize = event.mode === 'SEAT' ? target.places.length : change.partySize
@@ -345,7 +352,7 @@ export function samePlaces(a: readonly { id: string }[], b: readonly { id: strin
  */
 async function changeTarget(managed: ManagedBooking, unitKeys: string[], partySize: number, now: Date): Promise<{ ok: true; places: Place[]; label: string } | { ok: false; errors: string[] }> {
   const { event } = managed
-  if (event.mode === 'SEAT') return checkSeats(event, unitKeys, { ownBookingId: managed.id, maxSeats: event.maxSeatsPerBooking }, now)
+  if (event.mode === 'SEAT') return checkSeats(event, unitKeys, { ownBookingId: managed.id, maxSeats: managed.source === 'RSVP' ? partySize : event.maxSeatsPerBooking }, now)
   const key = unitKeys[0]
   const target = key === managed.table?.key
     ? managed.table

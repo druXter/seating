@@ -6,7 +6,7 @@ import { formString } from '../lib/form'
 import { clientIp, codeRules, reserve } from '../lib/throttle'
 import { bookingSecretsConfigured, manageToken } from '../lib/booking-tokens'
 import { confirmByToken } from '../lib/events/booking'
-import { offerAfterResponse } from '../lib/events/waitlist'
+import { afterBookingChange } from '../lib/events/waitlist'
 
 export type VerifyState = { message: string } | null
 
@@ -27,7 +27,7 @@ export async function confirmLinkAction(_previous: VerifyState, formData: FormDa
       redirect(`/b/${result.bookingId}/${manageToken(result.bookingId, result.manageTokenVersion)}?confirmed=1`)
     case 'waitlisted': {
       const eventId = result.eventId
-      offerAfterResponse(eventId)
+      afterBookingChange(eventId)
       redirect(`/b/${result.bookingId}/${manageToken(result.bookingId, result.manageTokenVersion)}?waitlisted=1`)
     }
     case 'already':

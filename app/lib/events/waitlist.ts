@@ -11,6 +11,7 @@ import { largestTogether, suggestSeats } from './seat-rules'
 import { audit, emailBlockingWhere, isUniqueViolation, lockEvent, releaseStaleHolds, tableSeatsTaken } from './booking-tx'
 import { loadUnitStates } from './store'
 import { processMailQueue } from './mail-queue'
+import { reportPlacements } from '../rsvp/notify'
 import { WAITLIST_VERIFY_HOURS, offerDeadline, planOffers, waitlistChoice, type WaitlistChoice } from './waitlist-rules'
 
 /**
@@ -239,12 +240,15 @@ export async function leaveWaitlist(managed: ManagedBooking, now = new Date()): 
 }
 
 /**
- * Nach der Antwort anbieten: für Server Actions und Route Handler nach jedem Ereignis, das einen Tisch
- * frei machen kann. Ohne wartende Einträge ein Leerlauf.
+ * Nach der Antwort, für Server Actions und Route Handler nach jeder Änderung an Buchungen oder Plätzen:
+ * frei gewordene Tische der Warteliste anbieten, die Mail-Warteschlange fortsetzen und - bei einem mit
+ * rsvp-app verknüpften Event - die Platzierungen dorthin melden (app/lib/rsvp/notify.ts). Ohne
+ * wartende Einträge bzw. ohne Verknüpfung jeweils ein Leerlauf.
  */
-export function offerAfterResponse(eventId: string) {
+export function afterBookingChange(eventId: string) {
   after(async () => {
     await offerWaitlist(eventId)
     await processMailQueue()
+    await reportPlacements(eventId)
   })
 }

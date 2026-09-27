@@ -38,13 +38,22 @@ export const MODE_HINTS: Record<EventMode, string> = {
   ASSIGNED: 'Keine Online-Buchung: Ihr legt die Gäste an und setzt sie auf Plätze (z. B. Hochzeit).'
 }
 
-/**
- * Zugang (Konzept Abschnitt 1) folgt vorerst aus dem Modus: Sitzordnung ohne Selbstbuchung (NONE),
- * sonst offen mit Mail-Bestätigung (OPEN). RSVP kommt mit der Anbindung an rsvp-app (Phase 7).
- */
-export function accessForMode(mode: EventMode): BookingAccess {
-  return mode === 'ASSIGNED' ? 'NONE' : 'OPEN'
+export const ACCESS_LABELS: Record<Exclude<BookingAccess, 'NONE'>, string> = {
+  OPEN: 'Offen – jede*r mit dem Link, Bestätigung per Mail',
+  RSVP: 'Nur mit Zusage aus rsvp-app – Platzwahl über „Sitzplatz wählen“ dort'
 }
+
+/**
+ * Zugang (Konzept Abschnitt 1): Sitzordnung immer ohne Selbstbuchung (NONE); Tisch- und Platzbuchung
+ * offen mit Mail-Bestätigung (OPEN) oder nur über eine Zusage aus rsvp-app (RSVP, Phase 7).
+ */
+export function accessForMode(mode: EventMode, requested: string = 'OPEN'): BookingAccess {
+  if (mode === 'ASSIGNED') return 'NONE'
+  return requested === 'RSVP' ? 'RSVP' : 'OPEN'
+}
+
+/** id eines Events in rsvp-app (cuid). */
+export const RSVP_EVENT_ID = /^[a-z0-9]{10,40}$/
 
 const STATUSES: readonly EventStatus[] = ['DRAFT', 'OPEN', 'CLOSED', 'ARCHIVED']
 
@@ -57,6 +66,8 @@ export type EventFields = {
   endsAt: Date
   mode: EventMode
   access: BookingAccess
+  /** Nur, wenn das Formular das Feld hat (Einstellungen) - beim Anlegen bleibt es unverknüpft. */
+  rsvpEventId?: string | null
   bookingOpensAt: Date | null
   bookingClosesAt: Date | null
   minFillRatio: number | null
@@ -123,6 +134,15 @@ export function parseEventForm(formData: FormData, timeZone: string = DEFAULT_TI
 
   const mode = (formString(formData, 'mode', 20) || 'TABLE') as EventMode
   if (!AVAILABLE_MODES.includes(mode)) errors.push('Dieser Modus steht noch nicht zur Verfügung.')
+  const access = accessForMode(mode, formString(formData, 'access', 10))
+
+  // Verknüpfung mit rsvp-app: Pflicht beim Zugang RSVP, optional bei der Sitzordnung (Gästeliste abgleichen).
+  let rsvpEventId: string | null | undefined
+  if (formData.has('rsvpEventId')) {
+    rsvpEventId = formString(formData, 'rsvpEventId', 100) || null
+    if (rsvpEventId && !RSVP_EVENT_ID.test(rsvpEventId)) errors.push('rsvp-app-Event-ID: bitte die id des Termins aus rsvp-app einfügen (Kleinbuchstaben und Ziffern).')
+    if (access === 'RSVP' && !rsvpEventId) errors.push('Für den Zugang „nur mit Zusage“ braucht es die rsvp-app-Event-ID.')
+  }
 
   let minFillRatio: number | null = null
   const minFill = formString(formData, 'minFillPercent', 10)
@@ -146,7 +166,10 @@ export function parseEventForm(formData: FormData, timeZone: string = DEFAULT_TI
     ok: true,
     status,
     booking,
-    fields: { title, slug, description, location, startsAt, endsAt, mode, access: accessForMode(mode), bookingOpensAt, bookingClosesAt, minFillRatio }
+    fields: {
+      title, slug, description, location, startsAt, endsAt, mode, access, ...(rsvpEventId !== undefined ? { rsvpEventId } : {}),
+      bookingOpensAt, bookingClosesAt, minFillRatio
+    }
   }
 }
 

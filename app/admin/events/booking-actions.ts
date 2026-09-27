@@ -17,7 +17,7 @@ import { formSeatKeys } from '../../lib/events/seat-rules'
 import { formFlag, parseAdminChange, parseAdminCreate, parseAdminNote, parseRecipientFilter, parseUpdatedAt } from '../../lib/events/admin-rules'
 import { queueBroadcast } from '../../lib/events/broadcast'
 import { processMailQueue } from '../../lib/events/mail-queue'
-import { offerAfterResponse } from '../../lib/events/waitlist'
+import { afterBookingChange } from '../../lib/events/waitlist'
 
 /**
  * Buchungsverwaltung durch Veranstalter*innen (docs/KONZEPT.md Abschnitt 8). JEDE Aktion prüft selbst:
@@ -46,7 +46,7 @@ async function bookingContext(formData: FormData) {
 /** Nach Erfolg zurück auf die Buchung, mit Rückmeldung (und Hinweis, falls die Mail scheiterte). */
 async function finish(event: { id: string; slug: string }, path: string, result: AdminResult & { ok: true }, done: string): Promise<never> {
   // Ein Tisch kann frei geworden sein (Storno, Tischwechsel, Löschen): der Warteliste anbieten.
-  offerAfterResponse(event.id)
+  afterBookingChange(event.id)
   revalidatePath(`/${event.slug}`)
   redirect(`${path}?done=${result.changed ? done : 'unchanged'}${result.mailFailed ? '&mail=failed' : ''}`)
 }
@@ -86,7 +86,7 @@ export async function deleteBookingAdmin(_previous: BookingFormState, formData: 
   const result = await adminDeleteBooking(event, booking, formFlag(formData, 'notify'), user.id)
   if (!result.ok) return { errors: result.errors }
   // Ein Tisch kann frei geworden sein (Storno, Tischwechsel, Löschen): der Warteliste anbieten.
-  offerAfterResponse(event.id)
+  afterBookingChange(event.id)
   revalidatePath(`/${event.slug}`)
   redirect(`/admin/events/${event.id}/bookings?deleted=1${result.mailFailed ? '&mail=failed' : ''}`)
 }

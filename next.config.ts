@@ -91,8 +91,9 @@ const nextConfig: NextConfig = {
       },
       {
         // Persönlicher Verwaltungslink einer Buchung (/b/<bookingId>/<token>) und der Link aus der
-        // Verifizierungsmail (/verify/<bookingId>/<token>), siehe docs/KONZEPT.md Abschnitt 6.
-        source: "/:area(b|verify)/:path*",
+        // Verifizierungsmail (/verify/<bookingId>/<token>), siehe docs/KONZEPT.md Abschnitt 6, und der
+        // Einstieg aus rsvp-app mit signiertem Link (/rsvp/<eventId>?t=..., Abschnitt 9).
+        source: "/:area(b|verify|rsvp)/:path*",
         headers: [...PRIVATE_PAGE, { key: "Referrer-Policy", value: "no-referrer" }],
       },
 

@@ -42,6 +42,10 @@ export default async function ManagePage({ params, searchParams }: {
   const offerOpen = booking.status === 'OFFERED' && booking.expiresAt !== null && booking.expiresAt > now
   const fromWaitlist = booking.waitlistedAt !== null
   const showTable = booking.status === 'CONFIRMED' || booking.status === 'OFFERED'
+  // Aus einer Zusage in rsvp-app: Personenzahl von dort; weicht sie ab, müssen Tisch bzw. Plätze passen.
+  const fromRsvp = booking.source === 'RSVP'
+  const rsvpParty = fromRsvp ? booking.rsvpPartySize ?? booking.partySize : null
+  const mismatch = rsvpParty !== null && rsvpParty !== booking.partySize && booking.status === 'CONFIRMED'
 
   let tables: { key: string; label: string; capacity: number }[] = []
   const layout = parseLayout(event.layout)
@@ -50,6 +54,7 @@ export default async function ManagePage({ params, searchParams }: {
     const { units, states } = await loadUnitStates(event.id, now)
     tables = units
       .filter(unit => unit.kind === 'TABLE' && unit.bookable && (unit.key === booking.table?.key || states.get(unit.key) === 'free'))
+      .filter(unit => rsvpParty === null || unit.capacity >= rsvpParty)
       .map(unit => ({ key: unit.key, label: unit.label, capacity: unit.capacity }))
       .sort((a, b) => a.label.localeCompare(b.label, 'de', { numeric: true }))
   }
@@ -62,7 +67,17 @@ export default async function ManagePage({ params, searchParams }: {
         {search.accepted === '1' && <Notice tone="success">Angebot angenommen – deine Buchung ist bestätigt. Die Bestätigungsmail mit Kalendereintrag ist unterwegs.</Notice>}
         {search.declined === '1' && <Notice tone="success">Du hast das Angebot abgelehnt, dein Eintrag ist beendet. Der Tisch geht an die nächste Gruppe.</Notice>}
         {search.left === '1' && <Notice tone="success">Du bist von der Warteliste ausgetragen.</Notice>}
-        {search.confirmed === '1' && <Notice tone="success">Deine Buchung ist bestätigt. Die Bestätigungsmail mit Kalendereintrag ist unterwegs.</Notice>}
+        {search.confirmed === '1' && (
+          <Notice tone="success">
+            Deine Buchung ist bestätigt.{booking.email ? ' Die Bestätigungsmail mit Kalendereintrag ist unterwegs.' : ' Speichere dir diese Seite – über „Sitzplatz wählen“ in rsvp-app kommst du jederzeit wieder hierher.'}
+          </Notice>
+        )}
+        {mismatch && (
+          <Notice tone="warning">
+            In rsvp-app hast du jetzt {rsvpParty} {rsvpParty === 1 ? 'Person' : 'Personen'} angegeben, gebucht sind {booking.partySize}. Bitte passe
+            {event.mode === 'SEAT' ? ' die Plätze' : ' den Tisch'} unten an{editable ? '' : ' – oder wende dich an die Veranstalter*innen'}.
+          </Notice>
+        )}
         {search.changed === '1' && <Notice tone="success">Änderungen gespeichert. Du bekommst eine Mail mit dem aktualisierten Kalendereintrag.</Notice>}
         {search.unchanged === '1' && <Notice tone="info">Es gab nichts zu ändern.</Notice>}
         {search.cancelled === '1' && <Notice tone="success">Deine Buchung ist storniert. Du bekommst eine Bestätigung per Mail.</Notice>}
@@ -81,7 +96,8 @@ export default async function ManagePage({ params, searchParams }: {
             {waiting && booking.waitlistedAt && <><dt className="text-gray-600">Auf der Warteliste seit</dt><dd>{formatDateTime(booking.waitlistedAt, event.timezone)}</dd></>}
             <dt className="text-gray-600">Personen</dt><dd>{booking.partySize}</dd>
             <dt className="text-gray-600">Name</dt><dd>{booking.name}</dd>
-            <dt className="text-gray-600">E-Mail</dt><dd>{booking.email}</dd>
+            <dt className="text-gray-600">E-Mail</dt><dd>{booking.email ?? '–'}</dd>
+            {fromRsvp && <><dt className="text-gray-600">Über</dt><dd>deine Zusage in rsvp-app</dd></>}
             {booking.phone && <><dt className="text-gray-600">Telefon</dt><dd>{booking.phone}</dd></>}
             {booking.note && <><dt className="text-gray-600">Anmerkung</dt><dd className="whitespace-pre-line">{booking.note}</dd></>}
           </dl>
@@ -117,10 +133,10 @@ export default async function ManagePage({ params, searchParams }: {
               <p className="text-sm text-gray-600">Möglich bis {formatDateTime(selfEditDeadline(event), event.timezone)}.</p>
               <ChangeForm values={{
                 bookingId: booking.id, token, name: booking.name, phone: booking.phone ?? '', note: booking.note ?? '',
-                partySize: booking.partySize, unitKey: booking.table?.key ?? '', requirePhone: event.requirePhone, tables,
+                partySize: rsvpParty ?? booking.partySize, fixedFromRsvp: fromRsvp, unitKey: booking.table?.key ?? '', requirePhone: event.requirePhone, tables,
                 seats: seatData && layout.ok ? {
                   layout: layout.layout, backgroundUrl: event.backgroundFile ? `/${event.slug}/background?v=${event.backgroundFile.slice(0, 8)}` : null,
-                  seats: seatData.seats, groups: seatData.groups, initial: booking.places.map(p => p.key), max: event.maxSeatsPerBooking
+                  seats: seatData.seats, groups: seatData.groups, initial: booking.places.map(p => p.key), max: rsvpParty ?? event.maxSeatsPerBooking
                 } : undefined
               }} />
             </div>

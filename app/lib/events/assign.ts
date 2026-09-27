@@ -78,6 +78,8 @@ export async function updateParty(
     const changed = await prisma.$transaction(async tx => {
       const booking = await tx.booking.findFirst({ where: { id: bookingId, eventId: event.id }, include: { attendees: { orderBy: { position: 'asc' } } } })
       if (!booking || booking.status !== 'CONFIRMED') throw new Abort('Diese Gruppe ist nicht mehr aktiv.')
+      // Gruppen aus rsvp-app ändern sich nur über den Abgleich (app/lib/rsvp/sync.ts).
+      if (booking.source === 'RSVP') throw new Abort('Diese Gruppe kommt aus rsvp-app – Namen und Begleitungen ändern sich über den Abgleich.')
       const known = new Map(booking.attendees.map(a => [a.id, a]))
       // Jede Person der Gruppe muss im Formular stehen und umgekehrt - sonst ist das Formular veraltet.
       if (edit.persons.length !== known.size || edit.persons.some(p => !known.has(p.id))) throw new Abort(PARTY_CONFLICT)

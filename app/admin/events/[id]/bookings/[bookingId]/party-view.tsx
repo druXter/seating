@@ -87,7 +87,17 @@ export default async function PartyView({ event, booking, done }: { event: Loade
               </p>
             </div>
 
-            {active && (
+            {active && booking.source === 'RSVP' && (
+              <div className={card}>
+                <h2 className="font-bold">Bearbeiten</h2>
+                <p className="text-sm text-gray-700">
+                  Diese Gruppe kommt aus einer Zusage in rsvp-app. Name und Begleitungen ändern sich dort und kommen über
+                  „Mit rsvp-app abgleichen“ in der <Link href={`${base}/arrange`} className="text-blue-700 hover:underline">Sitzordnung</Link> hierher.
+                </p>
+              </div>
+            )}
+
+            {active && booking.source !== 'RSVP' && (
               <div className={card}>
                 <h2 className="font-bold">Bearbeiten</h2>
                 <ActionForm action={updatePartyAction}>

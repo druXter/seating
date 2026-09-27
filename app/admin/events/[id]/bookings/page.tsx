@@ -13,6 +13,7 @@ import { actorText, auditDetails, auditText } from '../../../../lib/events/audit
 import { formatDeadline, formatShort } from '../../../../lib/timezone'
 import BookingStatusBadge from '../../../../ui/booking-status-badge'
 import Notice from '../../../../ui/notice'
+import RsvpSyncPanel from '../../rsvp-sync-panel'
 
 export const dynamic = 'force-dynamic'
 
@@ -41,7 +42,7 @@ export default async function BookingsPage({ params, searchParams }: { params: P
       select: {
         id: true, name: true, email: true, phone: true, partySize: true, note: true, adminNote: true, status: true, source: true,
         expiresAt: true, createdAt: true, waitlistedAt: true, emailVerifiedAt: true, allocations: { select: { unit: { select: { key: true, label: true, kind: true } } } },
-        attendees: { select: { name: true }, orderBy: { position: 'asc' } }
+        attendees: { select: { name: true }, orderBy: { position: 'asc' } }, rsvpPartySize: true
       }
     }),
     prisma.auditLog.findMany({ where: { eventId: event.id, bookingId: null }, orderBy: { createdAt: 'desc' }, take: 20 })
@@ -94,6 +95,13 @@ export default async function BookingsPage({ params, searchParams }: { params: P
           </div>
         </div>
 
+        {event.rsvpEventId && !assigned && (
+          <div className="bg-white rounded-lg shadow p-4 space-y-2">
+            <h2 className="font-bold">Zusagen aus rsvp-app</h2>
+            <RsvpSyncPanel eventId={event.id} assigned={false} changedSince={null} />
+          </div>
+        )}
+
         <div className="bg-white rounded-lg shadow p-4 space-y-3">
           <form method="get" className="flex flex-wrap items-end gap-2" role="search">
             <div className="grow">
@@ -141,7 +149,12 @@ export default async function BookingsPage({ params, searchParams }: { params: P
                           {booking.email ?? <span className="text-gray-500">keine E-Mail</span>}
                           {booking.phone && <span className="block text-xs text-gray-600">{booking.phone}</span>}
                         </td>
-                        <td className="py-1 pr-3">{booking.partySize}</td>
+                        <td className="py-1 pr-3">
+                          {booking.partySize}
+                          {booking.source === 'RSVP' && booking.rsvpPartySize !== null && booking.rsvpPartySize !== booking.partySize && status === 'CONFIRMED' && (
+                            <span className="block text-xs text-amber-800">rsvp-app: {booking.rsvpPartySize}</span>
+                          )}
+                        </td>
                         <td className="py-1 pr-3">
                           <BookingStatusBadge status={status} />
                           {status === 'PENDING' && booking.expiresAt && <span className="block text-xs text-gray-600">bis {formatDeadline(booking.expiresAt, tz, now)}</span>}

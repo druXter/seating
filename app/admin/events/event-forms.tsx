@@ -2,10 +2,11 @@
 'use client'
 
 import { useActionState, useState } from 'react'
-import type { EventMode, EventStatus } from '@prisma/client'
+import type { BookingAccess, EventMode, EventStatus } from '@prisma/client'
 import { createEvent, resyncEventFromTemplate, updateEventSettings, type FormState } from './actions'
 import { suggestSlug, SLUG_MAX_LENGTH } from '../../lib/slugs'
-import { AVAILABLE_MODES, EVENT_LIMITS, MODE_HINTS, MODE_LABELS, STATUS_HINTS, STATUS_LABELS } from '../../lib/events/settings'
+import { ACCESS_LABELS, AVAILABLE_MODES, EVENT_LIMITS, MODE_HINTS, MODE_LABELS, STATUS_HINTS, STATUS_LABELS } from '../../lib/events/settings'
+import CopyableField from '../../ui/copyable-field'
 import { PENDING_TTL_RANGE, SELF_EDIT_HOURS_MAX } from '../../lib/events/booking-rules'
 import { OFFER_TTL_RANGE } from '../../lib/events/waitlist-rules'
 import { MAX_SEATS_RANGE } from '../../lib/events/seat-rules'
@@ -34,6 +35,8 @@ export type EventFormValues = {
   startsAt: string
   endsAt: string
   mode: EventMode
+  access: BookingAccess
+  rsvpEventId: string
   bookingOpensAt: string
   bookingClosesAt: string
   minFillPercent: string
@@ -160,7 +163,40 @@ export function CreateEventForm({ plans, baseUrl }: { plans: { id: string; label
   )
 }
 
-export function EventSettingsForm({ eventId, values, baseUrl }: { eventId: string; values: EventFormValues; baseUrl: string }) {
+/**
+ * Anbindung an rsvp-app (Phase 7): Zugang (nur Tisch-/Platzbuchung) und die id des rsvp-Termins. Der
+ * Sitzplatz-Link muss zusätzlich in rsvp-app eingetragen werden - erst dann gilt die Verknüpfung.
+ */
+function RsvpFields({ values, rsvp }: { values: Pick<EventFormValues, 'access' | 'rsvpEventId' | 'mode'>; rsvp: { available: boolean; seatingLink: string } }) {
+  return (
+    <fieldset className="space-y-3">
+      <legend className="text-sm font-bold">Zugang und rsvp-app</legend>
+      {!rsvp.available && (
+        <p className="text-xs text-gray-600">Die Anbindung an rsvp-app ist auf diesem Server nicht eingerichtet (RSVP_SEATING_SECRET, RSVP_APP_BASE_URL).</p>
+      )}
+      <div>
+        <label htmlFor="event-access" className={labelClass}>Wer darf buchen? (nur Tisch- und Platzbuchung)</label>
+        <select id="event-access" name="access" defaultValue={values.access === 'RSVP' ? 'RSVP' : 'OPEN'} className={input}>
+          <option value="OPEN">{ACCESS_LABELS.OPEN}</option>
+          <option value="RSVP" disabled={!rsvp.available && values.access !== 'RSVP'}>{ACCESS_LABELS.RSVP}</option>
+        </select>
+        <p className="text-xs text-gray-600 mt-1">Bei einer Sitzordnung bucht niemand selbst – dort dient die Verknüpfung dem Abgleich der Gästeliste.</p>
+      </div>
+      <div>
+        <label htmlFor="event-rsvp" className={labelClass}>rsvp-app-Event-ID (id des Termins in rsvp-app)</label>
+        <input id="event-rsvp" name="rsvpEventId" maxLength={40} defaultValue={values.rsvpEventId} className={`${input} font-mono text-sm`} placeholder="z. B. cm1a2b3c4d5e6f7g8h9" />
+      </div>
+      {values.rsvpEventId && (
+        <div className="space-y-1">
+          <CopyableField label="Sitzplatz-Link – in rsvp-app beim Termin eintragen" value={rsvp.seatingLink} />
+          <p className="text-xs text-gray-600">Erst wenn beide Seiten eingetragen sind, gilt die Verknüpfung (Platzwahl, Gästeliste, Rückmeldung der Plätze).</p>
+        </div>
+      )}
+    </fieldset>
+  )
+}
+
+export function EventSettingsForm({ eventId, values, baseUrl, rsvp }: { eventId: string; values: EventFormValues; baseUrl: string; rsvp: { available: boolean; seatingLink: string } }) {
   const [state, action, pending] = useActionState(updateEventSettings, null)
   return (
     <form action={action} className="space-y-4">
@@ -176,6 +212,7 @@ export function EventSettingsForm({ eventId, values, baseUrl }: { eventId: strin
       </div>
       <TitleAndSlug initialTitle={values.title} initialSlug={values.slug} baseUrl={baseUrl} />
       <ModeSelect value={values.mode} />
+      <RsvpFields values={values} rsvp={rsvp} />
       <Times values={values} />
       <Details values={values} />
       <fieldset className="space-y-3">

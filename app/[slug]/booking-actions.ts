@@ -10,7 +10,7 @@ import { bookingAvailable, manageUrl } from '../lib/booking-mail'
 import { formatDeadline } from '../lib/timezone'
 import { bookingWindow, parseReservation, parseWaitlistEntry } from '../lib/events/booking-rules'
 import { confirmByCode, reservePlaces, resendVerification } from '../lib/events/booking'
-import { joinWaitlist, offerAfterResponse } from '../lib/events/waitlist'
+import { joinWaitlist, afterBookingChange } from '../lib/events/waitlist'
 
 /**
  * Öffentliche Buchung (Modus TABLE, Zugang OPEN). Kein Konto - jede Aktion prüft selbst, ob das Event
@@ -118,7 +118,7 @@ export async function confirmCodeAction(_previous: CodeState, formData: FormData
     case 'waitlisted': {
       // Vielleicht ist inzwischen ein Tisch frei geworden - dann kommt gleich das Angebot.
       const eventId = result.eventId
-      offerAfterResponse(eventId)
+      afterBookingChange(eventId)
       return { kind: 'waitlisted', manageUrl: manageUrl({ id: result.bookingId, manageTokenVersion: result.manageTokenVersion }) }
     }
     case 'already':

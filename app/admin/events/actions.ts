@@ -14,8 +14,10 @@ import type { SaveResult } from '../../lib/floorplan/editor-state'
 import { loadEventForUser } from '../../lib/events/store'
 import { parseEventForm } from '../../lib/events/settings'
 import { initialUnits, replaceEventLayout } from '../../lib/events/save-layout'
-import { offerAfterResponse } from '../../lib/events/waitlist'
+import { afterBookingChange } from '../../lib/events/waitlist'
 import { emailBlockingWhere } from '../../lib/events/booking-tx'
+import { rsvpConfigured } from '../../lib/rsvp/config'
+import { reportPlacements } from '../../lib/rsvp/notify'
 
 // Die Berechtigung prüft JEDE Aktion selbst (über loadEventForUser -> eventLevel), nie nur die Seite.
 // owner: Besitzer*in oder Admin, moderator: per Freigabe - darf alles außer löschen und freigeben.
@@ -85,6 +87,16 @@ export async function updateEventSettings(_previous: FormState, formData: FormDa
     if (blocking > 0) return { errors: [`Modus: Das Event hat ${blocking} aktive Buchung(en) oder Wartelisten-Einträge – der Modus lässt sich nur ohne sie wechseln.`] }
   }
 
+  // Anbindung an rsvp-app (Phase 7): nur, wenn eingerichtet; die Verknüpfung nicht wechseln, solange
+  // Buchungen bzw. Gruppen aus Zusagen des bisherigen rsvp-Events aktiv sind.
+  if (parsed.fields.access === 'RSVP' && !rsvpConfigured()) {
+    return { errors: ['Zugang: Die Anbindung an rsvp-app ist auf diesem Server nicht eingerichtet (RSVP_SEATING_SECRET, RSVP_APP_BASE_URL).'] }
+  }
+  if (parsed.fields.rsvpEventId !== undefined && event.rsvpEventId && parsed.fields.rsvpEventId !== event.rsvpEventId) {
+    const linked = await prisma.booking.count({ where: { eventId: event.id, status: 'CONFIRMED', externalRef: { startsWith: `rsvp:${event.rsvpEventId}:` } } })
+    if (linked > 0) return { errors: [`rsvp-app-Event-ID: ${linked} aktive Buchung(en) bzw. Gruppe(n) stammen aus dem bisher verknüpften rsvp-Event – erst stornieren bzw. absagen, dann die Verknüpfung ändern.`] }
+  }
+
   try {
     await prisma.event.update({
       where: { id: event.id },
@@ -95,7 +107,7 @@ export async function updateEventSettings(_previous: FormState, formData: FormDa
     throw error
   }
   // Warteliste eingeschaltet, Mindestbelegung gesenkt, Event veröffentlicht ...: vielleicht passt jetzt ein Tisch.
-  offerAfterResponse(event.id)
+  afterBookingChange(event.id)
   redirect(`/admin/events/${event.id}?settings=1`)
 }
 
@@ -115,7 +127,7 @@ export async function saveEventLayout(eventId: string, baseVersion: number, layo
 
   const result = await replaceEventLayout(event.id, baseVersion, parsed.layout)
   // Neue oder größere Tische: der Warteliste anbieten.
-  if (result.ok) offerAfterResponse(event.id)
+  if (result.ok) afterBookingChange(event.id)
   return result
 }
 
@@ -148,7 +160,7 @@ export async function resyncEventFromTemplate(_previous: FormState, formData: Fo
     data: { backgroundFile, backgroundType: backgroundFile ? record?.backgroundType : null }
   })
   await deleteUpload(event.backgroundFile)
-  offerAfterResponse(event.id)
+  afterBookingChange(event.id)
   redirect(`/admin/events/${event.id}?resynced=1`)
 }
 
@@ -209,6 +221,8 @@ export async function deleteEvent(formData: FormData) {
   const event = await loadEventForUser(formString(formData, 'eventId', 50), user)
   if (!event || event.level !== 'owner') redirect('/admin/events')
 
+  // Verknüpft mit rsvp-app: dort die Platzangaben dieses Events löschen lassen (best-effort).
+  if (event.rsvpEventId) await reportPlacements(event.id, { clear: true })
   await prisma.event.delete({ where: { id: event.id } })
   await deleteUpload(event.backgroundFile)
   redirect('/admin/events?deleted=1')

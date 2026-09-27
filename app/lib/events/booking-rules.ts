@@ -27,12 +27,13 @@ export type BookingWindow = { open: true } | { open: false; message: string }
 
 /**
  * Ist das Buchen gerade möglich? Selbst buchen lässt sich nur ein veröffentlichtes Event im Modus
- * TABLE oder SEAT mit Zugang OPEN, innerhalb des Buchungszeitraums und vor Beginn.
+ * TABLE oder SEAT, innerhalb des Buchungszeitraums und vor Beginn - über die öffentliche Seite mit
+ * Zugang OPEN, über eine Zusage aus rsvp-app (via 'RSVP') mit Zugang RSVP.
  */
-export function bookingWindow(event: EventWindow, now: Date): BookingWindow {
+export function bookingWindow(event: EventWindow, now: Date, via: 'OPEN' | 'RSVP' = 'OPEN'): BookingWindow {
   if (event.endsAt <= now) return { open: false, message: 'Diese Veranstaltung hat bereits stattgefunden.' }
   if (event.status !== 'OPEN') return { open: false, message: 'Die Buchung ist geschlossen.' }
-  if ((event.mode !== 'TABLE' && event.mode !== 'SEAT') || event.access !== 'OPEN') return { open: false, message: 'Für diese Veranstaltung ist keine Online-Buchung vorgesehen.' }
+  if ((event.mode !== 'TABLE' && event.mode !== 'SEAT') || event.access !== via) return { open: false, message: 'Für diese Veranstaltung ist keine Online-Buchung vorgesehen.' }
   if (event.bookingOpensAt && event.bookingOpensAt > now) {
     return { open: false, message: `Buchen kannst du ab ${formatDateTime(event.bookingOpensAt, event.timezone)}.` }
   }

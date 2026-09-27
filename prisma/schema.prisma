@@ -201,6 +201,11 @@ model Event {
   maxSeatsPerBooking  Int     @default(10)
   waitlistEnabled     Boolean @default(true)
   offerTtlHours       Int     @default(24)
+  // Verknüpfung mit einem Event in rsvp-app (Phase 7, docs/KONZEPT.md Abschnitt 9): dessen id. Zugang RSVP
+  // (Platzwahl nur über eine Zusage) bzw. bei ASSIGNED der Abgleich der Gästeliste. rsvpChangedAt: rsvp-app
+  // hat seit dem letzten Abgleich eine Änderung gemeldet (Hinweis in der Sitzordnung).
+  rsvpEventId         String?
+  rsvpChangedAt       DateTime?
   layout          Json
   layoutVersion   Int           @default(1)
   backgroundFile  String?
@@ -321,6 +326,15 @@ model Booking {
   manageTokenVersion Int       @default(1)
   icsSequence        Int       @default(0)
 
+  // Buchung aus einer Zusage in rsvp-app (source RSVP, Phase 7): externalRef = "rsvp:<rsvpEventId>:<rsvpId>",
+  // höchstens eine aktive Buchung je externalRef (geprüft in derselben Transaktion, app/lib/rsvp/booking.ts).
+  // rsvpPartySize: Personenzahl laut rsvp-app beim letzten Stand - weicht sie von partySize ab, müssen die
+  // Plätze angepasst werden. rsvpSyncedAt: Zeitstempel (iat) der letzten angewandten Meldung aus rsvp-app,
+  // ältere werden ignoriert.
+  externalRef        String?
+  rsvpPartySize      Int?
+  rsvpSyncedAt       DateTime?
+
   allocations Allocation[]
   attendees   Attendee[]
   mailLogs    MailLog[]
@@ -328,6 +342,7 @@ model Booking {
 
   @@index([eventId, status])
   @@index([eventId, email])
+  @@index([eventId, externalRef])
   @@index([pendingIpHash])
 }
 
@@ -368,6 +383,9 @@ model Attendee {
   booking    Booking     @relation(fields: [bookingId], references: [id], onDelete: Cascade)
   name       String
   position   Int
+  // Gruppen aus rsvp-app: "guest" (die zusagende Person) bzw. "companion-1", ... (Begleitungen) - für
+  // den Abgleich der Namen (app/lib/rsvp/rules.ts). Von Hand angelegte Personen: null.
+  externalKey String?
   createdAt  DateTime    @default(now())
   allocation Allocation?
 

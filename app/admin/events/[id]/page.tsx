@@ -8,6 +8,7 @@ import { loadEventOr404, loadUnitStates } from '../../../lib/events/store'
 import { countStates } from '../../../lib/events/occupancy'
 import { activeWhere } from '../../../lib/events/booking-tx'
 import { seatingCounts } from '../../../lib/events/assign'
+import { rsvpConfigured, seatingLinkFor } from '../../../lib/rsvp/config'
 import { formatRange, utcToZonedInput } from '../../../lib/timezone'
 import { deleteEvent, removeEventBackground, shareEvent, unshareEvent } from '../actions'
 import { EventSettingsForm, ResyncForm } from '../event-forms'
@@ -133,7 +134,11 @@ export default async function EventPage({ params, searchParams }: { params: Prom
               <Link href={`/admin/events/${event.id}/bookings`} className="text-blue-700 hover:underline">Gruppen verwalten</Link>
               <Link href={`/admin/events/${event.id}/print`} className="text-blue-700 hover:underline">Druckansicht</Link>
             </p>
-            <p className="text-xs text-gray-600">Keine Online-Buchung: Ihr legt die Gäste an (von Hand oder per CSV) und setzt sie in der Sitzordnung auf Plätze. Gäste bekommen keine Mails.</p>
+            <p className="text-xs text-gray-600">
+              Keine Online-Buchung: Ihr legt die Gäste an (von Hand, per CSV{event.rsvpEventId ? ' oder per Abgleich mit rsvp-app' : ''}) und setzt sie in der
+              Sitzordnung auf Plätze. Gäste bekommen keine Mails.
+            </p>
+            {event.rsvpChangedAt && <Notice tone="info">rsvp-app hat Änderungen an der Gästeliste gemeldet – bitte in der Sitzordnung abgleichen.</Notice>}
           </div>
         ) : (
           <div className="bg-white rounded-lg shadow p-4 space-y-2">
@@ -146,6 +151,12 @@ export default async function EventPage({ params, searchParams }: { params: Prom
               <Link href={`/admin/events/${event.id}/print`} className="text-blue-700 hover:underline">Druckansicht</Link>
             </p>
             <p className="text-xs text-gray-600">Im Plan führt ein Klick auf einen belegten Tisch zur Buchung, auf einen freien zum Anlegen einer Buchung. Verschieben per Ziehen: „Im Plan verschieben“.</p>
+            {event.access === 'RSVP' && (
+              <p className="text-sm text-gray-700" data-testid="access-rsvp">
+                Zugang: nur mit Zusage aus rsvp-app – Gäste wählen ihre {event.mode === 'SEAT' ? 'Plätze' : 'Tische'} über „Sitzplatz wählen“ in rsvp-app.
+                Absagen dort stornieren die Buchung hier automatisch.
+              </p>
+            )}
           </div>
         )}
 
@@ -155,6 +166,7 @@ export default async function EventPage({ params, searchParams }: { params: Prom
             <EventSettingsForm
               eventId={event.id}
               baseUrl={baseUrl()}
+              rsvp={{ available: rsvpConfigured(), seatingLink: seatingLinkFor(event.id) }}
               values={{
                 title: event.title,
                 slug: event.slug,
@@ -163,6 +175,8 @@ export default async function EventPage({ params, searchParams }: { params: Prom
                 startsAt: utcToZonedInput(event.startsAt, tz),
                 endsAt: utcToZonedInput(event.endsAt, tz),
                 mode: event.mode,
+                access: event.access,
+                rsvpEventId: event.rsvpEventId ?? '',
                 bookingOpensAt: event.bookingOpensAt ? utcToZonedInput(event.bookingOpensAt, tz) : '',
                 bookingClosesAt: event.bookingClosesAt ? utcToZonedInput(event.bookingClosesAt, tz) : '',
                 minFillPercent: event.minFillRatio === null ? '' : String(Math.round(event.minFillRatio * 100)),

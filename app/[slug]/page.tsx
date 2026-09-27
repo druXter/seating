@@ -51,6 +51,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 /** Hinweis über dem Plan: ob und wie gebucht werden kann. */
 function bookingState(event: Parameters<typeof bookingWindow>[0] & { selfEditHoursBefore: number }, now: Date): { open: boolean; message: string } {
   if (event.mode === 'ASSIGNED') return { open: false, message: 'Für diese Veranstaltung gibt es keine Online-Buchung – die Sitzordnung legen die Veranstalter*innen fest.' }
+  if (event.access === 'RSVP') return { open: false, message: 'Plätze wählst du über „Sitzplatz wählen“ bei deiner Zusage in rsvp-app.' }
   const what = event.mode === 'SEAT' ? 'Wähle freie Plätze und reserviere sie' : 'Wähle einen freien Tisch und reserviere ihn'
   const window = bookingWindow(event, now)
   if (!window.open) return { open: false, message: window.message }

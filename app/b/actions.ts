@@ -8,7 +8,7 @@ import { bookingSecretsConfigured } from '../lib/booking-tokens'
 import { parseContact, parsePartySize } from '../lib/events/booking-rules'
 import { formSeatKeys } from '../lib/events/seat-rules'
 import { cancelBooking, changeBooking, loadManagedBooking } from '../lib/events/booking'
-import { acceptOffer, declineOffer, leaveWaitlist, offerAfterResponse } from '../lib/events/waitlist'
+import { acceptOffer, declineOffer, leaveWaitlist, afterBookingChange } from '../lib/events/waitlist'
 
 /**
  * Aktionen über den persönlichen Verwaltungslink (docs/KONZEPT.md Abschnitt 4, Schritt 7). Berechtigt
@@ -44,7 +44,7 @@ export async function changeBookingAction(_previous: ManageState, formData: Form
   const result = await changeBooking(booking, { ...contact, partySize, unitKeys })
   if (!result.ok) return { errors: result.errors }
   // Ein Tisch oder Plätze können frei geworden sein.
-  offerAfterResponse(booking.eventId)
+  afterBookingChange(booking.eventId)
   revalidatePath(`/${booking.event.slug}`)
   redirect(`${path}?${result.changed ? 'changed' : 'unchanged'}=1`)
 }
@@ -54,7 +54,7 @@ export async function cancelBookingAction(_previous: ManageState, formData: Form
   if (!context) return { errors: ['Dieser Link ist ungültig.'] }
   const result = await cancelBooking(context.booking)
   if (!result.ok) return { errors: result.errors }
-  offerAfterResponse(context.booking.eventId)
+  afterBookingChange(context.booking.eventId)
   revalidatePath(`/${context.booking.event.slug}`)
   redirect(`${context.path}?cancelled=1`)
 }
@@ -75,7 +75,7 @@ export async function declineOfferAction(_previous: ManageState, formData: FormD
   if (!context) return { errors: ['Dieser Link ist ungültig.'] }
   const result = await declineOffer(context.booking)
   if (!result.ok) return { errors: result.errors }
-  offerAfterResponse(context.booking.eventId)
+  afterBookingChange(context.booking.eventId)
   revalidatePath(`/${context.booking.event.slug}`)
   redirect(`${context.path}?declined=1`)
 }

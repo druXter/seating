@@ -14,6 +14,8 @@ import ActionForm from '../../../../ui/action-form'
 import SubmitButton from '../../../../ui/submit-button'
 import Disclosure from '../../../../ui/disclosure'
 import GuestImportForm from './guest-import-form'
+import RsvpSyncPanel from '../../rsvp-sync-panel'
+import { formatShort } from '../../../../lib/timezone'
 
 export const dynamic = 'force-dynamic'
 
@@ -72,6 +74,12 @@ export default async function ArrangePage({ params }: { params: Promise<{ id: st
             </div>
           </div>
         </Disclosure>
+        {event.rsvpEventId && (
+          <div className="bg-white rounded-lg shadow p-4 space-y-2">
+            <h2 className="font-bold">Gäste aus rsvp-app</h2>
+            <RsvpSyncPanel eventId={event.id} assigned changedSince={event.rsvpChangedAt ? formatShort(event.rsvpChangedAt, event.timezone) : null} />
+          </div>
+        )}
         <AssignBoard
           eventId={event.id} layout={event.layout} backgroundUrl={backgroundUrl} title={`Sitzordnung ${event.title}`}
           parties={parties} seats={seats} tables={tables}

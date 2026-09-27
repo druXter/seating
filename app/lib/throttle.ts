@@ -147,6 +147,17 @@ export function reserveRules(ip: string, email: string): ThrottleRule[] {
   ]
 }
 
+/**
+ * Buchen über eine Zusage aus rsvp-app (Phase 7): Der signierte Link ist schon die Berechtigung, es geht
+ * keine Verifizierungsmail raus - begrenzt wird trotzdem pro IP und pro Zusage (gegen Durchprobieren).
+ */
+export function rsvpBookRules(ip: string, rsvpRef: string): ThrottleRule[] {
+  return [
+    { scope: 'rsvp-book:ip', identifier: ip, limit: 30, windowMs: 60 * MINUTE, table: 'booking' },
+    { scope: 'rsvp-book:ref', identifier: rsvpRef, limit: 10, windowMs: 60 * MINUTE, table: 'booking' }
+  ]
+}
+
 /** Code-Eingabe: zusätzlich zu den 5 Versuchen pro Buchung (in der Buchung gezählt) pro IP. */
 export function codeRules(ip: string): ThrottleRule[] {
   return [{ scope: 'code:ip', identifier: ip, limit: 30, windowMs: 15 * MINUTE, table: 'booking' }]
