@@ -234,10 +234,11 @@ test('Sicherheit Link: abgelaufen, falscher Empfänger, anderes Event, nicht ver
     await page.goto(url)
     await expect(invalid, url).toBeVisible()
   }
-  // Offener Zugang: auch ein sonst gültiger Link nimmt nichts an.
+  // Offener Zugang: ein sonst gültiger Link zeigt nur den Hinweis, keine Platzwahl (Buchen: siehe unten).
   await prisma.event.update({ where: { id: second.event.id }, data: { access: 'OPEN' } })
   await page.goto(seatLink(second.event, erika))
-  await expect(invalid).toBeVisible()
+  await expect(page.getByText('werden die Plätze hier frei gebucht')).toBeVisible()
+  await expect(page.getByRole('radio')).toHaveCount(0)
 
   // Header der Einstiegsseite: nicht einbettbar, nicht zwischengespeichert, kein Referer.
   const response = await page.goto(seatLink(event, erika))
@@ -263,6 +264,15 @@ test('Sicherheit Link: abgelaufen, falscher Empfänger, anderes Event, nicht ver
   await replay(token)
   expect(await prisma.booking.count({ where: { eventId: event.id } })).toBe(1)
 
+  // Offener Zugang: ein gültiger Link für dieses Event bucht auch per nachgespieltem POST nichts.
+  const openToken = new URL(seatLink(second.event, guest('Offen')), BASE_URL).searchParams.get('t')!
+  const openReplay = await page.request.post(action.url, {
+    headers: { ...action.headers, origin: BASE_URL, 'x-forwarded-for': uniqueIp(), cookie: '' },
+    data: withField(withField(withField(action.body, 'token', openToken), 'eventId', second.event.id), 'unitKey', 't1'), maxRedirects: 0
+  })
+  expect(await openReplay.text()).toContain('abgelaufen oder ungültig')
+  expect(await prisma.booking.count({ where: { eventId: second.event.id } })).toBe(0)
+
   // Positivkontrolle: ein gültiger Link einer anderen Zusage bucht - zweimal gleichzeitig nur einmal.
   const lena = guest('Lena', ['Luis'])
   const lenaToken = new URL(seatLink(event, lena), BASE_URL).searchParams.get('t')!
@@ -271,6 +281,53 @@ test('Sicherheit Link: abgelaufen, falscher Empfänger, anderes Event, nicht ver
   expect(bookings.map(b => [b.name, b.partySize, b.status, b.allocations.map(a => a.unit.key).join()]).sort()).toEqual([
     ['Lena', 2, 'CONFIRMED', 't2'], ['Paul', 2, 'CONFIRMED', 't1']
   ])
+})
+
+test('Link zu einem Event ohne Platzwahl über Zusagen: Hinweis statt „ungültig“ - aber nur mit gültigem Link', async ({ page }) => {
+  const erika = guest('Erika', ['Emil'])
+  const invalid = page.getByText('Dieser Link ist ungültig oder abgelaufen.')
+
+  // Sitzordnung: Die Veranstalter*innen setzen die Plätze.
+  const { event: assigned } = await rsvpEvent({ mode: 'ASSIGNED' })
+  await page.goto(seatLink(assigned, erika))
+  await expect(page.getByText('Hallo Erika, die Sitzordnung legen die Veranstalter*innen fest')).toBeVisible()
+  await expect(page.getByText('Dein Platz erscheint bei deiner Zusage in rsvp-app')).toBeVisible()
+  await expect(invalid).toHaveCount(0)
+  await expect(page.getByRole('button')).toHaveCount(0)
+
+  // Offener Zugang: Verweis auf die öffentliche Seite - ohne Link, solange sie nicht sichtbar ist.
+  const { event: open } = await rsvpEvent({ access: 'OPEN' })
+  await page.goto(seatLink(open, erika))
+  await expect(page.getByText('werden die Plätze hier frei gebucht')).toBeVisible()
+  await expect(page.getByRole('link', { name: 'Seite der Veranstaltung' })).toHaveAttribute('href', `/${open.slug}`)
+  await prisma.event.update({ where: { id: open.id }, data: { status: 'DRAFT' } })
+  await page.goto(seatLink(open, erika))
+  await expect(page.getByText('Die Buchung ist gerade nicht geöffnet.')).toBeVisible()
+  await expect(page.getByRole('link', { name: 'Seite der Veranstaltung' })).toHaveCount(0)
+
+  // Ungültige Links verraten weder Modus noch Zugang: dieselbe Meldung wie überall.
+  const other = await rsvpEvent({ mode: 'ASSIGNED' })
+  for (const [target, url] of [
+    [assigned, seatLink(assigned, erika, { secret: 'falsches-secret-0123456789abcdefghijkl' })],
+    [assigned, seatLink(assigned, erika, { rsvpEventId: other.rsvpEventId })],
+    [assigned, seatLink(assigned, erika, { now: new Date(Date.now() - 20 * 60 * 1000) })],
+    [open, seatLink(open, erika, { aud: 'https://andere.example.test' })],
+    [open, `/rsvp/${open.id}?t=kaputt`]
+  ] as const) {
+    await page.goto(url)
+    await expect(invalid, `${target.mode} ${url}`).toBeVisible()
+    await expect(page.getByText('Hallo Erika')).toHaveCount(0)
+  }
+  // Nicht (mehr) verknüpft: ebenfalls ungültig.
+  await prisma.event.update({ where: { id: assigned.id }, data: { rsvpEventId: null } })
+  await page.goto(seatLink({ id: assigned.id, rsvpEventId: other.rsvpEventId }, erika))
+  await expect(invalid).toBeVisible()
+
+  // Positivkontrolle: Zugang „nur mit Zusage“ zeigt die Platzwahl.
+  const { event: rsvp } = await rsvpEvent()
+  await page.goto(seatLink(rsvp, erika))
+  await expect(page.getByText('Wähle einen passenden Tisch.')).toBeVisible()
+  await expect(page.getByRole('radio', { name: /Tisch 2/ })).toBeVisible()
 })
 
 test('Sitzordnung: Gästeliste mit rsvp-app abgleichen - neu, geändert, abgesagt nur nach Auswahl; Rückmeldung der Plätze', async ({ page }) => {

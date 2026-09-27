@@ -19,7 +19,7 @@ Fachliche Grundlage und Fahrplan: [docs/KONZEPT.md](docs/KONZEPT.md).
 | 4b | Warteliste mit befristetem Nachrück-Angebot | ✅ umgesetzt |
 | 5 | Modus `SEAT`: Einzelplätze (Kino, Ball) | ✅ umgesetzt |
 | 6 | Modus `ASSIGNED`: Sitzordnung (Hochzeit) mit Gästeliste und Drag & Drop, Buchungen im Plan verschieben | ✅ umgesetzt |
-| 7 | Anbindung an rsvp-app: Platzwahl über Zusagen, Gästeliste abgleichen, Platzierung zurückmelden | ✅ umgesetzt (Seating-Seite; rsvp-app folgt) |
+| 7 | Anbindung an rsvp-app: Platzwahl über Zusagen, Gästeliste abgleichen, Platzierung zurückmelden | ✅ umgesetzt (beide Seiten) |
 | 8 | Konto-Föderation über `suite-kit`: mit Konten anderer Tools anmelden, für andere Tools bestätigen | ✅ umgesetzt |
 
 Tische und Einzelplätze lassen sich online buchen (Modus `TABLE` bzw. `SEAT`, Zugang `OPEN` oder nur über eine Zusage
@@ -237,12 +237,30 @@ echte Buchungen samt Mail daran hängen, fragt die Seite **vor dem Verschieben n
 ### Anbindung an rsvp-app
 
 Optional und pro Event: Seating übernimmt Zusagen aus einem Termin in rsvp-app (docs/KONZEPT.md Abschnitt 9).
-Voraussetzung: `RSVP_SEATING_SECRET` und `RSVP_APP_BASE_URL` sind gesetzt, in rsvp-app dasselbe Secret.
+
+**Einrichtung** – einmal pro Server, auf beiden Seiten:
+
+| | Seating | rsvp-app |
+| --- | --- | --- |
+| Gemeinsames Secret (mind. 32 Zeichen, `openssl rand -hex 32`) | `RSVP_SEATING_SECRET` | `SEATING_SECRET` (derselbe Wert) |
+| Adresse der Gegenseite | `RSVP_APP_BASE_URL` = `BASE_URL` von rsvp-app | `SEATING_BASE_URL` = `BASE_URL` von Seating |
+
+Das Secret ist ein eigenes – **nie** das Secret zwischen rsvp-app und Abstimmungstool (`RSVP_VERIFICATION_SECRET`)
+wiederverwenden. rsvp-app nimmt nur Sitzplatz-Links an, deren Origin genau `SEATING_BASE_URL` ist; die Adresse muss
+also exakt die sein, unter der Seating öffentlich erreichbar ist. Danach beide Tools neu starten.
+
+**Pro Veranstaltung:** In Seating in den Event-Einstellungen die Termin-ID aus rsvp-app eintragen (sie steht dort beim
+Bearbeiten des Termins im Abschnitt „Sitzplätze (Seating)“) und speichern. Den dann angezeigten Sitzplatz-Link in
+rsvp-app im selben Abschnitt eintragen. Erst mit beiden Einträgen gilt die Verknüpfung.
 
 * **Verknüpfen – beide Seiten stimmen zu:** In den Event-Einstellungen die id des rsvp-Termins eintragen. Seating
   zeigt dann den **Sitzplatz-Link** (`https://…/rsvp/<event-id>`), den die Besitzer\*in des Termins in rsvp-app
   einträgt. Erst mit beiden Einträgen gilt die Verknüpfung – so kann kein Seating-Konto mit einer fremden rsvp-id
   eine Gästeliste abrufen.
+* **„Sitzplatz wählen“ bei Events ohne Platzwahl über Zusagen:** rsvp-app kennt den Modus nicht und zeigt den Button
+  für jeden verknüpften Termin. Bei einer Sitzordnung sieht der Gast dann den Hinweis, dass die Veranstalter\*innen die
+  Plätze festlegen und der Platz in rsvp-app erscheint; bei offenem Zugang einen Verweis auf die öffentliche Seite.
+  Das gilt nur für gültige Links – ungültige bekommen dieselbe Meldung wie überall, ohne Modus oder Zugang zu verraten.
 * **Platzwahl über Zusagen** (Tisch- oder Platzbuchung, Zugang „nur mit Zusage aus rsvp-app“):
   * „Sitzplatz wählen“ in rsvp-app führt mit einem kurz gültigen, signierten Link auf `/rsvp/<event-id>`. Der Aufruf
     ändert nichts; er zeigt passende Tische bzw. die Platzwahl für genau so viele Personen, wie die Zusage hat
@@ -252,7 +270,12 @@ Voraussetzung: `RSVP_SEATING_SECRET` und `RSVP_APP_BASE_URL` sind gesetzt, in rs
   * Verwaltungsseite: Tisch bzw. Plätze ändern und stornieren; Name und Personenzahl ändern sich nur in rsvp-app.
     Meldet rsvp-app eine andere Personenzahl, zeigen Verwaltungsseite und Buchungsliste einen Hinweis, bis die
     Plätze angepasst sind.
-  * **Absage in rsvp-app storniert die Buchung automatisch** (Webhook), mit Storno-Mail und `.ics` CANCEL.
+  * **Absage in rsvp-app storniert die Buchung automatisch** (Webhook), mit Storno-Mail und `.ics` CANCEL. Wird
+    in rsvp-app ein ganzer Termin (oder eine Reihe) gelöscht, schickt rsvp-app für jede Zusage eine Absage – gebuchte
+    Plätze werden also ebenso storniert. Die Rückmeldungen der Plätze, die Seating danach schickt, laufen dann ins
+    Leere; das ist harmlos.
+  * Der Link aus rsvp-app ist 15 Minuten gültig. Ist er beim Buchen abgelaufen, verweist die Meldung darauf,
+    „Sitzplatz wählen“ in rsvp-app erneut zu öffnen.
   * Keine Warteliste – dort wartet man in rsvp-app. Die öffentliche Seite zeigt nur den Plan.
 * **Sitzordnung** (Modus `ASSIGNED`): „Mit rsvp-app abgleichen“ holt die aktuellen Zusagen und zeigt **neue**,
   **geänderte** (Name, Begleitung dazu/weg) und **nicht mehr zugesagte**. Übernommen wird nur, was ausgewählt ist;
@@ -494,7 +517,9 @@ Löschfristen. Für die Buchungsverwaltung:
   Mail, Rückmeldung, erneuter Link öffnet die Buchung, Tischwechsel), Platzwahl mit genau N Plätzen und geänderter
   Begleitung per Webhook, Absage storniert mit Mail, ältere Meldung ignoriert, ungültige Signatur/Empfänger/Ablauf
   und fremde Verknüpfung ohne Wirkung; Link abgelaufen, zu lange gültig, falscher Empfänger, falsches Secret, anderes
-  Event, nicht verknüpft, offener Zugang, manipulierter Inhalt, doppelt gleichzeitig (Positivkontrolle);
+  Event, nicht verknüpft, offener Zugang (auch per nachgespieltem POST), manipulierter Inhalt, doppelt gleichzeitig
+  (Positivkontrolle); Hinweis statt „ungültig“ bei Sitzordnung und offenem Zugang (mit und ohne öffentliche Seite),
+  aber nur mit gültigem Link;
   Sitzordnung: Abgleich neu/geändert/abgesagt mit Auswahl, Platzierung zurückgemeldet, von Hand angelegte Gruppen
   unberührt, nicht verknüpft in rsvp-app, fremdes Konto.
 * Berechtigung: Moderator\*in, fremdes Konto, Buchung eines anderen Events, ohne Sitzung.

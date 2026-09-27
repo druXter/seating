@@ -9,7 +9,8 @@ import { publicState, tableFits } from '../../lib/events/occupancy'
 import { seatPickerData } from '../../lib/events/places'
 import { parseLayout } from '../../lib/floorplan/schema'
 import { formatRange } from '../../lib/timezone'
-import { activeRsvpBooking, readSeatLink } from '../../lib/rsvp/booking'
+import { isPubliclyVisible } from '../../lib/events/store'
+import { activeRsvpBooking, verifySeatLink } from '../../lib/rsvp/booking'
 import { partySizeOf } from '../../lib/rsvp/rules'
 import Notice from '../../ui/notice'
 import RsvpBooking from './rsvp-booking'
@@ -22,16 +23,42 @@ export const metadata: Metadata = { title: 'Sitzplatz wählen', robots: { index:
  * Link>. Ein GET ÄNDERT NICHTS - er prüft den Link und zeigt die Platzwahl; gebucht wird per POST
  * (app/rsvp/actions.ts). Gibt es zur Zusage schon eine Buchung, geht es direkt zur Verwaltungsseite.
  * Header: Regel "/:area(b|verify|rsvp)/:path*" in next.config.ts (no-store, no-referrer, noindex).
- * Ungültige Links sehen alle gleich aus - ob es das Event gibt, verrät die Seite nicht.
+ * Ungültige Links sehen alle gleich aus - ob es das Event gibt, verrät die Seite nicht. Ist der Link echt,
+ * das Event aber nicht über Zusagen buchbar (Sitzordnung, offener Zugang - rsvp-app kennt den Modus nicht),
+ * gibt es einen passenden Hinweis; gebucht wird dann nichts (die Aktion prüft streng mit readSeatLink).
  */
 export default async function RsvpEntryPage({ params, searchParams }: { params: Promise<{ eventId: string }>; searchParams: Promise<{ t?: string | string[] }> }) {
   const { eventId } = await params
   const { t } = await searchParams
   const token = typeof t === 'string' ? t : ''
   const event = /^[a-z0-9]{10,40}$/.test(eventId) ? await prisma.event.findUnique({ where: { id: eventId } }) : null
-  const link = event && token ? readSeatLink(token, event) : null
-  const layout = event ? parseLayout(event.layout) : null
+  const link = event && token ? verifySeatLink(token, event) : null
 
+  if (event && link && (event.mode === 'ASSIGNED' || event.access !== 'RSVP')) {
+    return (
+      <Shell>
+        <div className="bg-white p-6 rounded-lg shadow space-y-2">
+          <h1 className="text-2xl font-bold">{event.title}</h1>
+          <p className="text-gray-700">{formatRange(event.startsAt, event.endsAt, event.timezone)}{event.location && ` · ${event.location}`}</p>
+        </div>
+        {event.mode === 'ASSIGNED' ? (
+          <Notice tone="info">
+            Hallo {link.name}, die Sitzordnung legen die Veranstalter*innen fest – du musst hier nichts wählen. Dein Platz
+            erscheint bei deiner Zusage in rsvp-app, sobald er feststeht.
+          </Notice>
+        ) : (
+          <Notice tone="info">
+            Hallo {link.name}, für diese Veranstaltung werden die Plätze hier frei gebucht, nicht über deine Zusage.{' '}
+            {isPubliclyVisible(event.status)
+              ? <>Buchen kannst du auf der <a href={`/${event.slug}`} className="underline">Seite der Veranstaltung</a>.</>
+              : 'Die Buchung ist gerade nicht geöffnet.'}
+          </Notice>
+        )}
+      </Shell>
+    )
+  }
+
+  const layout = event ? parseLayout(event.layout) : null
   if (!event || !link || !layout?.ok) {
     return (
       <Shell>

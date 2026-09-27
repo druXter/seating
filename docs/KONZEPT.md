@@ -568,6 +568,10 @@ Umgesetzt in Phase 7 auf der Seite von Seating (`app/lib/rsvp/`, Einstieg `app/r
 * **Rückmeldung (A.4):** immer der vollständige Stand aller Platzierungen eines Events (rsvp-app setzt die
   genannten, löscht die übrigen) – nach jeder Änderung best-effort, dazu manuell; vor dem Löschen eines Events ein
   leerer Stand.
+* **Einstieg bei Events ohne Platzwahl über Zusagen:** rsvp-app kennt den Modus nicht und zeigt „Sitzplatz wählen“
+  für jeden verknüpften Termin. Ist der Link gültig (Signatur, Verknüpfung), das Event aber eine Sitzordnung oder
+  offen buchbar, zeigt `/rsvp/<eventId>` einen Hinweis statt „ungültig“; gebucht wird darüber nie. Ungültige Links
+  bekommen weiter die einheitliche Meldung.
 * **Nicht umgesetzt:** Wird die Verknüpfung in Seating geändert oder entfernt (nur ohne aktive Buchungen aus
   Zusagen möglich), bekommt das bisherige rsvp-Event keinen leeren Stand.
 
@@ -624,7 +628,7 @@ optional `TURNSTILE_*`.
 | 4b | Warteliste mit Nachrück-Angebot (Abschnitt 5) (umgesetzt; „Event absagen“ aus Abschnitt 8 weiterhin offen) |
 | 5 | Modus `SEAT` (Kino/Winterball) (umgesetzt mit Zugang `OPEN`; `RSVP` folgt mit Phase 7) |
 | 6 | Modus `ASSIGNED` (Hochzeit) mit manueller/CSV-Gästeliste, Drag & Drop im Plan (auch zum Verschieben von Buchungen) (umgesetzt; Namen öffentlich zeigen aus Abschnitt 11 weiterhin offen) |
-| 7 | rsvp-app-Anbindung (A und B), Änderungen in rsvp-app (umgesetzt auf der Seite von Seating, siehe Abschnitt 9; rsvp-app folgt als eigener Schritt dort) |
+| 7 | rsvp-app-Anbindung (A und B), Änderungen in rsvp-app (umgesetzt auf beiden Seiten, siehe Abschnitt 9) |
 | 8 | Konto-Föderation über `suite-kit`, Eintrag im suite-kit-README (umgesetzt auf der Seite von Seating; der Eintrag im suite-kit-README folgt als eigener Schritt dort) |
 
 Jede Phase endet mit Tests (Unit mit vitest in `tests/unit`, Playwright in `tests/e2e` gegen eine frisch gebaute

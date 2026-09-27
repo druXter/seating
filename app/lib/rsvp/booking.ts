@@ -26,12 +26,23 @@ function linkedTo(event: Pick<Event, 'id' | 'rsvpEventId'>, message: { seatingEv
   return event.rsvpEventId !== null && message.seatingEventId === event.id && message.rsvpEventId === event.rsvpEventId
 }
 
-/** Prüft einen Link zur Platzwahl für genau dieses Event (Signatur, Art, Empfänger, Frist, Verknüpfung, Zugang). */
-export function readSeatLink(token: string, event: Pick<Event, 'id' | 'rsvpEventId' | 'access' | 'mode'>, now = new Date()): SeatLink | null {
+/**
+ * Prüft nur, ob ein Link von rsvp-app für genau dieses Event stammt (Signatur, Art, Empfänger, Frist,
+ * Verknüpfung) - nicht, ob das Event darüber buchbar ist. Nur für die Einstiegsseite: rsvp-app kennt den
+ * Modus nicht und zeigt "Sitzplatz wählen" für jeden verknüpften Termin; wer einen echten Link hat, bekommt
+ * dann einen passenden Hinweis statt "ungültig". Gebucht wird ausschließlich mit readSeatLink.
+ */
+export function verifySeatLink(token: string, event: Pick<Event, 'id' | 'rsvpEventId'>, now = new Date()): SeatLink | null {
   const secret = rsvpSecret()
-  if (!secret || event.access !== 'RSVP' || event.mode === 'ASSIGNED') return null
+  if (!secret) return null
   const message = verifyMessage(token, 'seat-link', { secret, audience: seatingOrigin(), now })
   return message && linkedTo(event, message) ? message : null
+}
+
+/** Prüft einen Link zur Platzwahl für genau dieses Event (Signatur, Art, Empfänger, Frist, Verknüpfung, Zugang). */
+export function readSeatLink(token: string, event: Pick<Event, 'id' | 'rsvpEventId' | 'access' | 'mode'>, now = new Date()): SeatLink | null {
+  if (event.access !== 'RSVP' || event.mode === 'ASSIGNED') return null
+  return verifySeatLink(token, event, now)
 }
 
 /** Die aktive (bestätigte) Buchung zu einer Zusage, falls es eine gibt. */
