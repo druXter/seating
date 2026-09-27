@@ -29,13 +29,18 @@ function apply(matrix: DOMMatrix, x: number, y: number): Point {
   return { x: p.x, y: p.y }
 }
 
-export default function PlanViewer({ layout, backgroundUrl, units, title, onUnitClick }: {
+export default function PlanViewer({ layout, backgroundUrl, units, title, onUnitClick, onUnitDragStart }: {
   layout: Layout
   backgroundUrl: string | null
   units: ReadonlyMap<string, UnitVisual>
   title: string
   /** Klick/Tipp auf eine Einheit (nicht nach dem Verschieben). Tastatur: über die Liste. */
   onUnitClick?: (key: string) => void
+  /**
+   * Maus/Stift drückt auf eine Einheit (Sitzordnung, arrange-board.tsx): true = die Einheit wird gezogen,
+   * der Plan verschiebt sich dann nicht. Finger bleiben beim Scrollen bzw. Antippen.
+   */
+  onUnitDragStart?: (key: string, event: PointerEvent<SVGSVGElement>) => boolean
 }) {
   const [view, setView] = useState<View>(() => fitView(layout))
   const svgRef = useRef<SVGSVGElement>(null)
@@ -72,6 +77,7 @@ export default function PlanViewer({ layout, backgroundUrl, units, title, onUnit
 
   function onPointerDown(event: PointerEvent<SVGSVGElement>) {
     pressedKey.current = (event.target as Element).closest('[data-unit-key]')?.getAttribute('data-unit-key') ?? null
+    if (event.pointerType !== 'touch' && pressedKey.current && onUnitDragStart?.(pressedKey.current, event)) return
     if (event.pointerType === 'mouse') {
       if (event.button !== 0) return
       const matrix = inverse()

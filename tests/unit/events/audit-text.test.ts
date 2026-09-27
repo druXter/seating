@@ -35,4 +35,13 @@ describe('Audit-Log lesbar', () => {
     expect(auditDetails(entry('changed', null), context)).toEqual([])
     expect(auditDetails(entry('changed', [1, 2]), context)).toEqual([])
   })
+
+  it('Sitzordnung: Platz, Person, Gruppe, Import', () => {
+    const seated = entry('seated', { person: 'Erika Muster', seat: { from: null, to: 'Tisch 1, Platz 2' } })
+    expect(auditText(seated)).toBe('Platz zugewiesen')
+    expect(auditDetails(seated, context)).toEqual(['Person: Erika Muster', 'Platz: – → Tisch 1, Platz 2'])
+    expect(auditDetails(entry('party-created', { partySize: 3, imported: true }), context)).toEqual(['Personenzahl: 3', 'aus CSV-Import'])
+    expect(auditDetails(entry('guests-imported', { parties: 2, persons: 5 }), context)).toEqual(['Gruppen: 2', 'Personen: 5'])
+    expect(auditText(entry('unseated', {}))).toBe('vom Platz genommen')
+  })
 })

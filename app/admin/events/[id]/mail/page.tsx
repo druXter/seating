@@ -1,5 +1,6 @@
 // app/admin/events/[id]/mail/page.tsx
 import Link from 'next/link'
+import { redirect } from 'next/navigation'
 import { prisma } from '../../../../lib/prisma'
 import { requireUser } from '../../../../lib/auth'
 import { loadEventOr404 } from '../../../../lib/events/store'
@@ -20,6 +21,8 @@ export default async function MailPage({ params, searchParams }: { params: Promi
   const { id } = await params
   const user = await requireUser(`/admin/events/${id}/mail`)
   const event = await loadEventOr404(id, user)
+  // Sitzordnung: Gäste haben keine Adressen hier (Konzept Abschnitt 8) - keine Rundmail.
+  if (event.mode === 'ASSIGNED') redirect(`/admin/events/${event.id}/arrange`)
   const { queued } = await searchParams
   const now = new Date()
 

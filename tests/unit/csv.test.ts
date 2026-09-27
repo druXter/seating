@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { csvCell, toCsv } from '../../app/lib/csv'
+import { csvCell, parseCsv, toCsv } from '../../app/lib/csv'
 
 describe('csvCell', () => {
   it('lässt einfache Werte unverändert, leer bei null', () => {
@@ -30,5 +30,31 @@ describe('csvCell', () => {
 describe('toCsv', () => {
   it('BOM, Semikolon, CRLF', () => {
     expect(toCsv([['Tisch', 'Name'], ['Tisch 1', 'Ä;Ö']])).toBe('﻿Tisch;Name\r\nTisch 1;"Ä;Ö"\r\n')
+  })
+})
+
+describe('parseCsv', () => {
+  it('liest Semikolon-CSV mit BOM und CRLF, leere Zeilen fallen weg', () => {
+    expect(parseCsv('﻿Name;Gruppe\r\nErika;Muster\r\n\r\nMax;\r\n')).toEqual([['Name', 'Gruppe'], ['Erika', 'Muster'], ['Max', '']])
+  })
+
+  it('erkennt Komma und Tab als Trenner', () => {
+    expect(parseCsv('Name,Gruppe\nErika,Muster')).toEqual([['Name', 'Gruppe'], ['Erika', 'Muster']])
+    expect(parseCsv('Name\tGruppe\nErika\tMuster')).toEqual([['Name', 'Gruppe'], ['Erika', 'Muster']])
+  })
+
+  it('versteht Anführungszeichen mit Trenner, "" und Zeilenumbruch darin', () => {
+    expect(parseCsv('Name;Notiz\n"Muster; Erika";"sagt ""hallo""\nund tschüss"')).toEqual([['Name', 'Notiz'], ['Muster; Erika', 'sagt "hallo"\nund tschüss']])
+  })
+
+  it('verträgt eine letzte Zeile ohne Umbruch und leere Eingaben', () => {
+    expect(parseCsv('Name\nErika')).toEqual([['Name'], ['Erika']])
+    expect(parseCsv('')).toEqual([])
+    expect(parseCsv('\n\n')).toEqual([])
+  })
+
+  it('liest, was toCsv schreibt (bis auf den Formel-Schutz)', () => {
+    const rows = [['Name', 'Notiz'], ['Erika "Eri" Muster', 'a;b\nc']]
+    expect(parseCsv(toCsv(rows))).toEqual(rows)
   })
 })

@@ -40,19 +40,21 @@ export default async function BookingsPage({ params, searchParams }: { params: P
       orderBy: { createdAt: 'asc' },
       select: {
         id: true, name: true, email: true, phone: true, partySize: true, note: true, adminNote: true, status: true, source: true,
-        expiresAt: true, createdAt: true, waitlistedAt: true, emailVerifiedAt: true, allocations: { select: { unit: { select: { key: true, label: true, kind: true } } } }
+        expiresAt: true, createdAt: true, waitlistedAt: true, emailVerifiedAt: true, allocations: { select: { unit: { select: { key: true, label: true, kind: true } } } },
+        attendees: { select: { name: true }, orderBy: { position: 'asc' } }
       }
     }),
     prisma.auditLog.findMany({ where: { eventId: event.id, bookingId: null }, orderBy: { createdAt: 'desc' }, take: 20 })
   ])
-  const unitKind = event.mode === 'SEAT' ? 'SEAT' : 'TABLE'
+  const unitKind = event.mode === 'TABLE' ? 'TABLE' : 'SEAT'
+  const assigned = event.mode === 'ASSIGNED'
   const counts = countStates(units, states, unitKind)
   const confirmed = all.filter(b => effectiveStatus(b, now) === 'CONFIRMED')
   const guests = confirmed.reduce((sum, b) => sum + b.partySize, 0)
   const waitlist = all.filter(b => effectiveStatus(b, now) === 'WAITLISTED' && b.waitlistedAt !== null)
   const bookings = all
     .filter(b => matchesListFilter(b, filter, now))
-    .filter(b => matchesSearch({ ...b, tables: b.allocations.map(a => a.unit.label) }, query))
+    .filter(b => matchesSearch({ ...b, tables: [...b.allocations.map(a => a.unit.label), ...b.attendees.map(a => a.name)] }, query))
   // Warteliste in ihrer Reihenfolge (Zeitpunkt der Bestätigung; unbestätigte zuletzt).
   if (filter === 'waitlist') bookings.sort((a, b) => (a.waitlistedAt?.getTime() ?? Infinity) - (b.waitlistedAt?.getTime() ?? Infinity))
   const auditContext = await loadAuditContext(event.id, eventLog.map(e => e.actor))
@@ -65,7 +67,7 @@ export default async function BookingsPage({ params, searchParams }: { params: P
       <div className="max-w-5xl mx-auto space-y-4 text-gray-900">
         <div className="space-y-1">
           <p className="text-sm"><Link href={base} className="text-blue-700 hover:underline">{event.title}</Link></p>
-          <h1 className="text-2xl font-bold">Buchungen</h1>
+          <h1 className="text-2xl font-bold">{assigned ? 'Gruppen' : 'Buchungen'}</h1>
         </div>
 
         {search.deleted === '1' && <Notice tone="success">Buchung endgültig gelöscht.</Notice>}
@@ -74,16 +76,21 @@ export default async function BookingsPage({ params, searchParams }: { params: P
         <div className="bg-white rounded-lg shadow p-4 space-y-3">
           <p className="text-sm text-gray-700" data-testid="booking-counts">
             {unitKind === 'SEAT' ? 'Plätze' : 'Tische'}: {counts.free} frei · {counts.held} reserviert (unbestätigt) · {counts.confirmed} belegt
-            {counts.unavailable > 0 && ` · ${counts.unavailable} nicht buchbar`} — {confirmed.length} bestätigte Buchung{confirmed.length === 1 ? '' : 'en'} mit {guests} Person{guests === 1 ? '' : 'en'}
+            {counts.unavailable > 0 && ` · ${counts.unavailable} nicht buchbar`} — {confirmed.length} {assigned ? (confirmed.length === 1 ? 'Gruppe' : 'Gruppen') : `bestätigte Buchung${confirmed.length === 1 ? '' : 'en'}`} mit {guests} Person{guests === 1 ? '' : 'en'}
             {waitlist.length > 0 && <> — <Link href={`${base}/bookings?status=waitlist`} className="text-blue-700 hover:underline">{waitlist.length} auf der Warteliste</Link></>}
             {!event.waitlistEnabled && ' — Warteliste aus'}
           </p>
           <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
-            <Link href={`${base}/bookings/new`} className="text-blue-700 hover:underline">Buchung anlegen</Link>
-            <Link href={`${base}/mail`} className="text-blue-700 hover:underline">Rundmail</Link>
+            {assigned
+              ? <Link href={`${base}/arrange`} className="text-blue-700 hover:underline">Sitzordnung (Gäste anlegen und setzen)</Link>
+              : <>
+                <Link href={`${base}/bookings/new`} className="text-blue-700 hover:underline">Buchung anlegen</Link>
+                <Link href={`${base}/arrange`} className="text-blue-700 hover:underline">Im Plan verschieben</Link>
+                <Link href={`${base}/mail`} className="text-blue-700 hover:underline">Rundmail</Link>
+              </>}
             <a href={`${base}/export?${exportQuery}`} className="text-blue-700 hover:underline">CSV-Export (aktuelle Auswahl)</a>
             <Link href={`${base}/print`} className="text-blue-700 hover:underline">Druckansicht</Link>
-            <Link href={`${base}/print?view=cards`} className="text-blue-700 hover:underline">Tischkarten</Link>
+            <Link href={`${base}/print?view=cards`} className="text-blue-700 hover:underline">{event.mode === 'SEAT' ? 'Platzkarten' : 'Tischkarten'}</Link>
           </div>
         </div>
 
@@ -126,6 +133,7 @@ export default async function BookingsPage({ params, searchParams }: { params: P
                         <td className="py-1 pr-3">{describePlaces(booking.allocations.map(a => a.unit))}</td>
                         <td className="py-1 pr-3">
                           <Link href={`${base}/bookings/${booking.id}`} className="text-blue-700 hover:underline">{booking.name}</Link>
+                          {booking.attendees.length > 1 && <span className="block text-xs text-gray-600">{booking.attendees.map(a => a.name).join(', ')}</span>}
                           {booking.note && <span className="block text-xs text-gray-600 whitespace-pre-line">{booking.note}</span>}
                           {booking.adminNote && <span className="block text-xs text-purple-800 whitespace-pre-line">Intern: {booking.adminNote}</span>}
                         </td>
@@ -157,7 +165,7 @@ export default async function BookingsPage({ params, searchParams }: { params: P
 
         {eventLog.length > 0 && (
           <div className="bg-white rounded-lg shadow p-4 space-y-2">
-            <h2 className="font-bold">Verlauf: gelöschte Buchungen und Rundmails</h2>
+            <h2 className="font-bold">{assigned ? 'Verlauf: gelöschte Gruppen und Importe' : 'Verlauf: gelöschte Buchungen und Rundmails'}</h2>
             <ul className="text-sm divide-y">
               {eventLog.map(entry => (
                 <li key={entry.id} className="py-1">

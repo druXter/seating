@@ -10,8 +10,9 @@ import { formatShort } from '../../../../lib/timezone'
 
 /**
  * CSV-Export der Buchungen (docs/KONZEPT.md Abschnitt 8) mit denselben Filtern wie die Liste
- * (?status=, ?q=). Nur lesend (GET). Ohne Anmeldung oder ohne Zugriff auf das Event: 404, ohne zu
- * verraten, ob es das Event gibt. Formel-Schutz und Excel-Format: app/lib/csv.ts.
+ * (?status=, ?q=), bei einer Sitzordnung (Modus ASSIGNED) eine Zeile pro Person. Nur lesend (GET).
+ * Ohne Anmeldung oder ohne Zugriff auf das Event: 404, ohne zu verraten, ob es das Event gibt.
+ * Formel-Schutz und Excel-Format: app/lib/csv.ts.
  */
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -28,8 +29,29 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   const bookings = await prisma.booking.findMany({
     where: { eventId: event.id },
     orderBy: { createdAt: 'asc' },
-    include: { allocations: { select: { unit: { select: { label: true, kind: true } } } } }
+    include: {
+      allocations: { select: { unit: { select: { label: true, kind: true } } } },
+      attendees: { orderBy: { position: 'asc' }, select: { name: true, allocation: { select: { unit: { select: { label: true } } } } } }
+    }
   })
+  const headers = {
+    'Content-Type': 'text/csv; charset=utf-8',
+    'Content-Disposition': `attachment; filename="${event.slug}-${event.mode === 'ASSIGNED' ? 'sitzordnung' : 'buchungen'}.csv"`,
+    'Cache-Control': 'no-store'
+  }
+
+  // Sitzordnung: eine Zeile pro Person (Platz, Name, Gruppe) - für Tischkarten, Catering, Einlass.
+  if (event.mode === 'ASSIGNED') {
+    const people = bookings
+      .filter(b => matchesListFilter(b, filter, now) && matchesSearch({ ...b, tables: [...b.allocations.map(a => a.unit.label), ...b.attendees.map(a => a.name)] }, query))
+      .flatMap(b => b.attendees.map(a => ({ booking: b, name: a.name, seat: a.allocation?.unit.label ?? null })))
+      .sort((a, b) => (a.seat ?? '￿').localeCompare(b.seat ?? '￿', 'de', { numeric: true }) || a.name.localeCompare(b.name, 'de'))
+    const csv = toCsv([
+      ['Platz', 'Name', 'Gruppe', 'Status', 'Interne Notiz', 'Angelegt am'],
+      ...people.map(p => [p.seat, p.name, p.booking.name, BOOKING_STATUS_LABELS[effectiveStatus(p.booking, now)], p.booking.adminNote, formatShort(p.booking.createdAt, tz)])
+    ])
+    return new NextResponse(csv, { headers })
+  }
   const rows = bookings
     .map(b => ({ ...b, tables: b.allocations.map(a => a.unit.label), place: describePlaces(b.allocations.map(a => a.unit)) }))
     .filter(b => matchesListFilter(b, filter, now) && matchesSearch(b, query))
@@ -43,11 +65,5 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     [event.mode === 'SEAT' ? 'Plätze' : 'Tisch', 'Name', 'E-Mail', 'Telefon', 'Personen', 'Status', 'Quelle', 'Anmerkung', 'Interne Notiz', 'Gebucht am', 'E-Mail bestätigt am'],
     ...rows
   ])
-  return new NextResponse(csv, {
-    headers: {
-      'Content-Type': 'text/csv; charset=utf-8',
-      'Content-Disposition': `attachment; filename="${event.slug}-buchungen.csv"`,
-      'Cache-Control': 'no-store'
-    }
-  })
+  return new NextResponse(csv, { headers })
 }

@@ -1,5 +1,5 @@
 // app/lib/events/settings.ts
-import type { EventMode, EventStatus } from '@prisma/client'
+import type { BookingAccess, EventMode, EventStatus } from '@prisma/client'
 import { formString, normalizeEmail } from '../form'
 import { validateSlug } from '../slugs'
 import { DEFAULT_TIMEZONE, zonedInputToUtc } from '../timezone'
@@ -29,8 +29,22 @@ export const MODE_LABELS: Record<EventMode, string> = {
   ASSIGNED: 'Sitzordnung durch Veranstalter*innen'
 }
 
-/** Modi, die die Oberfläche schon anbietet (SEAT folgt mit Phase 5, ASSIGNED mit Phase 6). */
-export const AVAILABLE_MODES: readonly EventMode[] = ['TABLE', 'SEAT']
+/** Modi, die die Oberfläche anbietet (SEAT seit Phase 5, ASSIGNED seit Phase 6). */
+export const AVAILABLE_MODES: readonly EventMode[] = ['TABLE', 'SEAT', 'ASSIGNED']
+
+export const MODE_HINTS: Record<EventMode, string> = {
+  TABLE: 'Gruppen wählen selbst einen freien Tisch.',
+  SEAT: 'Buchende wählen selbst einzelne Plätze.',
+  ASSIGNED: 'Keine Online-Buchung: Ihr legt die Gäste an und setzt sie auf Plätze (z. B. Hochzeit).'
+}
+
+/**
+ * Zugang (Konzept Abschnitt 1) folgt vorerst aus dem Modus: Sitzordnung ohne Selbstbuchung (NONE),
+ * sonst offen mit Mail-Bestätigung (OPEN). RSVP kommt mit der Anbindung an rsvp-app (Phase 7).
+ */
+export function accessForMode(mode: EventMode): BookingAccess {
+  return mode === 'ASSIGNED' ? 'NONE' : 'OPEN'
+}
 
 const STATUSES: readonly EventStatus[] = ['DRAFT', 'OPEN', 'CLOSED', 'ARCHIVED']
 
@@ -42,6 +56,7 @@ export type EventFields = {
   startsAt: Date
   endsAt: Date
   mode: EventMode
+  access: BookingAccess
   bookingOpensAt: Date | null
   bookingClosesAt: Date | null
   minFillRatio: number | null
@@ -131,7 +146,7 @@ export function parseEventForm(formData: FormData, timeZone: string = DEFAULT_TI
     ok: true,
     status,
     booking,
-    fields: { title, slug, description, location, startsAt, endsAt, mode, bookingOpensAt, bookingClosesAt, minFillRatio }
+    fields: { title, slug, description, location, startsAt, endsAt, mode, access: accessForMode(mode), bookingOpensAt, bookingClosesAt, minFillRatio }
   }
 }
 

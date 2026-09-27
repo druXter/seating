@@ -64,9 +64,12 @@ type Target = { ok: true; places: Place[]; label: string; partySize: number } | 
 
 /**
  * Ziel einer Admin-Aktion: TABLE ein Tisch (auch nicht buchbar, Kapazität gilt, Mindestbelegung
- * nicht); SEAT freie oder eigene Plätze, auch nicht buchbare, ohne Obergrenze pro Buchung.
+ * nicht); SEAT freie oder eigene Plätze, auch nicht buchbare, ohne Obergrenze pro Buchung; ASSIGNED
+ * keins (Personen setzt assign.ts).
  */
 async function adminTarget(event: AdminEvent, unitKeys: string[], partySize: number, now: Date, ownBookingId?: string): Promise<Target> {
+  // Modus ASSIGNED: Plätze gehören Personen, nicht Buchungen - dafür gibt es die Sitzordnung (assign.ts).
+  if (event.mode === 'ASSIGNED') return { ok: false, errors: ['Bei einer Sitzordnung setzt du Personen in der Sitzordnung auf Plätze.'] }
   if (event.mode === 'SEAT') {
     const check = await checkSeats(event, unitKeys, { ownBookingId, admin: true, maxSeats: null }, now)
     return check.ok ? { ...check, partySize: check.places.length } : check
@@ -134,6 +137,23 @@ export async function adminChangeBooking(
   const labelOf = (key: string) => (key === target.places[0]?.key ? target.places[0].label : key === booking.table?.key ? booking.table.label : key)
   const sent = await sendChangedMail(event, updated, target.label, changeLabels(changes), changeRows(changes, labelOf), true)
   return done(!sent)
+}
+
+/**
+ * Verschieben per Drag & Drop im Plan (Sitzordnung, app/ui/plan/arrange-board.tsx): TABLE die Buchung
+ * vom Tisch from auf den Tisch to, SEAT nur den einen Platz from auf den Platz to (die übrigen Plätze
+ * der Buchung bleiben). Läuft über adminChangeBooking - dieselben Regeln, Konflikterkennung, Mail und
+ * Audit wie im Ändern-Formular. from muss noch zur Buchung gehören, sonst ist die Ansicht veraltet.
+ */
+export function adminMoveBooking(
+  event: AdminEvent, booking: AdminBooking, from: string, to: string, expected: Date, notify: boolean, actor: string, now = new Date()
+): Promise<AdminResult> {
+  const keys = booking.places.map(p => p.key)
+  if (!keys.includes(from)) return Promise.resolve(fail(CONFLICT))
+  if (keys.includes(to)) return Promise.resolve(done(false, false))
+  const unitKeys = event.mode === 'SEAT' ? keys.map(key => (key === from ? to : key)) : [to]
+  const input = { name: booking.name, phone: booking.phone, note: booking.note, partySize: booking.partySize, unitKeys }
+  return adminChangeBooking(event, booking, input, expected, notify, actor, now)
 }
 
 /** Interne Notiz - nie in Mails, nie für Buchende sichtbar, löst nichts aus. */
@@ -374,6 +394,25 @@ export async function tableChoices(eventId: string, currentKey: string | null, n
     .filter(unit => unit.kind === 'TABLE' && (unit.key === currentKey || states.get(unit.key) === 'free' || states.get(unit.key) === 'unavailable'))
     .map(unit => ({ key: unit.key, label: unit.label, capacity: unit.capacity, bookable: unit.bookable }))
     .sort(byLabel)
+}
+
+export type MoveBoardBooking = { id: string; name: string; status: 'CONFIRMED' | 'PENDING' | 'OFFERED'; partySize: number; updatedAt: string; keys: string[]; placeLabel: string }
+
+/** Aktive Buchungen mit ihren Einheiten - zum Verschieben im Plan (Modus TABLE und SEAT). */
+export async function loadMoveBoard(eventId: string, now = new Date()): Promise<MoveBoardBooking[]> {
+  const bookings = await prisma.booking.findMany({
+    where: { eventId, ...activeWhere(now), allocations: { some: {} } },
+    select: {
+      id: true, name: true, status: true, partySize: true, updatedAt: true,
+      allocations: { select: { unit: { select: { key: true, label: true, kind: true } } }, orderBy: { unit: { key: 'asc' } } }
+    }
+  })
+  return bookings
+    .map(b => ({
+      id: b.id, name: b.name, status: b.status as MoveBoardBooking['status'], partySize: b.partySize, updatedAt: b.updatedAt.toISOString(),
+      keys: b.allocations.map(a => a.unit.key), placeLabel: describePlaces(b.allocations.map(a => a.unit))
+    }))
+    .sort((a, b) => byLabel({ label: a.placeLabel }, { label: b.placeLabel }))
 }
 
 /** Konto-E-Mails und aktuelle Tischnamen für die Anzeige des Audit-Logs (app/lib/events/audit-text.ts). */

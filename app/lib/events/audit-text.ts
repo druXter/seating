@@ -26,7 +26,18 @@ const ACTION_LABELS: Record<string, string> = {
   'offer-accepted': 'Angebot angenommen',
   'offer-declined': 'Angebot abgelehnt',
   'waitlist-left': 'von der Warteliste ausgetragen',
-  assigned: 'Tisch direkt zugewiesen (Warteliste)'
+  assigned: 'Tisch direkt zugewiesen (Warteliste)',
+  'party-created': 'Gruppe angelegt',
+  'party-changed': 'Gruppe geändert',
+  'guests-imported': 'Gästeliste importiert',
+  seated: 'Platz zugewiesen',
+  unseated: 'vom Platz genommen'
+}
+
+/** Weitere Felder im diff (neben den Änderungen aus booking-changes.ts). */
+const FIELD_LABELS: Record<string, string> = {
+  email: 'E-Mail', partySize: 'Personenzahl', subject: 'Betreff', recipients: 'Empfänger*innen',
+  person: 'Person', seat: 'Platz', persons: 'Personen', renamed: 'umbenannt', parties: 'Gruppen'
 }
 
 export type AuditEntry = { actor: string; action: string; diff: unknown; createdAt: Date }
@@ -53,11 +64,13 @@ export function auditDetails(entry: AuditEntry, context: AuditContext): string[]
   const diff = isRecord(entry.diff) ? entry.diff : {}
   const details: string[] = []
   for (const [field, value] of Object.entries(diff)) {
-    const label = CHANGE_LABELS[field as ChangeField] ?? { email: 'E-Mail', partySize: 'Personenzahl', subject: 'Betreff', recipients: 'Empfänger*innen' }[field] ?? null
+    const label = CHANGE_LABELS[field as ChangeField] ?? FIELD_LABELS[field] ?? null
     if (isRecord(value) && 'from' in value && 'to' in value) {
       details.push(`${label ?? field}: ${show(value.from, field, context)} → ${show(value.to, field, context)}`)
     } else if (field === 'renewedExpiry') {
       if (value === true) details.push('Frist neu begonnen')
+    } else if (field === 'imported') {
+      if (value === true) details.push('aus CSV-Import')
     } else if (field === 'notified') {
       details.push(value === true ? 'Kund*in benachrichtigt' : 'ohne Mail')
     } else if (label) {

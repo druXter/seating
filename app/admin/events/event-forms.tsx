@@ -5,7 +5,7 @@ import { useActionState, useState } from 'react'
 import type { EventMode, EventStatus } from '@prisma/client'
 import { createEvent, resyncEventFromTemplate, updateEventSettings, type FormState } from './actions'
 import { suggestSlug, SLUG_MAX_LENGTH } from '../../lib/slugs'
-import { AVAILABLE_MODES, EVENT_LIMITS, MODE_LABELS, STATUS_HINTS, STATUS_LABELS } from '../../lib/events/settings'
+import { AVAILABLE_MODES, EVENT_LIMITS, MODE_HINTS, MODE_LABELS, STATUS_HINTS, STATUS_LABELS } from '../../lib/events/settings'
 import { PENDING_TTL_RANGE, SELF_EDIT_HOURS_MAX } from '../../lib/events/booking-rules'
 import { OFFER_TTL_RANGE } from '../../lib/events/waitlist-rules'
 import { MAX_SEATS_RANGE } from '../../lib/events/seat-rules'
@@ -99,6 +99,9 @@ function ModeSelect({ value }: { value: EventMode }) {
           </option>
         ))}
       </select>
+      <ul className="text-xs text-gray-600 mt-1">
+        {AVAILABLE_MODES.map(mode => <li key={mode}>{MODE_LABELS[mode]}: {MODE_HINTS[mode]}</li>)}
+      </ul>
     </div>
   )
 }

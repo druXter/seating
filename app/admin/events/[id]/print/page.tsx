@@ -8,6 +8,7 @@ import { effectiveStatus } from '../../../../lib/events/admin-rules'
 import { describePlaces } from '../../../../lib/events/places'
 import { formatRange } from '../../../../lib/timezone'
 import PrintButton from '../../../../ui/print-button'
+import SeatingPrint from './seating-print'
 
 export const dynamic = 'force-dynamic'
 
@@ -21,6 +22,7 @@ export default async function PrintPage({ params, searchParams }: { params: Prom
   const user = await requireUser(`/admin/events/${id}/print`)
   const event = await loadEventOr404(id, user)
   const cards = (await searchParams).view === 'cards'
+  if (event.mode === 'ASSIGNED') return <SeatingPrint event={event} cards={cards} />
   const now = new Date()
 
   // Eine Zeile bzw. Karte pro Buchung - im Modus SEAT mit ihren Plätzen zusammengefasst.

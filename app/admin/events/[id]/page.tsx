@@ -7,6 +7,7 @@ import { loadPlan } from '../../../lib/floorplan/store'
 import { loadEventOr404, loadUnitStates } from '../../../lib/events/store'
 import { countStates } from '../../../lib/events/occupancy'
 import { activeWhere } from '../../../lib/events/booking-tx'
+import { seatingCounts } from '../../../lib/events/assign'
 import { formatRange, utcToZonedInput } from '../../../lib/timezone'
 import { deleteEvent, removeEventBackground, shareEvent, unshareEvent } from '../actions'
 import { EventSettingsForm, ResyncForm } from '../event-forms'
@@ -31,13 +32,14 @@ export default async function EventPage({ params, searchParams }: { params: Prom
   const now = new Date()
 
   const { units, states } = await loadUnitStates(event.id, now)
-  // Modus SEAT zählt Plätze, TABLE Tische.
-  const unitKind = event.mode === 'SEAT' ? 'SEAT' : 'TABLE'
+  // Modus SEAT und ASSIGNED zählen Plätze, TABLE Tische.
+  const assigned = event.mode === 'ASSIGNED'
+  const unitKind = event.mode === 'TABLE' ? 'TABLE' : 'SEAT'
   const counts = countStates(units, states, unitKind)
   const bookableTables = units.filter(u => u.kind === unitKind && u.bookable).length
 
   // Aktive Buchungen (bestätigt oder noch gültig reserviert) - für die Links im Plan und die Warnung beim Löschen.
-  const [bookings, shares, sourcePlan] = await Promise.all([
+  const [bookings, shares, sourcePlan, seating] = await Promise.all([
     prisma.booking.findMany({
       where: { eventId: event.id, ...activeWhere(now) },
       select: { id: true, name: true, allocations: { select: { unit: { select: { key: true } } } } }
@@ -45,7 +47,8 @@ export default async function EventPage({ params, searchParams }: { params: Prom
     event.level === 'owner'
       ? prisma.eventAccess.findMany({ where: { eventId: event.id }, include: { user: { select: { email: true } } }, orderBy: { createdAt: 'asc' } })
       : Promise.resolve([]),
-    event.sourcePlanId ? loadPlan(event.sourcePlanId, user) : Promise.resolve(null)
+    event.sourcePlanId ? loadPlan(event.sourcePlanId, user) : Promise.resolve(null),
+    assigned ? seatingCounts(event.id) : Promise.resolve(null)
   ])
 
   const activeBookings = bookings.length
@@ -56,6 +59,8 @@ export default async function EventPage({ params, searchParams }: { params: Prom
   const visuals = new Map<string, UnitVisual>([...states].map(([key, state]) => {
     const booking = bookingByUnit.get(key)
     const label = tableLabels.get(key) ?? key
+    // Sitzordnung: Personen setzt man in der Sitzordnung, der Plan hier zeigt nur die Belegung.
+    if (assigned) return [key, { state: state === 'unavailable' ? 'free' : state, href: tableKinds.get(key) === 'SEAT' ? `/admin/events/${event.id}/arrange` : undefined, linkLabel: `${label}: zur Sitzordnung` }]
     if (booking) return [key, { state, href: `/admin/events/${event.id}/bookings/${booking.id}`, linkLabel: `${label}: Buchung von ${booking.name}` }]
     if (tableKinds.get(key) !== unitKind) return [key, { state }]
     if (state === 'free' || state === 'unavailable') return [key, { state, href: `/admin/events/${event.id}/bookings/new?table=${key}`, linkLabel: `${label}: Buchung anlegen` }]
@@ -105,8 +110,12 @@ export default async function EventPage({ params, searchParams }: { params: Prom
             <Link href={`/admin/events/${event.id}/plan`} className="text-sm text-blue-700 hover:underline">Plan bearbeiten</Link>
           </div>
           <p className="text-sm text-gray-700" data-testid="table-counts">
-            {unitKind === 'SEAT' ? 'Plätze' : 'Tische'}: {counts.free} frei · {counts.held} reserviert (unbestätigt) · {counts.confirmed} belegt
-            {counts.unavailable > 0 && ` · ${counts.unavailable} nicht buchbar`}
+            {seating
+              ? `Plätze: ${counts.free + counts.unavailable} frei · ${counts.confirmed} besetzt — ${seating.seated} von ${seating.persons} Personen haben einen Platz`
+              : <>
+                {unitKind === 'SEAT' ? 'Plätze' : 'Tische'}: {counts.free} frei · {counts.held} reserviert (unbestätigt) · {counts.confirmed} belegt
+                {counts.unavailable > 0 && ` · ${counts.unavailable} nicht buchbar`}
+              </>}
           </p>
           <PlanSvg layout={event.layout} backgroundUrl={backgroundUrl} units={visuals} title={`Plan von ${event.title} mit Belegung`} className="w-full h-auto max-h-[60vh]" />
           <p className="text-xs text-gray-600">
@@ -116,16 +125,29 @@ export default async function EventPage({ params, searchParams }: { params: Prom
           {sourcePlan && <ResyncForm eventId={event.id} layoutVersion={event.layoutVersion} planName={sourcePlan.name} />}
         </div>
 
-        <div className="bg-white rounded-lg shadow p-4 space-y-2">
-          <h2 className="font-bold">Buchungen ({activeBookings} aktiv)</h2>
-          <p className="text-sm space-x-4">
-            <Link href={`/admin/events/${event.id}/bookings`} className="text-blue-700 hover:underline">Buchungen verwalten</Link>
-            <Link href={`/admin/events/${event.id}/bookings/new`} className="text-blue-700 hover:underline">Buchung anlegen</Link>
-            <Link href={`/admin/events/${event.id}/mail`} className="text-blue-700 hover:underline">Rundmail</Link>
-            <Link href={`/admin/events/${event.id}/print`} className="text-blue-700 hover:underline">Druckansicht</Link>
-          </p>
-          <p className="text-xs text-gray-600">Im Plan führt ein Klick auf einen belegten Tisch zur Buchung, auf einen freien zum Anlegen einer Buchung.</p>
-        </div>
+        {seating ? (
+          <div className="bg-white rounded-lg shadow p-4 space-y-2">
+            <h2 className="font-bold">Gäste ({seating.parties} {seating.parties === 1 ? 'Gruppe' : 'Gruppen'}, {seating.persons} {seating.persons === 1 ? 'Person' : 'Personen'})</h2>
+            <p className="text-sm space-x-4">
+              <Link href={`/admin/events/${event.id}/arrange`} className="text-blue-700 hover:underline">Sitzordnung</Link>
+              <Link href={`/admin/events/${event.id}/bookings`} className="text-blue-700 hover:underline">Gruppen verwalten</Link>
+              <Link href={`/admin/events/${event.id}/print`} className="text-blue-700 hover:underline">Druckansicht</Link>
+            </p>
+            <p className="text-xs text-gray-600">Keine Online-Buchung: Ihr legt die Gäste an (von Hand oder per CSV) und setzt sie in der Sitzordnung auf Plätze. Gäste bekommen keine Mails.</p>
+          </div>
+        ) : (
+          <div className="bg-white rounded-lg shadow p-4 space-y-2">
+            <h2 className="font-bold">Buchungen ({activeBookings} aktiv)</h2>
+            <p className="text-sm space-x-4">
+              <Link href={`/admin/events/${event.id}/bookings`} className="text-blue-700 hover:underline">Buchungen verwalten</Link>
+              <Link href={`/admin/events/${event.id}/bookings/new`} className="text-blue-700 hover:underline">Buchung anlegen</Link>
+              <Link href={`/admin/events/${event.id}/arrange`} className="text-blue-700 hover:underline">Im Plan verschieben</Link>
+              <Link href={`/admin/events/${event.id}/mail`} className="text-blue-700 hover:underline">Rundmail</Link>
+              <Link href={`/admin/events/${event.id}/print`} className="text-blue-700 hover:underline">Druckansicht</Link>
+            </p>
+            <p className="text-xs text-gray-600">Im Plan führt ein Klick auf einen belegten Tisch zur Buchung, auf einen freien zum Anlegen einer Buchung. Verschieben per Ziehen: „Im Plan verschieben“.</p>
+          </div>
+        )}
 
         <div className="grid gap-4 md:grid-cols-2 items-start">
           <div className="bg-white rounded-lg shadow p-4 space-y-3">

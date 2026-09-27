@@ -35,8 +35,12 @@ const SELECTED = '#2563eb'
 /**
  * Zustand einer Einheit in einer Event-Ansicht. dimmed: passt nicht zur Gruppengröße, highlighted: passt.
  * href: Tisch ist ein Link (Admin-Ansicht: zur Buchung bzw. zum Anlegen), linkLabel sein zugänglicher Name.
+ * caption: kurzer Text auf der Einheit (Sitzordnung: Initialen auf dem Platz, Name der Buchung auf dem
+ * Tisch statt des Zustands), title: Tooltip bzw. Name für Screenreader - nur in Admin-Ansichten.
  */
-export type UnitVisual = { state: UnitState; dimmed?: boolean; highlighted?: boolean; href?: string; linkLabel?: string }
+export type UnitVisual = {
+  state: UnitState; dimmed?: boolean; highlighted?: boolean; href?: string; linkLabel?: string; caption?: string; title?: string
+}
 
 export const STATE_TEXT: Record<UnitState, string> = { free: 'frei', confirmed: 'belegt', held: 'reserviert', unavailable: 'nicht buchbar' }
 
@@ -194,6 +198,32 @@ function seatAttrs(units: ReadonlyMap<string, UnitVisual> | undefined, key: stri
   }
 }
 
+/**
+ * Ein Platz: Kreis mit Füllung nach Zustand, dazu - falls gesetzt - Tooltip und Beschriftung (Initialen,
+ * aufrecht trotz Drehung, mit hellem Rand lesbar auf Schraffur).
+ */
+function SeatCircle({ cx, cy, r, rotation, units, unitKey, bookable, title, outline }: {
+  cx: number; cy: number; r: number; rotation: number; units: ReadonlyMap<string, UnitVisual> | undefined; unitKey: string; bookable: boolean
+  title?: string; outline?: object
+}) {
+  const visual = units?.get(unitKey)
+  const tooltip = visual?.title ?? title
+  const circle = (
+    <circle cx={cx} cy={cy} r={r} fill={seatFill(units, unitKey, bookable)} stroke={SEAT_STROKE} strokeWidth={2} {...outline} {...seatAttrs(units, unitKey)}>
+      {tooltip && <title>{tooltip}</title>}
+    </circle>
+  )
+  if (!visual?.caption) return circle
+  return (
+    <g>
+      {circle}
+      <g transform={`translate(${cx} ${cy})`} opacity={visual.dimmed ? 0.3 : 1}>
+        <UprightText rotation={rotation} size={17} halo>{visual.caption}</UprightText>
+      </g>
+    </g>
+  )
+}
+
 function ElementShape({ element, selected, units }: { element: LayoutElement; selected: boolean; units?: ReadonlyMap<string, UnitVisual> }) {
   const outline = selected ? { stroke: SELECTED, strokeWidth: 6 } : {}
   switch (element.type) {
@@ -210,9 +240,12 @@ function ElementShape({ element, selected, units }: { element: LayoutElement; se
           opacity={visual?.dimmed ? 0.3 : 1} data-unit-key={visual ? element.id : undefined} data-state={visual?.state}
           style={(visual?.state === 'free' && !visual.dimmed) || visual?.href ? { cursor: 'pointer' } : undefined}
         >
-          {visual && <title>{`${label} · ${element.seats} Plätze · ${STATE_TEXT[visual.state]}`}</title>}
+          {visual && <title>{visual.title ?? `${label} · ${element.seats} Plätze · ${STATE_TEXT[visual.state]}`}</title>}
           {seats.map((seat, index) => linked(units, `${element.id}-s${index + 1}`,
-            <circle key={index} cx={seat.x} cy={seat.y} r={SEAT_SIZE / 2} fill={seatFill(units, `${element.id}-s${index + 1}`, bookable)} stroke={SEAT_STROKE} strokeWidth={2} {...seatAttrs(units, `${element.id}-s${index + 1}`)} />,
+            <SeatCircle
+              key={index} cx={seat.x} cy={seat.y} r={SEAT_SIZE / 2} rotation={element.rotation} units={units}
+              unitKey={`${element.id}-s${index + 1}`} bookable={bookable}
+            />,
             `${label}, Platz ${index + 1}`
           ))}
           {element.shape === 'rect' ? (
@@ -224,7 +257,7 @@ function ElementShape({ element, selected, units }: { element: LayoutElement; se
           {visual ? (
             <>
               <UprightText rotation={element.rotation} y={-14} halo>{label}</UprightText>
-              <UprightText rotation={element.rotation} y={18} size={22} fill="#1e293b" halo>{STATE_TEXT[visual.state]}</UprightText>
+              <UprightText rotation={element.rotation} y={18} size={22} fill="#1e293b" halo>{visual.caption ?? STATE_TEXT[visual.state]}</UprightText>
             </>
           ) : (
             <UprightText rotation={element.rotation}>{label}</UprightText>
@@ -236,7 +269,7 @@ function ElementShape({ element, selected, units }: { element: LayoutElement; se
     case 'seat':
       return (
         <>
-          {linked(units, element.id, <circle r={SEAT_SIZE / 2} fill={seatFill(units, element.id, element.bookable)} stroke={SEAT_STROKE} strokeWidth={2} {...outline} {...seatAttrs(units, element.id)} />, element.label || element.id)}
+          {linked(units, element.id, <SeatCircle cx={0} cy={0} r={SEAT_SIZE / 2} rotation={element.rotation} units={units} unitKey={element.id} bookable={element.bookable} outline={outline} />, element.label || element.id)}
           {element.label && <UprightText rotation={element.rotation} size={18} y={-SEAT_SIZE}>{element.label}</UprightText>}
         </>
       )
@@ -257,11 +290,11 @@ function ElementShape({ element, selected, units }: { element: LayoutElement; se
             />
           )}
           {seats.map(seat => linked(units, `${element.id}-r${seat.row}-s${seat.position}`,
-            <circle key={`${seat.row}-${seat.position}`} cx={seat.local.x} cy={seat.local.y} r={SEAT_SIZE / 2 - 3}
-              fill={seatFill(units, `${element.id}-r${seat.row}-s${seat.position}`, element.bookable)} stroke={SEAT_STROKE} strokeWidth={2}
-              {...seatAttrs(units, `${element.id}-r${seat.row}-s${seat.position}`)}>
-              <title>{`Reihe ${rowLabel(element, seat.row)}, Platz ${seatNumber(element, seat.position)}`}</title>
-            </circle>,
+            <SeatCircle
+              key={`${seat.row}-${seat.position}`} cx={seat.local.x} cy={seat.local.y} r={SEAT_SIZE / 2 - 3} rotation={element.rotation}
+              units={units} unitKey={`${element.id}-r${seat.row}-s${seat.position}`} bookable={element.bookable}
+              title={`Reihe ${rowLabel(element, seat.row)}, Platz ${seatNumber(element, seat.position)}`}
+            />,
             `Reihe ${rowLabel(element, seat.row)}, Platz ${seatNumber(element, seat.position)}`
           ))}
           {[...firstInRow.values()].map(seat => (

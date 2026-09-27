@@ -7,6 +7,7 @@ import { eventLevel, type EventLevel } from '../permissions'
 import type { CurrentUser } from '../auth'
 import { parseLayout, type Layout } from '../floorplan/schema'
 import { unitStates, type StateUnit, type UnitState } from './occupancy'
+import type { Tx } from './booking-tx'
 
 export type LoadedEvent = Omit<Event, 'layout'> & { layout: Layout; level: EventLevel }
 
@@ -59,15 +60,16 @@ export type EventUnit = StateUnit & { label: string; capacity: number }
 
 /**
  * Einheiten eines Events mit ihrem aktuellen Zustand. Liest nur, was die Belegung braucht - Namen
- * und Kontaktdaten der Buchenden werden hier bewusst NICHT abgefragt.
+ * und Kontaktdaten der Buchenden werden hier bewusst NICHT abgefragt. db: innerhalb einer Transaktion
+ * deren Client (sonst läse eine zweite Verbindung an der Transaktion vorbei).
  */
-export async function loadUnitStates(eventId: string, now = new Date()): Promise<{ units: EventUnit[]; states: Map<string, UnitState> }> {
+export async function loadUnitStates(eventId: string, now = new Date(), db: Tx | typeof prisma = prisma): Promise<{ units: EventUnit[]; states: Map<string, UnitState> }> {
   const [units, allocations] = await Promise.all([
-    prisma.unit.findMany({
+    db.unit.findMany({
       where: { eventId },
       select: { key: true, kind: true, tableKey: true, bookable: true, label: true, capacity: true }
     }),
-    prisma.allocation.findMany({
+    db.allocation.findMany({
       where: { eventId },
       select: { unit: { select: { key: true } }, booking: { select: { status: true, expiresAt: true } } }
     })

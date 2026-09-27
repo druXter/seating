@@ -4,7 +4,7 @@
 //
 // Konten-Tabellen 1:1 nach dem Abstimmungstool (Phase 0), Raumplan-Vorlagen (Phase 1), Events mit
 // Einheiten und Freigaben sowie der Kern von Buchung/Belegung (Phase 2), Verifizierung, Verwaltungslink
-// und Protokolle (Phase 3), Buchungsverwaltung und Rundmail (Phase 4), siehe docs/KONZEPT.md
+// und Protokolle (Phase 3), Buchungsverwaltung und Rundmail (Phase 4), Personen der Sitzordnung (Phase 6), siehe docs/KONZEPT.md
 // Abschnitt 3. Felder kommen mit der Phase, die sie nutzt - mit `db push` kostet das Nachziehen nichts.
 
 generator client {
@@ -138,7 +138,8 @@ model FloorPlan {
 }
 
 // Wer bucht was (docs/KONZEPT.md Abschnitt 1). Die Oberfläche bietet TABLE und (seit Phase 5) SEAT mit
-// Zugang OPEN an; die übrigen Werte stehen schon hier, damit spätere Phasen das Schema nicht umbauen müssen.
+// Zugang OPEN an, seit Phase 6 ASSIGNED mit Zugang NONE (der Zugang folgt vorerst aus dem Modus); RSVP
+// kommt mit Phase 7.
 enum EventMode {
   TABLE
   SEAT
@@ -218,6 +219,7 @@ model Event {
   mailLogs    MailLog[]
   auditLogs   AuditLog[]
   broadcasts  Broadcast[]
+  attendees   Attendee[]
 
   @@index([ownerId])
   @@index([endsAt])
@@ -320,6 +322,7 @@ model Booking {
   icsSequence        Int       @default(0)
 
   allocations Allocation[]
+  attendees   Attendee[]
   mailLogs    MailLog[]
   auditLogs   AuditLog[]
 
@@ -343,11 +346,33 @@ model Allocation {
   unit         Unit    @relation(fields: [unitId], references: [id], onDelete: NoAction)
   bookingId    String
   booking      Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  attendeeName String?
+  // Modus ASSIGNED: die Person auf diesem Platz. Eindeutig - eine Person sitzt nie auf zwei Plätzen.
+  attendeeId   String?   @unique
+  attendee     Attendee? @relation(fields: [attendeeId], references: [id], onDelete: Cascade)
 
   @@unique([eventId, unitId])
   @@index([bookingId])
   @@index([unitId])
+}
+
+// Eine Person einer Gruppe im Modus ASSIGNED (Sitzordnung, docs/KONZEPT.md Abschnitt 8): Die Buchung
+// ist die Gruppe ("Familie Müller"), jede Person steht hier - schon bevor sie einen Platz hat ("noch
+// nicht platziert"), für Gästeliste und Tischkarten. position: Reihenfolge in der Gruppe.
+// Booking.partySize ist die Zahl der Personen und wird in derselben Transaktion mitgeführt
+// (app/lib/events/assign.ts). Platziert ist eine Person, wenn eine Allocation auf sie zeigt.
+model Attendee {
+  id         String      @id @default(cuid())
+  eventId    String
+  event      Event       @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  bookingId  String
+  booking    Booking     @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  name       String
+  position   Int
+  createdAt  DateTime    @default(now())
+  allocation Allocation?
+
+  @@index([eventId])
+  @@index([bookingId])
 }
 
 // Jede verschickte (oder gescheiterte) Buchungsmail - für Rückfragen ("ich habe nichts bekommen").

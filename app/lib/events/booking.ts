@@ -270,7 +270,8 @@ export type ManagedBooking = Booking & { event: Event; table: Place | null; plac
 export async function loadManagedBooking(bookingId: string, token: string): Promise<ManagedBooking | null> {
   if (!/^[a-z0-9]{10,40}$/.test(bookingId)) return null
   const booking = await prisma.booking.findUnique({ where: { id: bookingId }, include: { event: true } })
-  if (!booking) return null
+  // Sitzordnung (ASSIGNED): keine Selbstverwaltung - Gäste bekommen keinen Link, auch kein abgeleiteter gilt.
+  if (!booking || booking.event.mode === 'ASSIGNED') return null
   const linked = booking.status === 'CONFIRMED' || booking.status === 'CANCELLED' || booking.status === 'OFFERED'
     || ((booking.status === 'WAITLISTED' || booking.status === 'EXPIRED') && booking.waitlistedAt !== null)
   if (!linked) return null

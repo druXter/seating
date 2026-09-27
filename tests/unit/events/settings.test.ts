@@ -19,7 +19,7 @@ describe('parseEventForm', () => {
     if (!result.ok) return
     expect(result.status).toBeNull()
     expect(result.fields).toMatchObject({
-      title: 'Winterball 2026', slug: 'winterball-2026', mode: 'TABLE', location: 'Festsaal', description: 'Zeile 1\nZeile 2',
+      title: 'Winterball 2026', slug: 'winterball-2026', mode: 'TABLE', access: 'OPEN', location: 'Festsaal', description: 'Zeile 1\nZeile 2',
       minFillRatio: null, bookingOpensAt: null, bookingClosesAt: null
     })
     expect(result.fields.startsAt.toISOString()).toBe('2026-12-12T18:00:00.000Z')
@@ -34,8 +34,15 @@ describe('parseEventForm', () => {
     expect(result.errors.join(' ')).toMatch(/Ende muss nach dem Beginn/)
   })
 
-  it('lehnt noch nicht verfügbare Modi und unbekannte Status ab', () => {
-    const extras: Record<string, string>[] = [{ mode: 'ASSIGNED' }, { mode: 'X' }, { status: 'DELETED' }]
+  it('Sitzordnung (ASSIGNED) hat keinen Zugang für Selbstbuchung, die übrigen Modi den offenen', () => {
+    const assigned = parseEventForm(form({ ...valid, mode: 'ASSIGNED' }))
+    expect(assigned.ok && assigned.fields).toMatchObject({ mode: 'ASSIGNED', access: 'NONE' })
+    const seat = parseEventForm(form({ ...valid, mode: 'SEAT' }))
+    expect(seat.ok && seat.fields).toMatchObject({ mode: 'SEAT', access: 'OPEN' })
+  })
+
+  it('lehnt unbekannte Modi und Status ab', () => {
+    const extras: Record<string, string>[] = [{ mode: 'X' }, { mode: 'RSVP' }, { status: 'DELETED' }]
     for (const extra of extras) {
       expect(parseEventForm(form({ ...valid, ...extra })).ok, JSON.stringify(extra)).toBe(false)
     }

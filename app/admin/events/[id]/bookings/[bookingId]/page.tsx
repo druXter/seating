@@ -22,6 +22,7 @@ import Notice from '../../../../../ui/notice'
 import SubmitButton from '../../../../../ui/submit-button'
 import SeatPicker from '../../../../../ui/plan/seat-picker'
 import { seatPickerData } from '../../../../../lib/events/places'
+import PartyView from './party-view'
 
 export const dynamic = 'force-dynamic'
 
@@ -66,6 +67,8 @@ export default async function BookingPage({ params, searchParams }: {
   const booking = await loadAdminBooking(event.id, bookingId)
   if (!booking) notFound()
   const search = await searchParams
+  // Sitzordnung: eine Gruppe mit Personen statt einer Buchung mit Kontaktdaten.
+  if (event.mode === 'ASSIGNED') return <PartyView event={event} booking={booking} done={search.done} />
   const now = new Date()
   const tz = event.timezone
   const status = effectiveStatus(booking, now)

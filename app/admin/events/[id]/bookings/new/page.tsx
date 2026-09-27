@@ -1,5 +1,6 @@
 // app/admin/events/[id]/bookings/new/page.tsx
 import Link from 'next/link'
+import { redirect } from 'next/navigation'
 import { requireUser } from '../../../../../lib/auth'
 import { loadEventOr404 } from '../../../../../lib/events/store'
 import { tableChoices } from '../../../../../lib/events/admin-booking'
@@ -26,6 +27,8 @@ export default async function NewBookingPage({ params, searchParams }: { params:
   const { id } = await params
   const user = await requireUser(`/admin/events/${id}/bookings/new`)
   const event = await loadEventOr404(id, user)
+  // Sitzordnung: Gäste legt man dort an (Gruppen mit Personen, ohne Kontaktdaten).
+  if (event.mode === 'ASSIGNED') redirect(`/admin/events/${event.id}/arrange`)
   const { table } = await searchParams
   const seatMode = event.mode === 'SEAT'
   const [tables, seatData] = await Promise.all([
