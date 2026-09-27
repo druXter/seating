@@ -18,10 +18,12 @@ Fachliche Grundlage und Fahrplan: [docs/KONZEPT.md](docs/KONZEPT.md).
 | 4 | Buchungsverwaltung: ändern, verschieben, stornieren, löschen, anlegen, Rundmail, Audit, Export, Druckansicht | ✅ umgesetzt |
 | 4b | Warteliste mit befristetem Nachrück-Angebot | ✅ umgesetzt |
 | 5 | Modus `SEAT`: Einzelplätze (Kino, Ball) | ✅ umgesetzt |
-| 6–8 | Modus `ASSIGNED`, rsvp-app, Föderation | offen |
+| 6 | Modus `ASSIGNED`: Sitzordnung (Hochzeit) mit Gästeliste und Drag & Drop, Buchungen im Plan verschieben | ✅ umgesetzt |
+| 7–8 | rsvp-app, Föderation | offen |
 
-Tische lassen sich online buchen (Modus `TABLE`, Zugang `OPEN`), Veranstalter\*innen verwalten die Buchungen im
-Admin-Bereich.
+Tische und Einzelplätze lassen sich online buchen (Modus `TABLE` bzw. `SEAT`, Zugang `OPEN`), Veranstalter\*innen
+verwalten die Buchungen im Admin-Bereich. Für eine Sitzordnung (Modus `ASSIGNED`) legen sie die Gäste selbst an und
+setzen sie auf Plätze.
 
 ## Konten
 
@@ -88,8 +90,9 @@ Unter `/admin/events` legen Creator und Admins Events an, Moderator\*innen sehen
 * **Anlegen** aus einem Raumplan (eigene oder gemeinsame Vorlage): Titel, Adresse (Vorschlag aus dem Titel), Beginn,
   Ende, Ort, Beschreibung. Plan **und** Hintergrundbild werden kopiert. Neue Events sind ein Entwurf.
 * **Modus:** „Tischbuchung für Gruppen“ (`TABLE`) oder „Einzelplätze“ (`SEAT`, Kino, Ball), jeweils mit Zugang
-  `OPEN`. Die Sitzordnung (`ASSIGNED`) erscheint im Formular als „folgt“, der Server lehnt sie ab. Der Modus lässt
-  sich nur wechseln, solange es keine aktiven Buchungen oder Wartelisten-Einträge gibt.
+  `OPEN`, oder „Sitzordnung durch Veranstalter\*innen“ (`ASSIGNED`, Hochzeit) mit Zugang `NONE` – der Zugang folgt
+  vorerst aus dem Modus. Der Modus lässt sich nur wechseln, solange es keine aktiven Buchungen, Gruppen oder
+  Wartelisten-Einträge gibt.
 * **Status:** Entwurf und Archiviert sind öffentlich nicht sichtbar (404), Konten mit Zugriff sehen eine Vorschau.
   Veröffentlicht und Geschlossen sind sichtbar, Geschlossen ohne Buchungsmöglichkeit.
 * **Einstellungen:** Adresse (Slug; reservierte Namen und vergebene Adressen werden abgelehnt), Zeiten in der Zeitzone
@@ -155,6 +158,44 @@ Unter `/admin/events` legen Creator und Admins Events an, Moderator\*innen sehen
 * **Lückenregel** (keinen einzelnen Platz zwischen zwei Buchungen frei lassen): vorbereitet und getestet
   (`singleGapProblems` in `app/lib/events/seat-rules.ts`), aber noch nicht eingeschaltet – die Seite zeigt nur einen
   Hinweis. Zum Nachrüsten ein Event-Feld plus Checkbox ergänzen und in `gapRuleFor` zurückgeben.
+
+### Sitzordnung (Modus `ASSIGNED`)
+
+Für Veranstaltungen ohne Online-Buchung, bei denen die Veranstalter\*innen festlegen, wer wo sitzt (Hochzeit, Gala).
+Seite: `/admin/events/<id>/arrange` („Sitzordnung“).
+
+* **Gäste:** Eine **Gruppe** (z. B. „Familie Muster“ oder eine Einladung mit Begleitungen) hat eine oder mehrere
+  **Personen** (höchstens 50) und eine interne Notiz (z. B. Essenswünsche). Anlegen von Hand (eine Person pro Zeile)
+  oder als **CSV** – eine Zeile pro Person mit den Spalten `Name` (Pflicht), `Gruppe` (gleiche Gruppe = eine Gruppe)
+  und `Notiz`, Trenner Semikolon oder Komma, UTF-8. Erst kommt eine Vorschau, dann wird übernommen; bei einem Fehler
+  (mit Zeilennummer) wird nichts übernommen. Ein Import ergänzt immer, er löscht nichts.
+* **Keine Kontaktdaten, keine Mails, kein Verwaltungslink:** Gäste bekommen von Seating nichts. Kontaktdaten und
+  „Dein Platz“ kommen mit der Anbindung an rsvp-app (Phase 7). Die Rundmail und „Buchung anlegen“ führen zur
+  Sitzordnung.
+* **Setzen:** Personen aus der Liste auf einen Platz ziehen (auf einen Tisch gezogen: erster freier Platz daran),
+  eine ganze Gruppe mit „zusammen setzen“ – alle ohne Platz kommen an denselben Tisch bzw. nebeneinander in dieselbe
+  Reihe, ab dem Zielplatz; passt es nicht, passiert nichts. Auf einen besetzten Platz gezogen, **tauschen** die beiden.
+  Zurück in die Liste gezogen, verliert die Person ihren Platz. Nicht buchbare Plätze sind erlaubt.
+* **Ohne Ziehen:** Person oder Gruppe antippen und dann den Platz antippen (am Handy scrollt ein Finger weiter die
+  Seite), oder – auch per Tastatur und Screenreader – in der Liste wählen und den Platz aus einer Auswahlliste nehmen.
+* **Markierungen:** „2 von 4 mit Platz“, Personen ohne Platz farbig, „getrennt: Tisch 1, Tisch 3“, wenn eine Gruppe
+  auf mehrere Tische bzw. Reihen verteilt ist. Im Plan stehen die Initialen auf den Plätzen, der volle Name im
+  Tooltip; an Tischen „3 von 8“.
+* **Gruppe bearbeiten** (`…/bookings/<gruppe>`): Name, Personen umbenennen, entfernen (ihr Platz wird frei) und
+  hinzufügen, interne Notiz, „Gruppe hat abgesagt“ (Plätze frei, Gruppe bleibt als storniert), endgültig löschen,
+  Verlauf (wer hat wen wann wohin gesetzt).
+* **Druckansicht:** Liste je Tisch bzw. Reihe mit den Namen und „ohne Platz“, **Tischkarten** pro Person.
+  **CSV-Export:** eine Zeile pro Person (Platz, Name, Gruppe, Status, interne Notiz).
+* **Öffentlich:** Die Eventseite zeigt Infos und Plan mit frei/belegt, aber **nie Namen**, und keine Buchung.
+
+### Buchungen im Plan verschieben (Modus `TABLE` und `SEAT`)
+
+Auf derselben Seite („Im Plan verschieben“) lassen sich aktive Buchungen per Drag & Drop umsetzen: einen belegten
+Tisch auf einen freien ziehen bzw. im Modus `SEAT` einen belegten Platz auf einen freien (die übrigen Plätze der
+Buchung bleiben). Ohne Maus: in der Liste wählen und das Ziel antippen oder aus einer Auswahlliste nehmen. Weil
+echte Buchungen samt Mail daran hängen, fragt die Seite **vor dem Verschieben nach**; „Kund\*innen benachrichtigen“
+(Standard an) schickt bestätigten Buchungen die Änderungsmail mit neuer `.ics`. Es gelten dieselben Regeln wie im
+Ändern-Formular (Kapazität, Konflikterkennung, Audit-Log).
 
 ### Warteliste
 
@@ -233,7 +274,7 @@ Besitzer\*in, Admins und Konten mit Freigabe (auch Moderator\*innen) verwalten d
 prüft auf dem Server Konto, Zugriff auf das Event und dass die Buchung zu genau diesem Event gehört.
 
 * **Plan auf der Event-Seite:** Klick auf einen belegten Tisch öffnet die Buchung, auf einen freien „Buchung anlegen“
-  mit vorausgewähltem Tisch.
+  mit vorausgewähltem Tisch. Verschieben per Ziehen: siehe „Buchungen im Plan verschieben“.
 * **Liste** (`/admin/events/<id>/bookings`): Suche (Name, E-Mail, Telefon, Tisch), Filter nach Status (aktiv,
   bestätigt, unbestätigt, storniert, verfallen, alle), Zähler; von dort CSV-Export, Druckansicht, Tischkarten, Rundmail.
 * **Buchung** (`…/bookings/<buchung>`):
@@ -307,7 +348,9 @@ npm test            # Unit-Tests (vitest): Passwort, Drossel-IP, Formular-Helfer
                     # Buchungs-Tokens (HMAC, Rotation), Buchungsregeln, Admin-Regeln (Filter, Suche,
                     # Formulare, Rundmail-Empfänger), Änderungs-Diff, Audit-Texte, CSV (Formel-Schutz),
                     # Mail-Bausteine (Maskierung), Warteliste (Zuteilung, Frist, Wahl), Platzregeln
-                    # (nebeneinander, Vorschlag, Lückenregel, Kurzform der Platznamen)
+                    # (nebeneinander, Vorschlag, Lückenregel, Kurzform der Platznamen), CSV lesen,
+                    # Sitzordnung (Gruppen-Formulare, Gäste-CSV, Gruppe zusammen setzen, „getrennt“,
+                    # Initialen)
 npm run test:e2e    # Playwright gegen eine frisch gebaute Instanz auf http://127.0.0.1:3701
 ```
 
@@ -351,6 +394,14 @@ Löschfristen. Für die Buchungsverwaltung:
   8 gleichzeitige Buchungen mit überlappenden Plätzen (genau eine gewinnt), Obergrenze, erfundene, belegte und nicht
   buchbare Plätze, Plätze tauschen und abgeben über den Verwaltungslink, Moduswechsel gesperrt, Admin (anlegen mit
   verstreuten Plätzen, ändern, Platzliste), Warteliste nur für zusammenhängende Plätze.
+* Sitzordnung: Modus wählen, Gruppe anlegen, CSV mit Vorschau und fehlerhafter Datei, mit der Maus Person setzen,
+  Gruppe zusammen setzen, tauschen, auf einen Tisch ziehen, vom Platz nehmen, Gruppe passt nicht; antippen und
+  Auswahlliste (Tastatur), Escape; Gruppe bearbeiten (Platz wird frei), absagen, Druck, Tischkarten, Export pro
+  Person; öffentlich keine Namen im HTML, kein Verwaltungslink; nachgespielte Aufrufe mit veraltetem Stand, Person
+  eines fremden Events, fremdes Event, Konto ohne und mit Freigabe (Positivkontrolle), ohne Sitzung, ungültiger
+  Platz, falscher Modus.
+* Verschieben im Plan: belegtes Ziel, Abbrechen, Rückfrage mit Änderungsmail, ohne Mail, zu kleiner Tisch, veralteter
+  Stand, Buchung eines fremden Events; Einzelplatz per Auswahlliste.
 * Berechtigung: Moderator\*in, fremdes Konto, Buchung eines anderen Events, ohne Sitzung.
 * Druckansicht.
 

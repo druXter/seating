@@ -131,9 +131,13 @@ Felder kommen mit der Phase, die sie nutzt (umgesetzt: `FloorPlan` in Phase 1; `
 Anzeige, Status, Buchungszeitraum und `minFillRatio`, `EventAccess`, `Unit`, `Booking`/`Allocation` im Kern in
 Phase 2; Buchungs-Einstellungen, Verifizierung, Verwaltungslink, `MailLog`, `AuditLog`, `BookingThrottle` in
 Phase 3; `adminNote`, `Broadcast` und die Warteschlangen-Felder von `MailLog` in Phase 4; Warteliste in Phase 4b:
-`Event.waitlistEnabled`, `Event.offerTtlHours`, `Booking.waitlistedAt`; `externalRef` folgt mit Phase 7).
+`Event.waitlistEnabled`, `Event.offerTtlHours`, `Booking.waitlistedAt`; `Attendee` in Phase 6; `externalRef` folgt
+mit Phase 7).
 Zusätzlich zum Entwurf: `Event.replyTo`, `Event.mailNote`, `Booking.pendingIpHash`, `Booking.waitlistedAt`, `Broadcast`, `MailLog.broadcastId`/`claimedAt`. **Abweichung (Phase 4):** `Booking.email` ist
 optional – nur bei `source = ADMIN` leer (telefonische Reservierung ohne Adresse, siehe Abschnitt 8).
+**Abweichung (Phase 6):** Statt `Allocation.attendeeName` gibt es eine eigene Tabelle `Attendee` (Person einer
+Buchung) und `Allocation.attendeeId` (eindeutig). Personen müssen schon vor der Platzierung mit Namen existieren
+(Gästeliste, „noch nicht platziert“, Tischkarten) – ein Name an der Allocation gäbe es erst mit einem Platz.
 
 ```text
 FloorPlan        id, name, ownerId?, shared (bool), layout (JSON), version (int, für Konflikterkennung),
@@ -173,8 +177,10 @@ Booking          id, eventId, status (PENDING|CONFIRMED|CANCELLED|EXPIRED|WAITLI
                  externalRef?  (z. B. rsvp:<eventId>:<guestId>),
                  createdAt, updatedAt, cancelledAt?
 
-Allocation       id, eventId, unitId, bookingId, attendeeName?
+Allocation       id, eventId, unitId, bookingId, attendeeId? (UNIQUE)
                  UNIQUE(eventId, unitId)                   -- DIE Garantie gegen Doppelbuchung
+
+Attendee         id, eventId, bookingId, name, position, createdAt   -- Person einer Gruppe (ASSIGNED, Phase 6)
 
 MailLog          id, bookingId?, eventId, broadcastId?, type, recipient, status, error?, claimedAt?, createdAt
 Broadcast        id, eventId, subject, body, includeIcs, createdById?, createdAt   -- Rundmail (Phase 4)
@@ -183,7 +189,9 @@ BookingThrottle  analog LoginThrottle (IP / E-Mail)
 ```
 
 * `TABLE`: eine Allocation auf die Tisch-Einheit.
-* `SEAT`/`ASSIGNED`: eine Allocation pro Platz, optional mit `attendeeName` (Hochzeit: "Oma Erna", "Begleitung von Max").
+* `SEAT`: eine Allocation pro Platz.
+* `ASSIGNED`: eine Buchung pro Gruppe ("Familie Muster"), ein `Attendee` pro Person ("Oma Erna", "Begleitung von
+  Max"), eine Allocation pro platzierter Person (mit `attendeeId`). `partySize` = Zahl der Personen.
 * `eventId` steht in `Allocation` redundant, damit der Unique-Index pro Event greift.
 * **Gemischte Belegung** verhindern: Ist ein Tisch als Ganzes vergeben, sind seine Plätze belegt und umgekehrt. Das prüft
   die Buchungslogik (im Modus `TABLE` gibt es ohnehin nur Tisch-Einheiten, im Modus `SEAT` nur Plätze).
@@ -463,13 +471,41 @@ Umgesetzt in Phase 4 (`app/lib/events/admin-booking.ts`, Seiten unter `/admin/ev
 * **Endgültig löschen** entfernt die Buchung samt `MailLog`/`AuditLog`. Am Event bleibt ein Audit-Eintrag ohne
   Personendaten (Tisch, Personenzahl, Status).
 * **Verschieben per Ziehen im Plan ist nicht Teil von Phase 4 (Abweichung):** Der Tisch wird aus einer Liste gewählt,
-  ein Klick im Plan führt zur Buchung bzw. zum Anlegen. Drag & Drop kommt mit dem Zuordnungsmodus (Phase 6), der es
-  ohnehin braucht.
+  ein Klick im Plan führt zur Buchung bzw. zum Anlegen. Drag & Drop kam mit dem Zuordnungsmodus in Phase 6 (siehe
+  unten).
 * **Export:** CSV mit UTF-8-BOM und `;` (Excel, deutsch), Formel-Schutz gegen CSV-Injection, gleiche Filter wie die
   Liste. **Druckansicht:** Tischliste mit Abhakkästchen und Tischkarten, nur aktive Buchungen.
 * **Nicht umgesetzt:** „Event absagen“ (alle Buchungen gesammelt mit Mail stornieren, dann löschen). Beim Löschen
   eines Events bleibt die Warnung; wer die Buchenden informieren will, schickt vorher eine Rundmail oder storniert
   einzeln. Kandidat für Phase 4b, weil es dieselbe Warteschlange nutzen kann.
+
+Zuordnungsmodus und Drag & Drop umgesetzt in Phase 6 (`app/lib/events/assign.ts`, Regeln in `assign-rules.ts`,
+Oberfläche `app/ui/plan/arrange-board.tsx`, Seite `/admin/events/<id>/arrange`), mit diesen Festlegungen:
+
+* **Gruppe = Buchung, Person = `Attendee`** (Abweichung vom Datenmodell, siehe Abschnitt 3). Gruppen sind
+  `source = ADMIN`, `CONFIRMED`, höchstens 50 Personen. Zugang ist bei `ASSIGNED` immer `NONE` (folgt vorerst aus dem
+  Modus, kein eigenes Formularfeld).
+* **Keine Kontaktdaten, keine Mails, kein Verwaltungslink** im Modus `ASSIGNED` (Datensparsamkeit). Gespeichert werden
+  Gruppenname, Personen, interne Notiz. Kontaktdaten und die Rückmeldung „Dein Platz“ kommen mit rsvp-app (Phase 7).
+  Rundmail und „Buchung anlegen“ leiten zur Sitzordnung; ein abgeleiteter Verwaltungslink ergibt 404.
+* **Gästeliste:** von Hand (eine Person pro Zeile) oder CSV – eine Zeile pro Person, Spalten `Name` (Pflicht),
+  `Gruppe`, `Notiz`, Trenner `;`/`,`/Tab erkannt. Erst Vorschau, dann übernehmen; ganz oder gar nicht; ein Import
+  ergänzt nur. Eine Schema-Bibliothek war dafür nicht nötig (eigener kleiner Parser in `app/lib/csv.ts`).
+* **Setzen, tauschen, räumen:** Eine Person auf einen besetzten Platz gezogen tauscht mit der Person dort (hatte die
+  gezogene keinen Platz, steht die andere danach ohne da). Jede Aktion trägt den Platz, auf dem der Client die Person
+  gesehen hat; stimmt er nicht mehr, wird abgelehnt statt überraschend umgesetzt. Alle Plätze sind erlaubt, auch nicht
+  buchbare.
+* **Begleitungen zusammenhalten:** „Gruppe zusammen setzen“ setzt alle Personen ohne Platz ab dem Zielplatz an
+  denselben Tisch (reihum) bzw. nebeneinander in dieselbe Reihe (ohne Gang dazwischen), ganz oder gar nicht. Die Liste
+  markiert Gruppen, die auf mehrere Tische bzw. Reihen verteilt sind („getrennt“).
+* **Drei gleichwertige Bedienwege:** Ziehen mit Maus/Stift (Pointer Events, kein HTML5-Drag&Drop – das geht auf
+  Touch-Geräten nicht), Antippen und Ziel antippen (Finger scrollen weiter die Seite), Tastatur/Screenreader über
+  Knöpfe in der Liste und eine Auswahlliste der Plätze.
+* **Verschieben von Buchungen (`TABLE`/`SEAT`)** auf derselben Seite: Tisch auf Tisch bzw. ein Platz auf einen
+  Platz, immer mit **Rückfrage** vor dem Ausführen und „Kund\*innen benachrichtigen“ (Standard an) – es hängen echte
+  Buchungen samt Änderungsmail daran. Läuft über dieselbe Funktion wie das Ändern-Formular. Tauschen zweier
+  Buchungen ist nicht vorgesehen. In `ASSIGNED` wirkt das Ziehen sofort (interne Planung).
+* **Druck und Export:** Liste je Tisch/Reihe mit Namen, Tischkarte pro Person, CSV eine Zeile pro Person.
 
 ---
 
@@ -527,7 +563,8 @@ optional `TURNSTILE_*`.
   Abgelaufene/stornierte Buchungen deutlich früher entfernen (Vorschlag: 30 Tage).
 * Datensparsamkeit: Telefon nur, wenn pro Event verlangt. Datenschutzhinweis auf der Buchungsseite. Kein Tracking.
 * Öffentliche Plan-Ansicht zeigt nur "belegt", **nie Namen** – außer der Admin aktiviert es ausdrücklich
-  (z. B. Tischkarten-Ansicht auf einer Hochzeit).
+  (z. B. Tischkarten-Ansicht auf einer Hochzeit). Diese Ausnahme ist noch nicht umgesetzt (in Phase 6 bewusst
+  zurückgestellt); die Sitzordnung ist nur im Admin-Bereich, im Druck und im Export zu sehen.
 
 ---
 
@@ -542,7 +579,7 @@ optional `TURNSTILE_*`.
 | 4 | Admin-Buchungsverwaltung: Verschieben, Ändern, Löschen, Änderungsmails, Rundmail, erneute Verifizierung, Audit, Export (umgesetzt; Ziehen im Plan → Phase 6, siehe Abschnitt 8) |
 | 4b | Warteliste mit Nachrück-Angebot (Abschnitt 5) (umgesetzt; „Event absagen“ aus Abschnitt 8 weiterhin offen) |
 | 5 | Modus `SEAT` (Kino/Winterball) (umgesetzt mit Zugang `OPEN`; `RSVP` folgt mit Phase 7) |
-| 6 | Modus `ASSIGNED` (Hochzeit) mit manueller/CSV-Gästeliste, Drag & Drop im Plan (auch zum Verschieben von Buchungen) |
+| 6 | Modus `ASSIGNED` (Hochzeit) mit manueller/CSV-Gästeliste, Drag & Drop im Plan (auch zum Verschieben von Buchungen) (umgesetzt; Namen öffentlich zeigen aus Abschnitt 11 weiterhin offen) |
 | 7 | rsvp-app-Anbindung (A und B), Änderungen in rsvp-app |
 | 8 | Konto-Föderation über `suite-kit`, Eintrag im suite-kit-README |
 

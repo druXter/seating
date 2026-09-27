@@ -3,11 +3,12 @@ import Link from 'next/link'
 
 // ENTWURF: Beschreibt, was dieses Tool tatsächlich speichert und verarbeitet. Er ersetzt keine
 // Rechtsberatung - vor dem Einsatz mit Externen bitte einmal prüfen lassen und bei jeder
-// Änderung der Datenverarbeitung mitpflegen. Stand: Phase 4 (Konten der Veranstalter*innen,
+// Änderung der Datenverarbeitung mitpflegen. Stand: Phase 6 (Konten der Veranstalter*innen,
 // Raumpläne mit Hintergrundbildern, Events mit öffentlicher Planansicht und Freigaben, Tischbuchung
 // ohne Konto mit Mail-Bestätigung, Verwaltungslink, Buchungsmails mit .ics und Löschfristen;
 // Buchungsverwaltung durch Veranstalter*innen mit interner Notiz, Rundmail und CSV-Export;
-// Warteliste mit Nachrück-Angebot, Phase 4b; Einzelplätze, Phase 5).
+// Warteliste mit Nachrück-Angebot, Phase 4b; Einzelplätze, Phase 5; Sitzordnung mit Gästeliste der
+// Veranstalter*innen, Phase 6).
 //
 // Liest Verantwortlichen- und Infrastruktur-Angaben zur Laufzeit aus der (nicht
 // versionierten) .env, analog zu app/impressum/page.tsx - force-dynamic verhindert, dass
@@ -155,6 +156,25 @@ export default function DatenschutzPage() {
         </div>
 
         <div>
+          <h2 className="font-bold text-lg">5b. Sitzordnung (Gästeliste der Veranstalter*innen)</h2>
+          <p className="mt-2">
+            Bei manchen Veranstaltungen (z. B. einer Hochzeit) bucht man nicht selbst, sondern die Veranstalter*innen legen
+            fest, wer wo sitzt. Dafür tragen sie ihre Gäste ein – von Hand oder aus einer eigenen Liste (CSV-Datei). Wir
+            speichern dann nur die <strong>Namen</strong> der Gäste, ihre Zuordnung zu Gruppen (z. B. „Familie Muster“), den
+            zugewiesenen <strong>Platz</strong> und eine <strong>interne Notiz</strong> der Veranstalter*innen (z. B.
+            Essenswünsche), dazu ein Protokoll, wer wann wen auf welchen Platz gesetzt hat. E-Mail-Adressen oder
+            Telefonnummern werden dafür nicht erfasst, und Gäste bekommen von diesem Dienst keine Mails.
+          </p>
+          <p className="mt-2">
+            Die Sitzordnung sehen nur die Veranstalter*innen und die Konten, denen sie die Veranstaltung freigegeben haben;
+            sie können sie ausdrucken (Tischliste, Tischkarten) oder als CSV-Datei herunterladen. Die öffentliche Seite der
+            Veranstaltung zeigt keine Namen, nur welche Plätze besetzt sind. Rechtsgrundlage ist das berechtigte Interesse der
+            Veranstalter*innen an der Organisation ihrer Veranstaltung (Art. 6 Abs. 1 lit. f DSGVO). Zur Speicherdauer siehe
+            Punkt 10 (abgesagte Gruppen wie stornierte Buchungen).
+          </p>
+        </div>
+
+        <div>
           <h2 className="font-bold text-lg">6. Schutz vor Missbrauch (Drosselung)</h2>
           <p className="mt-2">
             Um das Erraten von Passwörtern und das massenhafte Auslösen von Mails zu verhindern, zählen wir
@@ -227,7 +247,8 @@ export default function DatenschutzPage() {
             Freigaben und allen zugehörigen Buchungen.
           </p>
           <p className="mt-2">
-            Verfallene und stornierte Buchungen sowie beendete Einträge der Warteliste löschen wir <strong>30 Tage</strong> nach ihrer letzten Änderung, samt
+            Verfallene und stornierte Buchungen, beendete Einträge der Warteliste und abgesagte Gruppen einer Sitzordnung
+            löschen wir <strong>30 Tage</strong> nach ihrer letzten Änderung, samt
             Mail- und Änderungsprotokoll. Bestätigte Buchungen bleiben bis zur Löschung der Veranstaltung gespeichert
             (siehe oben) – oder bis die Veranstalter*innen sie früher löschen.
           </p>
