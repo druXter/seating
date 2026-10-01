@@ -137,3 +137,27 @@ test('Passwortwechsel verlangt das aktuelle Passwort und die Passwort-Regel', as
   await page.getByRole('button', { name: 'Passwort ändern' }).click()
   await expect(page).toHaveURL(/error=weak/)
 })
+
+test('Kopfleiste bricht auf Handybreite um, statt Menüpunkte links abzuschneiden', async ({ page }) => {
+  const user = await createAccount('ADMIN', { email: uniqueEmail('eine-sehr-lange-adresse-zum-umbrechen') })
+  await page.setViewportSize({ width: 360, height: 740 })
+  await login(page, user.email)
+  await expect(page).toHaveURL(/\/admin$/)
+
+  const nav = page.getByRole('navigation', { name: 'Konto' })
+  const items = [
+    nav.getByRole('link', { name: 'Verwaltung' }),
+    nav.getByRole('link', { name: 'Events' }),
+    nav.getByRole('link', { name: 'Raumpläne' }),
+    nav.getByRole('link', { name: 'Nutzer*innen' }),
+    nav.getByRole('link', { name: user.email }),
+    nav.getByRole('button', { name: 'Abmelden' })
+  ]
+  for (const item of items) {
+    const box = await item.boundingBox()
+    expect(box).not.toBeNull()
+    expect(box!.x).toBeGreaterThanOrEqual(0)
+    expect(box!.x + box!.width).toBeLessThanOrEqual(360)
+  }
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(360)
+})
