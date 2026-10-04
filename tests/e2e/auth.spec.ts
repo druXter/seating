@@ -149,7 +149,7 @@ test('Kopfleiste bricht auf Handybreite um, statt Menüpunkte links abzuschneide
     nav.getByRole('link', { name: 'Verwaltung' }),
     nav.getByRole('link', { name: 'Events' }),
     nav.getByRole('link', { name: 'Raumpläne' }),
-    nav.getByRole('link', { name: 'Nutzer*innen' }),
+    nav.getByRole('link', { name: 'Konten' }),
     nav.getByRole('link', { name: user.email }),
     nav.getByRole('button', { name: 'Abmelden' })
   ]

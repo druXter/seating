@@ -298,7 +298,7 @@ export default function DatenschutzPage() {
             Ein Konto wird automatisch gelöscht, wenn du dich <strong>2 Jahre</strong> lang nicht mehr angemeldet
             hast und dir keine Raumpläne und Veranstaltungen mehr gehören - inklusive Sitzungen, Verknüpfungen zu anderen
             Tools und Freigaben.
-            Administrator-Konten sind von dieser
+            Konten mit Admin-Rolle sind von dieser
             automatischen Löschung ausgenommen.
             Unabhängig davon kannst du jederzeit unter der oben genannten Adresse um frühere Löschung deines Kontos
             bitten.

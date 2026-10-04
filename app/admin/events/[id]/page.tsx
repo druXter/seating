@@ -85,7 +85,7 @@ export default async function EventPage({ params, searchParams }: { params: Prom
         {search.resynced === '1' && <Notice tone="success">Plan aus der Vorlage übernommen.</Notice>}
         {search.shared === '1' && <Notice tone="success">Freigabe hinzugefügt.</Notice>}
         {search.unshared === '1' && <Notice tone="success">Freigabe entfernt.</Notice>}
-        {search.shareError === 'notfound' && <Notice tone="error">Zu dieser Adresse gibt es kein Konto. Lade die Person zuerst unter „Nutzer*innen“ ein.</Notice>}
+        {search.shareError === 'notfound' && <Notice tone="error">Zu dieser Adresse gibt es kein Konto. Lade die Person zuerst unter „Konten“ ein.</Notice>}
         {search.shareError === 'owner' && <Notice tone="error">Diesem Konto gehört das Event bereits.</Notice>}
         <BackgroundNotice outcome={search.background} />
 

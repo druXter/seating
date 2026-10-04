@@ -27,7 +27,7 @@ export default async function AdminPage() {
               <li><Link href="/admin/plans" className="text-blue-700 hover:underline">Raumpläne</Link></li>
             )}
             {user.role !== 'MODERATOR' && (
-              <li><Link href="/admin/users" className="text-blue-700 hover:underline">Nutzer*innen verwalten</Link></li>
+              <li><Link href="/admin/users" className="text-blue-700 hover:underline">Konten verwalten</Link></li>
             )}
             <li><Link href="/account" className="text-blue-700 hover:underline">Mein Konto</Link></li>
           </ul>

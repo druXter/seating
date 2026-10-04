@@ -1,7 +1,7 @@
 # Seating – Konzept
 
 Sitzplatz-Tool der App-Suite (siehe `suite-kit`). Wie alle Tools der Suite **eigenständig zuerst**: eigene Datenbank,
-eigene Admin-Konten, eigenes Deployment. Anbindung an rsvp-app und Konto-Föderation sind optionale Zusätze.
+eigene Verwaltungskonten, eigenes Deployment. Anbindung an rsvp-app und Konto-Föderation sind optionale Zusätze.
 
 Dieses Dokument ist die fachliche Grundlage. Alles unter "Offene Entscheidungen" ist noch nicht festgelegt.
 
@@ -416,7 +416,7 @@ Phase 3, `app/lib/booking-tokens.ts`). Verwaltungsseite mit
 
 ---
 
-## 8. Admin-Bereich
+## 8. Verwaltungsbereich
 
 **Events:** anlegen/bearbeiten, Slug, Modus, Zugang, Status, Buchungszeitraum, `pendingTtlMinutes`, `minFillRatio`,
 `maxSeatsPerBooking`, `selfEditHoursBefore`, `oneBookingPerEmail`, Pflichtfelder, Texte (Beschreibung, Hinweise in Mails), RSVP-Verknüpfung.

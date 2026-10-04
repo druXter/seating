@@ -11,7 +11,7 @@ Fachliche Grundlage und Fahrplan: [docs/KONZEPT.md](docs/KONZEPT.md).
 
 | Phase | Inhalt | Stand |
 | --- | --- | --- |
-| 0 | Gerüst, Admin-Login, Kontoverwaltung, Sicherheits-Header, Docker, Tests | ✅ umgesetzt |
+| 0 | Gerüst, Verwaltungs-Login, Kontoverwaltung, Sicherheits-Header, Docker, Tests | ✅ umgesetzt |
 | 1 | Raumplan-Editor, Vorlagen, Import/Export, Hintergrundbild | ✅ umgesetzt |
 | 2 | Events mit Plan-Snapshot, Freigaben, öffentliche Planansicht mit Belegung | ✅ umgesetzt |
 | 3 | Tischbuchung mit Verifizierung, Verfall, `.ics`, Verwaltungslink | ✅ umgesetzt |
@@ -23,7 +23,7 @@ Fachliche Grundlage und Fahrplan: [docs/KONZEPT.md](docs/KONZEPT.md).
 | 8 | Konto-Föderation über `suite-kit`: mit Konten anderer Tools anmelden, für andere Tools bestätigen | ✅ umgesetzt |
 
 Tische und Einzelplätze lassen sich online buchen (Modus `TABLE` bzw. `SEAT`, Zugang `OPEN` oder nur über eine Zusage
-aus rsvp-app), Veranstalter\*innen verwalten die Buchungen im Admin-Bereich. Für eine Sitzordnung (Modus `ASSIGNED`) legen sie die Gäste selbst an und
+aus rsvp-app), Veranstalter\*innen verwalten die Buchungen im Verwaltungsbereich. Für eine Sitzordnung (Modus `ASSIGNED`) legen sie die Gäste selbst an und
 setzen sie auf Plätze.
 
 ## Konten
@@ -52,11 +52,16 @@ node create-user.js deine-email@domain.de ADMIN --invite                     # s
 docker compose run --rm seating node create-user.js deine-email@domain.de ADMIN --invite
 ```
 
-Weitere Konten lädt man unter `/admin/users` ein: Die Person bekommt einen Einmal-Link (7 Tage gültig) und legt ihr
+Weitere Konten lädt man unter „Konten“ (`/admin/users`) ein: Die Person bekommt einen Einmal-Link (7 Tage gültig) und legt ihr
 Passwort **selbst** fest. Ohne `SMTP_HOST` zeigt die Seite den Link dem einladenden Konto einmalig zum Weitergeben an. Nur
-Admins vergeben die Rollen CREATOR/ADMIN; Creator laden ausschließlich Moderator\*innen ein. Admin-Konten lassen sich in
+Admins vergeben die Rollen CREATOR/ADMIN; Creator laden ausschließlich Moderator\*innen ein. Konten mit Admin-Rolle lassen sich in
 der Oberfläche bewusst weder ändern noch löschen (Schutz vor Aussperren) und haben keinen Passwort-Reset per Mail – das
 geht nur per `create-user.js`.
+
+**Begriffe (suite-weit gleich):** Alle Konten in diesem Tool sind **Verwaltungskonten** (Rolle Admin, Creator oder
+Moderator, Code: `User`); Gäste brauchen kein Konto. **Teilnehmendenkonten** (für Gäste, ohne Verwaltungsrechte) gibt es
+heute nur in rsvp-app. **Admin** ist nur der Name einer Rolle, nie eine Kontoart („Konto mit Admin-Rolle“). Die
+Kontenliste heißt in der Oberfläche „Konten“ (Pfad weiterhin `/admin/users`).
 
 ### Anmelden mit einem Konto aus einem anderen Tool (Föderation)
 
@@ -341,7 +346,7 @@ Events. Ältere Meldungen als die zuletzt angewandte (`iat`) werden ignoriert.
   pro IP je 15 Minuten, erneut senden 3 pro Buchung und 10 pro IP je Stunde; höchstens 3 gleichzeitig unbestätigte
   Reservierungen pro IP und Event.
 * **Mailversand gescheitert:** Die Reservierung wird sofort wieder freigegeben – kein Tisch hängt an einer Mail, die nie
-  ankommt. Jede Mail steht im `MailLog`, jede Änderung im `AuditLog` (angezeigt auf der Buchungsseite im Admin-Bereich).
+  ankommt. Jede Mail steht im `MailLog`, jede Änderung im `AuditLog` (angezeigt auf der Buchungsseite im Verwaltungsbereich).
 * **Ohne SMTP oder ohne Secrets** (je mindestens 32 Zeichen) ist das Buchen abgeschaltet – kein unsicherer Rückfall.
 * **Absender** ist immer `SMTP_FROM` (pro Event frei wählbare Absender würden SPF/DMARC verletzen), pro Event gibt es ein
   Reply-To.
@@ -351,7 +356,7 @@ Events. Ältere Meldungen als die zuletzt angewandte (`iat`) werden ignoriert.
 Wie Abstimmungstool und rsvp-app ist Seating eine Progressive Web App: Im Browser (Chrome/Edge/Android: „Installieren“
 bzw. „Als App installieren“ auf der Start- und der Verwaltungsseite; iPhone/iPad: Safari → Teilen → „Zum
 Home-Bildschirm“) lässt es sich mit eigenem Symbol und ohne Browserleiste starten. Gedacht für Veranstalter\*innen –
-die App startet im Admin-Bereich. Buchende brauchen das nicht, jeder Event- und Verwaltungslink funktioniert im Browser.
+die App startet im Verwaltungsbereich. Buchende brauchen das nicht, jeder Event- und Verwaltungslink funktioniert im Browser.
 
 * **Manifest** (`app/manifest.ts`): Name, Farben, Icons (auch maskierbar für Android), Shortcuts zu „Events“, „Neues
   Event“ und „Raumpläne“.
@@ -452,7 +457,7 @@ Ein externer Scheduler (z. B. Uptime Kuma) ruft **einmal täglich** auf:
 Ein leeres oder fehlendes `CRON_SECRET` lässt niemanden durch. Der Aufruf setzt abgelaufene Reservierungen auf
 „verfallen“ und gibt ihre Tische frei (beim Anzeigen zählen sie ohnehin schon nicht mehr). Gelöscht werden: verfallene
 und stornierte Buchungen 30 Tage nach ihrer letzten Änderung (samt Mail- und Änderungsprotokoll), Events 18 Monate nach
-ihrem Ende (samt Plan, Bild, Freigaben und Buchungen), Konten nach 2 Jahren ohne Anmeldung (Admin-Konten und Konten, denen
+ihrem Ende (samt Plan, Bild, Freigaben und Buchungen), Konten nach 2 Jahren ohne Anmeldung (Konten mit Admin-Rolle und Konten, denen
 noch Raumpläne oder Events gehören, ausgenommen), abgelaufene Sitzungen, Einladungs-/Reset-Links und Drossel-Zähler.
 Außerdem setzt der Aufruf eine unterbrochene Rundmail fort (siehe oben).
 Wird ein Konto von Hand gelöscht, gehen seine Raumpläne und Events an den löschenden Admin über.
