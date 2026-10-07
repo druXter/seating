@@ -608,4 +608,4 @@ Siehe `.env.example` (mit Erklärungen). Kurzüberblick:
 | `SUITE_IDPS`, `SUITE_SIGNING_KEY`, `SUITE_SIGNING_KEY_PREVIOUS`, `SUITE_TRUSTED_APPS`, `SUITE_APP_NAME` | optional: Konto-Föderation (siehe [oben](#anmelden-mit-einem-konto-aus-einem-anderen-tool-föderation) und README von `suite-kit`) |
 | `UPLOAD_DIR` | optional: Ablage hochgeladener Bilder (Standard `data/uploads` im Arbeitsverzeichnis) |
 
-Später evtl.: `TURNSTILE_*` (Bot-Schutz für das Buchungsformular).
+Später evtl.: `TURNSTILE_*` (Bot-Schutz für das Buchungsformular), als Idee Q6 in `suite-kit/docs/IDEEN.md`.

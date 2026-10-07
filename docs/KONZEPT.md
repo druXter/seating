@@ -613,7 +613,7 @@ optional `TURNSTILE_*`.
 * Datensparsamkeit: Telefon nur, wenn pro Event verlangt. Datenschutzhinweis auf der Buchungsseite. Kein Tracking.
 * Öffentliche Plan-Ansicht zeigt nur "belegt", **nie Namen** – außer der Admin aktiviert es ausdrücklich
   (z. B. Tischkarten-Ansicht auf einer Hochzeit). Diese Ausnahme ist noch nicht umgesetzt (in Phase 6 bewusst
-  zurückgestellt); die Sitzordnung ist nur im Admin-Bereich, im Druck und im Export zu sehen.
+  zurückgestellt, jetzt Idee L10 in `suite-kit/docs/IDEEN.md`); die Sitzordnung ist nur im Admin-Bereich, im Druck und im Export zu sehen.
 
 ---
 
