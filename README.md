@@ -73,6 +73,10 @@ Login-Bestätigungen, kein gemeinsames Geheimnis). Seating kann beides sein:
   `autoProvision: false`, weil Konten hier nur Veranstalter\*innen brauchen – dann meldet sich nur an, wer hier schon
   eingeladen wurde und sein Konto unter „Mein Konto“ verknüpft hat. Die Rolle beim ersten Login: Admin nur mit
   `mapAdminRole`, sonst Creator; Moderator\*in bleibt Moderator\*in. Danach vergeben nur lokale Admins Rollen.
+* **Bevorzugter Anbieter** (`SUITE_LOGIN_REDIRECT`, optional): ein Origin aus `SUITE_IDPS`. Die Login-Seite leitet
+  ohne Sitzung direkt dorthin weiter, statt erst das Formular zu zeigen. Nach einem Fehlschlag, beim Zurücksetzen des
+  Passworts und wenn dieses Tool selbst als Anbieter gefragt ist, erscheint wie gewohnt das Formular; der lokale Login
+  bleibt über `/login?local=1` erreichbar.
 * **Anbieter** (`SUITE_SIGNING_KEY`, `SUITE_TRUSTED_APPS`): Andere Tools können Seating-Konten für ihren Login nutzen.
   Bestätigt werden nur Konten mit eigenem Passwort (keine Ketten), nur für die eingetragenen Tools.
 
@@ -605,7 +609,7 @@ Siehe `.env.example` (mit Erklärungen). Kurzüberblick:
 | `SWEEP_INTERVAL_SECONDS` | optional: Hintergrund-Durchlauf für Verfall und Angebote (Standard 60, 0 = aus) |
 | `IMPRESSUM_*` | Angaben für Impressum und Datenschutzerklärung |
 | `RSVP_SEATING_SECRET`, `RSVP_APP_BASE_URL` | optional: Anbindung an rsvp-app (gemeinsames Secret, mind. 32 Zeichen; Adresse von rsvp-app) |
-| `SUITE_IDPS`, `SUITE_SIGNING_KEY`, `SUITE_SIGNING_KEY_PREVIOUS`, `SUITE_TRUSTED_APPS`, `SUITE_APP_NAME` | optional: Konto-Föderation (siehe [oben](#anmelden-mit-einem-konto-aus-einem-anderen-tool-föderation) und README von `suite-kit`) |
+| `SUITE_IDPS`, `SUITE_SIGNING_KEY`, `SUITE_SIGNING_KEY_PREVIOUS`, `SUITE_TRUSTED_APPS`, `SUITE_APP_NAME`, `SUITE_LOGIN_REDIRECT` | optional: Konto-Föderation (siehe [oben](#anmelden-mit-einem-konto-aus-einem-anderen-tool-föderation) und README von `suite-kit`) |
 | `UPLOAD_DIR` | optional: Ablage hochgeladener Bilder (Standard `data/uploads` im Arbeitsverzeichnis) |
 
 Später evtl.: `TURNSTILE_*` (Bot-Schutz für das Buchungsformular), als Idee Q6 in `suite-kit/docs/IDEEN.md`.

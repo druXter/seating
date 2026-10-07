@@ -90,3 +90,34 @@ export const AUTHORIZE_CONTINUE_PREFIX = '/api/suite/authorize?'
 export function continueTarget(to: string | undefined | null): string {
   return to && to.startsWith(AUTHORIZE_CONTINUE_PREFIX) && !/[\u0000-\u001f\\]/.test(to) ? to : '/admin'
 }
+
+let warnedLoginRedirect = false
+/**
+ * Bevorzugter Anbieter (SUITE_LOGIN_REDIRECT, ein Origin aus SUITE_IDPS): Die Login-Seite schickt
+ * Besucher*innen ohne Sitzung direkt dorthin, statt erst das Formular zu zeigen. Weniger Klicks,
+ * kein zentraler Login - der lokale Login bleibt über `/login?local=1` erreichbar. Ein Origin, der
+ * nicht in SUITE_IDPS steht, wird mit einer Warnung ignoriert.
+ */
+export function loginRedirectIdp(): IdpConfig | null {
+  const wanted = process.env.SUITE_LOGIN_REDIRECT?.trim()
+  if (!wanted) return null
+  const issuer = normalizeOrigin(wanted)
+  const idp = getIdps().find(i => i.issuer === issuer) ?? null
+  if (!idp && !warnedLoginRedirect) {
+    warnedLoginRedirect = true
+    console.warn(`[suite] SUITE_LOGIN_REDIRECT: "${wanted}" steht nicht in SUITE_IDPS und wird ignoriert`)
+  }
+  return idp
+}
+
+/**
+ * Ob die Login-Seite zum bevorzugten Anbieter weiterleiten darf. Nur beim schlichten Aufruf (höchstens
+ * `next`): Fehlermeldungen (`error`, z. B. nach einer fehlgeschlagenen Anmeldung - sonst Schleife),
+ * `reset`, `local` und alles andere zeigen das Formular. Ebenso nie, wenn dieses Tool gerade selbst
+ * als Anbieter gefragt ist (`next` = /api/suite/...): Die Bestätigung braucht ein lokales Konto mit
+ * Passwort, ein über ein drittes Tool angemeldetes Konto würde abgelehnt (keine Ketten).
+ */
+export function shouldAutoRedirect(params: Record<string, string | string[] | undefined>, target: string): boolean {
+  if (Object.entries(params).some(([key, value]) => key !== 'next' && value !== undefined)) return false
+  return !target.startsWith('/api/suite/')
+}

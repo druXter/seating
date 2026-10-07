@@ -1,7 +1,7 @@
 import { defineConfig, devices } from '@playwright/test'
 import { SMTP_PORT } from './tests/e2e/mail-server'
 import { RSVP_ORIGIN, TEST_RSVP_SECRET } from './tests/e2e/rsvp-server'
-import { TEST_SEATING_SIGNING_KEY, TEST_SUITE_IDPS, TEST_SUITE_TRUSTED_APPS } from './tests/e2e/suite-server'
+import { SUITE_TOOLS, TEST_SEATING_SIGNING_KEY, TEST_SUITE_IDPS, TEST_SUITE_TRUSTED_APPS } from './tests/e2e/suite-server'
 
 // E2E-Tests gegen eine echte, frisch gebaute Instanz (next build + next start) mit eigener
 // Datenbank (prisma/test.db) - nie gegen die Entwicklungs- oder Produktivdatenbank.
@@ -11,6 +11,10 @@ import { TEST_SEATING_SIGNING_KEY, TEST_SUITE_IDPS, TEST_SUITE_TRUSTED_APPS } fr
 // sonst dieselben Cookies sehen (siehe CLAUDE.md, Stolpersteine).
 const PORT = 3701
 export const BASE_URL = `http://127.0.0.1:${PORT}`
+// Zweite Instanz mit demselben Build, derselben Datenbank und derselben BASE_URL, aber mit
+// SUITE_LOGIN_REDIRECT (bevorzugter Anbieter Tool A): Ihre Login-Seite leitet direkt weiter, der
+// Rücksprung landet über BASE_URL bei der ersten Instanz (tests/e2e/login-redirect.spec.ts).
+export const REDIRECT_PORT = 3702
 export const TEST_CRON_SECRET = 'e2e-cron-secret'
 export const TEST_UPLOAD_DIR = 'data/test-uploads'
 
@@ -27,6 +31,41 @@ process.env.BASE_URL = BASE_URL
 process.env.RSVP_SEATING_SECRET = TEST_RSVP_SECRET
 process.env.RSVP_APP_BASE_URL = RSVP_ORIGIN
 
+const SERVER_ENV: Record<string, string> = {
+  DATABASE_URL: 'file:./test.db',
+  BASE_URL,
+  // Ein Proxy: Die Tests spielen ihn selbst und setzen X-Forwarded-For, um verschiedene
+  // Besucher-IPs zu simulieren.
+  TRUST_PROXY_HOPS: '1',
+  CRON_SECRET: TEST_CRON_SECRET,
+  // Eigenes Upload-Verzeichnis, wird wie die Test-Datenbank bei jedem Lauf geleert.
+  UPLOAD_DIR: TEST_UPLOAD_DIR,
+  // Test-SMTP aus tests/e2e/mail-server.ts (in global-setup gestartet). Empfänger @nomail.test
+  // lehnt er ab - dann greift z.B. der angezeigte Einladungslink.
+  SMTP_HOST: '127.0.0.1',
+  SMTP_PORT: String(SMTP_PORT),
+  SMTP_USER: '',
+  SMTP_PASS: '',
+  SMTP_FROM: 'Seating Test <seating@example.test>',
+  VERIFY_CODE_SECRET: process.env.VERIFY_CODE_SECRET!,
+  MANAGE_LINK_SECRET: process.env.MANAGE_LINK_SECRET!,
+  MANAGE_LINK_SECRET_PREVIOUS: process.env.MANAGE_LINK_SECRET_PREVIOUS!,
+  RSVP_SEATING_SECRET: TEST_RSVP_SECRET,
+  RSVP_APP_BASE_URL: RSVP_ORIGIN,
+  // Konto-Föderation (Phase 8): zwei andere Tools aus tests/e2e/suite-server.ts - Seating nimmt
+  // Anmeldungen von beiden an und stellt selbst welche für Tool A aus.
+  SUITE_IDPS: TEST_SUITE_IDPS,
+  SUITE_TRUSTED_APPS: TEST_SUITE_TRUSTED_APPS,
+  SUITE_SIGNING_KEY: TEST_SEATING_SIGNING_KEY,
+  SUITE_APP_NAME: 'Seating Test',
+  // Rundmail-Warteschlange zügig abarbeiten (100 ms Pause statt 2 s).
+  BROADCAST_MAILS_PER_MINUTE: '600',
+  // Kein Hintergrund-Durchlauf: Die Tests lösen ihn gezielt über den Cron aus (sonst hinge ihr
+  // Ergebnis davon ab, wann die Minute umspringt).
+  SWEEP_INTERVAL_SECONDS: '0',
+  TZ: 'Europe/Berlin'
+}
+
 export default defineConfig({
   testDir: './tests/e2e',
   // Alle Tests teilen sich eine Datenbank und die Drossel-Zähler - nacheinander ausführen.
@@ -40,7 +79,7 @@ export default defineConfig({
     ...devices['Desktop Chrome'],
     locale: 'de-DE'
   },
-  webServer: {
+  webServer: [{
     // Datenbank bei jedem Lauf frisch anlegen (nur die eigene Testdatei löschen - bewusst kein
     // `prisma db push --force-reset`, das bei falsch gesetzter DATABASE_URL eine fremde
     // Datenbank leeren würde), dann wie in Produktion bauen und starten.
@@ -50,39 +89,15 @@ export default defineConfig({
     timeout: 240_000,
     stdout: 'ignore',
     stderr: 'pipe',
-    env: {
-      DATABASE_URL: 'file:./test.db',
-      BASE_URL,
-      // Ein Proxy: Die Tests spielen ihn selbst und setzen X-Forwarded-For, um verschiedene
-      // Besucher-IPs zu simulieren.
-      TRUST_PROXY_HOPS: '1',
-      CRON_SECRET: TEST_CRON_SECRET,
-      // Eigenes Upload-Verzeichnis, wird wie die Test-Datenbank bei jedem Lauf geleert.
-      UPLOAD_DIR: TEST_UPLOAD_DIR,
-      // Test-SMTP aus tests/e2e/mail-server.ts (in global-setup gestartet). Empfänger @nomail.test
-      // lehnt er ab - dann greift z.B. der angezeigte Einladungslink.
-      SMTP_HOST: '127.0.0.1',
-      SMTP_PORT: String(SMTP_PORT),
-      SMTP_USER: '',
-      SMTP_PASS: '',
-      SMTP_FROM: 'Seating Test <seating@example.test>',
-      VERIFY_CODE_SECRET: process.env.VERIFY_CODE_SECRET!,
-      MANAGE_LINK_SECRET: process.env.MANAGE_LINK_SECRET!,
-      MANAGE_LINK_SECRET_PREVIOUS: process.env.MANAGE_LINK_SECRET_PREVIOUS!,
-      RSVP_SEATING_SECRET: TEST_RSVP_SECRET,
-      RSVP_APP_BASE_URL: RSVP_ORIGIN,
-      // Konto-Föderation (Phase 8): zwei andere Tools aus tests/e2e/suite-server.ts - Seating nimmt
-      // Anmeldungen von beiden an und stellt selbst welche für Tool A aus.
-      SUITE_IDPS: TEST_SUITE_IDPS,
-      SUITE_TRUSTED_APPS: TEST_SUITE_TRUSTED_APPS,
-      SUITE_SIGNING_KEY: TEST_SEATING_SIGNING_KEY,
-      SUITE_APP_NAME: 'Seating Test',
-      // Rundmail-Warteschlange zügig abarbeiten (100 ms Pause statt 2 s).
-      BROADCAST_MAILS_PER_MINUTE: '600',
-      // Kein Hintergrund-Durchlauf: Die Tests lösen ihn gezielt über den Cron aus (sonst hinge ihr
-      // Ergebnis davon ab, wann die Minute umspringt).
-      SWEEP_INTERVAL_SECONDS: '0',
-      TZ: 'Europe/Berlin'
-    }
-  }
+    env: SERVER_ENV
+  }, {
+    // Startet nach der ersten Instanz (Playwright richtet die Server nacheinander ein) und nutzt deren Build.
+    command: `npx next start -H 127.0.0.1 -p ${REDIRECT_PORT}`,
+    url: `http://127.0.0.1:${REDIRECT_PORT}/impressum`,
+    reuseExistingServer: false,
+    timeout: 60_000,
+    stdout: 'ignore',
+    stderr: 'pipe',
+    env: { ...SERVER_ENV, SUITE_LOGIN_REDIRECT: SUITE_TOOLS.a.origin }
+  }]
 })

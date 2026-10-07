@@ -44,7 +44,7 @@ export default async function ForgotPasswordPage({
           anderes Tool angemeldet werden, setzen ihr Passwort dort zurück.
         </p>
         <p className="text-sm">
-          <Link href="/login" className="text-blue-700 hover:underline">Zurück zur Anmeldung</Link>
+          <Link href="/login?local=1" className="text-blue-700 hover:underline">Zurück zur Anmeldung</Link>
         </p>
       </div>
     </main>
