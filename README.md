@@ -216,7 +216,12 @@ Seite: `/admin/events/<id>/arrange` („Sitzordnung“).
   und `Notiz`, Trenner Semikolon oder Komma, UTF-8. Erst kommt eine Vorschau, dann wird übernommen; bei einem Fehler
   (mit Zeilennummer) wird nichts übernommen. Ein Import ergänzt immer, er löscht nichts.
 * **Keine Kontaktdaten, keine Mails, kein Verwaltungslink:** Gäste bekommen von Seating nichts. Mit einer
-  Verknüpfung zu rsvp-app kommen die Gäste per Abgleich und sehen ihren Platz dort (siehe „Anbindung an rsvp-app“). Die Rundmail und „Buchung anlegen“ führen zur
+  Verknüpfung zu rsvp-app kommen die Gäste per Abgleich und sehen ihren Platz dort (siehe „Anbindung an rsvp-app“).
+* **Sitzordnung für Gäste** (optional, Einstellungen → „Sitzordnung mit Namen für Gäste mit Zusage zeigen“, aus als
+  Voreinstellung): Wer über „Sitzplatz“ bei seiner Zusage in rsvp-app kommt (signierter Link), sieht den eigenen Platz
+  hervorgehoben und alle Tische bzw. Reihen mit den Namen darauf (`app/lib/rsvp/guest-seating.ts`). Nur Namen und
+  Plätze, keine Gruppen, Notizen oder Personen ohne Platz; nur für veröffentlichte Events (nicht im Entwurf). Die
+  öffentliche Eventseite zeigt nie Namen. Die Rundmail und „Buchung anlegen“ führen zur
   Sitzordnung.
 * **Setzen:** Personen aus der Liste auf einen Platz ziehen (auf einen Tisch gezogen: erster freier Platz daran),
   eine ganze Gruppe mit „zusammen setzen“ – alle ohne Platz kommen an denselben Tisch bzw. nebeneinander in dieselbe
@@ -268,7 +273,8 @@ rsvp-app im selben Abschnitt eintragen. Erst mit beiden Einträgen gilt die Verk
   eine Gästeliste abrufen.
 * **„Sitzplatz wählen“ bei Events ohne Platzwahl über Zusagen:** rsvp-app kennt den Modus nicht und zeigt den Button
   für jeden verknüpften Termin. Bei einer Sitzordnung sieht der Gast dann den Hinweis, dass die Veranstalter\*innen die
-  Plätze festlegen und der Platz in rsvp-app erscheint; bei offenem Zugang einen Verweis auf die öffentliche Seite.
+  Plätze festlegen und der Platz in rsvp-app erscheint (mit eingeschalteter „Sitzordnung für Gäste“ stattdessen die
+  Sitzordnung mit Namen); bei offenem Zugang einen Verweis auf die öffentliche Seite.
   Das gilt nur für gültige Links – ungültige bekommen dieselbe Meldung wie überall, ohne Modus oder Zugang zu verraten.
 * **Platzwahl über Zusagen** (Tisch- oder Platzbuchung, Zugang „nur mit Zusage aus rsvp-app“):
   * „Sitzplatz wählen“ in rsvp-app führt mit einem kurz gültigen, signierten Link auf `/rsvp/<event-id>`. Der Aufruf

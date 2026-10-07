@@ -201,6 +201,10 @@ model Event {
   maxSeatsPerBooking  Int     @default(10)
   waitlistEnabled     Boolean @default(true)
   offerTtlHours       Int     @default(24)
+  // Sitzordnung mit Namen für Gäste (Idee L10 der Suite): nur Modus ASSIGNED und nur für Gäste, die über
+  // „Sitzplatz“ aus rsvp-app kommen (signierter Link einer Zusage) - nie auf der öffentlichen Eventseite.
+  // Gezeigt werden nur Namen und Plätze (app/lib/rsvp/guest-seating.ts).
+  guestSeatingVisible Boolean @default(false)
   // Verknüpfung mit einem Event in rsvp-app (Phase 7, docs/KONZEPT.md Abschnitt 9): dessen id. Zugang RSVP
   // (Platzwahl nur über eine Zusage) bzw. bei ASSIGNED der Abgleich der Gästeliste. rsvpChangedAt: rsvp-app
   // hat seit dem letzten Abgleich eine Änderung gemeldet (Hinweis in der Sitzordnung).

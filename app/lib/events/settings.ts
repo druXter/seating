@@ -84,6 +84,7 @@ export type BookingSettings = {
   waitlistEnabled: boolean
   offerTtlHours: number
   maxSeatsPerBooking: number
+  guestSeatingVisible: boolean
 }
 
 export type ParsedEvent =
@@ -204,6 +205,7 @@ function parseBookingSettings(formData: FormData, errors: string[]): BookingSett
     mailNote: cleanText(formString(formData, 'mailNote', EVENT_LIMITS.mailNote)).trim(),
     waitlistEnabled: formData.get('waitlistEnabled') === 'on',
     offerTtlHours: offerTtlHours ?? 24,
-    maxSeatsPerBooking: maxSeatsPerBooking ?? 10
+    maxSeatsPerBooking: maxSeatsPerBooking ?? 10,
+    guestSeatingVisible: formData.get('guestSeatingVisible') === 'on'
   }
 }

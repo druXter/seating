@@ -189,7 +189,8 @@ export default async function EventPage({ params, searchParams }: { params: Prom
                 offerTtlHours: event.offerTtlHours,
                 maxSeatsPerBooking: event.maxSeatsPerBooking,
                 replyTo: event.replyTo ?? '',
-                mailNote: event.mailNote
+                mailNote: event.mailNote,
+                guestSeatingVisible: event.guestSeatingVisible
               }}
             />
           </div>

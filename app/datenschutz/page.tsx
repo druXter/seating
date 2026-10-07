@@ -194,7 +194,10 @@ export default function DatenschutzPage() {
           <p className="mt-2">
             Die Sitzordnung sehen nur die Veranstalter*innen und die Konten, denen sie die Veranstaltung freigegeben haben;
             sie können sie ausdrucken (Tischliste, Tischkarten) oder als CSV-Datei herunterladen. Die öffentliche Seite der
-            Veranstaltung zeigt keine Namen, nur welche Plätze besetzt sind. Rechtsgrundlage ist das berechtigte Interesse der
+            Veranstaltung zeigt keine Namen, nur welche Plätze besetzt sind. Ist die Veranstaltung mit rsvp-app verknüpft
+            (Punkt 5c), können die Veranstalter*innen zusätzlich einschalten, dass Gäste mit Zusage über „Sitzplatz“ die
+            Sitzordnung sehen: <strong>nur Namen und Plätze</strong> der platzierten Gäste, ohne Gruppen, Notizen oder
+            Kontaktdaten, und nur über den kurz gültigen, signierten Link aus rsvp-app. Rechtsgrundlage ist das berechtigte Interesse der
             Veranstalter*innen an der Organisation ihrer Veranstaltung (Art. 6 Abs. 1 lit. f DSGVO). Zur Speicherdauer siehe
             Punkt 10 (abgesagte Gruppen wie stornierte Buchungen).
           </p>

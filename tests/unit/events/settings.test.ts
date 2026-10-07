@@ -73,10 +73,12 @@ describe('Buchungs-Einstellungen', () => {
     const result = parseEventForm(form({ ...valid, ...settings }))
     expect(result.ok && result.booking).toEqual({
       pendingTtlMinutes: 45, selfEditHoursBefore: 0, oneBookingPerEmail: true, requirePhone: false, replyTo: 'info@verein.de', mailNote: 'Einlass 18:30',
-      waitlistEnabled: false, offerTtlHours: 12, maxSeatsPerBooking: 6
+      waitlistEnabled: false, offerTtlHours: 12, maxSeatsPerBooking: 6, guestSeatingVisible: false
     })
     const withWaitlist = parseEventForm(form({ ...valid, ...settings, waitlistEnabled: 'on' }))
     expect(withWaitlist.ok && withWaitlist.booking && withWaitlist.booking.waitlistEnabled).toBe(true)
+    const withSeating = parseEventForm(form({ ...valid, ...settings, guestSeatingVisible: 'on' }))
+    expect(withSeating.ok && withSeating.booking && withSeating.booking.guestSeatingVisible).toBe(true)
   })
 
   it('lehnt Werte außerhalb der Grenzen und ungültige Antwortadressen ab', () => {

@@ -612,8 +612,9 @@ optional `TURNSTILE_*`.
   Abgelaufene/stornierte Buchungen deutlich früher entfernen (Vorschlag: 30 Tage).
 * Datensparsamkeit: Telefon nur, wenn pro Event verlangt. Datenschutzhinweis auf der Buchungsseite. Kein Tracking.
 * Öffentliche Plan-Ansicht zeigt nur "belegt", **nie Namen** – außer der Admin aktiviert es ausdrücklich
-  (z. B. Tischkarten-Ansicht auf einer Hochzeit). Diese Ausnahme ist noch nicht umgesetzt (in Phase 6 bewusst
-  zurückgestellt, jetzt Idee L10 in `suite-kit/docs/IDEEN.md`); die Sitzordnung ist nur im Admin-Bereich, im Druck und im Export zu sehen.
+  (z. B. Tischkarten-Ansicht auf einer Hochzeit). Umgesetzt (2026-10-07, Idee L10 in
+  `suite-kit/docs/IDEEN.md`) in engerer Form: nicht auf der öffentlichen Ansicht, sondern nur für Gäste mit Zusage über den
+  signierten Link aus rsvp-app (`Event.guestSeatingVisible`, nur Modus ASSIGNED, nur Namen und Plätze).
 
 ---
 

@@ -14,6 +14,8 @@ import { activeRsvpBooking, verifySeatLink } from '../../lib/rsvp/booking'
 import { partySizeOf } from '../../lib/rsvp/rules'
 import Notice from '../../ui/notice'
 import RsvpBooking from './rsvp-booking'
+import GuestSeating from './guest-seating'
+import { loadGuestSeating } from '../../lib/rsvp/guest-seating'
 
 export const dynamic = 'force-dynamic'
 export const metadata: Metadata = { title: 'Sitzplatz wählen', robots: { index: false, follow: false } }
@@ -35,13 +37,16 @@ export default async function RsvpEntryPage({ params, searchParams }: { params: 
   const link = event && token ? verifySeatLink(token, event) : null
 
   if (event && link && (event.mode === 'ASSIGNED' || event.access !== 'RSVP')) {
+    const seating = await loadGuestSeating(event, link)
     return (
       <Shell>
         <div className="bg-white p-6 rounded-lg shadow space-y-2">
           <h1 className="text-2xl font-bold">{event.title}</h1>
           <p className="text-gray-700">{formatRange(event.startsAt, event.endsAt, event.timezone)}{event.location && ` · ${event.location}`}</p>
         </div>
-        {event.mode === 'ASSIGNED' ? (
+        {seating ? (
+          <GuestSeating view={seating} />
+        ) : event.mode === 'ASSIGNED' ? (
           <Notice tone="info">
             Hallo {link.name}, die Sitzordnung legen die Veranstalter*innen fest – du musst hier nichts wählen. Dein Platz
             erscheint bei deiner Zusage in rsvp-app, sobald er feststeht.

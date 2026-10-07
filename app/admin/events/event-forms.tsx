@@ -50,6 +50,7 @@ export type EventFormValues = {
   maxSeatsPerBooking: number
   replyTo: string
   mailNote: string
+  guestSeatingVisible: boolean
 }
 
 /** Titel + Adresse: Solange die Adresse nicht selbst geändert wurde, folgt sie dem Titel. */
@@ -167,7 +168,7 @@ export function CreateEventForm({ plans, baseUrl }: { plans: { id: string; label
  * Anbindung an rsvp-app (Phase 7): Zugang (nur Tisch-/Platzbuchung) und die id des rsvp-Termins. Der
  * Sitzplatz-Link muss zusätzlich in rsvp-app eingetragen werden - erst dann gilt die Verknüpfung.
  */
-function RsvpFields({ values, rsvp }: { values: Pick<EventFormValues, 'access' | 'rsvpEventId' | 'mode'>; rsvp: { available: boolean; seatingLink: string } }) {
+function RsvpFields({ values, rsvp }: { values: Pick<EventFormValues, 'access' | 'rsvpEventId' | 'mode' | 'guestSeatingVisible'>; rsvp: { available: boolean; seatingLink: string } }) {
   return (
     <fieldset className="space-y-3">
       <legend className="text-sm font-bold">Zugang und rsvp-app</legend>
@@ -192,6 +193,16 @@ function RsvpFields({ values, rsvp }: { values: Pick<EventFormValues, 'access' |
           <p className="text-xs text-gray-600">Erst wenn beide Seiten eingetragen sind, gilt die Verknüpfung (Platzwahl, Gästeliste, Rückmeldung der Plätze).</p>
         </div>
       )}
+      <label className="flex items-start gap-2 text-sm">
+        <input type="checkbox" name="guestSeatingVisible" defaultChecked={values.guestSeatingVisible} className="mt-1" />
+        <span>
+          Sitzordnung mit Namen für Gäste mit Zusage zeigen (nur Sitzordnung)
+          <span className="block text-xs text-gray-600">
+            Wer über „Sitzplatz“ bei seiner Zusage in rsvp-app kommt, sieht seinen Platz und wer an welchem Tisch sitzt – nur Namen
+            und Plätze. Die öffentliche Eventseite zeigt nie Namen.
+          </span>
+        </span>
+      </label>
     </fieldset>
   )
 }
