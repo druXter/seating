@@ -46,7 +46,7 @@ export default function RsvpBooking({ eventId, token, open, partySize, layout, b
     <Notice tone="error"><ul className="list-disc list-inside">{errors.map((e, i) => <li key={i}>{e}</li>)}</ul></Notice>
   )
   const privacy = (
-    <p className="text-xs text-gray-600">
+    <p className="text-xs text-gray-600 dark:text-gray-400">
       Wir übernehmen Name, Personenzahl und ggf. E-Mail-Adresse aus rsvp-app – siehe <Link href="/datenschutz" target="_blank" className="underline">Datenschutzhinweis</Link>.
     </p>
   )
@@ -91,7 +91,7 @@ export default function RsvpBooking({ eventId, token, open, partySize, layout, b
       />
       {open && (
         choosable.length === 0 ? (
-          <p className="text-sm text-gray-700">Gerade ist kein passender Tisch für {partySize} {partySize === 1 ? 'Person' : 'Personen'} frei. Bitte wende dich an die Veranstalter*innen.</p>
+          <p className="text-sm text-gray-700 dark:text-gray-300">Gerade ist kein passender Tisch für {partySize} {partySize === 1 ? 'Person' : 'Personen'} frei. Bitte wende dich an die Veranstalter*innen.</p>
         ) : (
           <fieldset className="space-y-2">
             <legend className="text-sm font-medium">Passende freie Tische für {partySize} {partySize === 1 ? 'Person' : 'Personen'}</legend>

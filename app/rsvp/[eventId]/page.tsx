@@ -40,9 +40,9 @@ export default async function RsvpEntryPage({ params, searchParams }: { params: 
     const seating = await loadGuestSeating(event, link)
     return (
       <Shell>
-        <div className="bg-white p-6 rounded-lg shadow space-y-2">
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow space-y-2">
           <h1 className="text-2xl font-bold">{event.title}</h1>
-          <p className="text-gray-700">{formatRange(event.startsAt, event.endsAt, event.timezone)}{event.location && ` · ${event.location}`}</p>
+          <p className="text-gray-700 dark:text-gray-300">{formatRange(event.startsAt, event.endsAt, event.timezone)}{event.location && ` · ${event.location}`}</p>
         </div>
         {seating ? (
           <GuestSeating view={seating} />
@@ -102,10 +102,10 @@ export default async function RsvpEntryPage({ params, searchParams }: { params: 
 
   return (
     <Shell>
-      <div className="bg-white p-6 rounded-lg shadow space-y-2">
+      <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow space-y-2">
         <h1 className="text-2xl font-bold">{event.title}: Sitzplatz wählen</h1>
-        <p className="text-gray-700">{formatRange(event.startsAt, event.endsAt, event.timezone)}{event.location && ` · ${event.location}`}</p>
-        <p className="text-sm text-gray-700">
+        <p className="text-gray-700 dark:text-gray-300">{formatRange(event.startsAt, event.endsAt, event.timezone)}{event.location && ` · ${event.location}`}</p>
+        <p className="text-sm text-gray-700 dark:text-gray-300">
           Hallo {link.name}, du hast in rsvp-app für <strong>{partySize} {partySize === 1 ? 'Person' : 'Personen'}</strong> zugesagt
           {link.companions.length > 0 && ` (mit ${link.companions.map(c => c ?? 'Begleitung').join(', ')})`}.
           {event.mode === 'SEAT' ? ` Wähle ${partySize === 1 ? 'deinen Platz' : `${partySize} Plätze`}.` : ' Wähle einen passenden Tisch.'}
@@ -113,15 +113,15 @@ export default async function RsvpEntryPage({ params, searchParams }: { params: 
         </p>
       </div>
       {!open && <Notice tone="info">{window.open ? 'Die Platzwahl ist gerade nicht möglich. Bitte versuch es später noch einmal.' : window.message}</Notice>}
-      <div className="bg-white p-4 sm:p-6 rounded-lg shadow">{body}</div>
+      <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-lg shadow">{body}</div>
     </Shell>
   )
 }
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
-    <main className="bg-gray-50 py-6 px-4">
-      <div className="max-w-4xl mx-auto space-y-4 text-gray-900">{children}</div>
+    <main className="bg-gray-50 dark:bg-gray-900 py-6 px-4">
+      <div className="max-w-4xl mx-auto space-y-4 text-gray-900 dark:text-gray-100">{children}</div>
     </main>
   )
 }

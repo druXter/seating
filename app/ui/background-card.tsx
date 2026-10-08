@@ -30,9 +30,9 @@ export default function BackgroundCard({ uploadUrl, hasBackground, removeAction,
   id: string
 }) {
   return (
-    <div className="bg-white rounded-lg shadow p-4 space-y-3">
+    <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 space-y-3">
       <h2 className="font-bold">Hintergrundbild</h2>
-      <p className="text-xs text-gray-600">
+      <p className="text-xs text-gray-600 dark:text-gray-400">
         Ein Grundriss als Unterlage (PNG, JPEG oder WebP, höchstens {MAX_BACKGROUND_BYTES / 1024 / 1024} MB). Lage, Breite
         und Deckkraft stellst du im Editor ein, wenn nichts ausgewählt ist. Speichere vorher Änderungen im Editor –
         der Upload lädt die Seite neu.
@@ -47,7 +47,7 @@ export default function BackgroundCard({ uploadUrl, hasBackground, removeAction,
       {hasBackground && (
         <form action={removeAction}>
           <input type="hidden" name={idField} value={id} />
-          <button type="submit" className="text-sm text-red-700 hover:underline">Hintergrundbild entfernen</button>
+          <button type="submit" className="text-sm text-red-700 dark:text-red-300 hover:underline">Hintergrundbild entfernen</button>
         </form>
       )}
     </div>

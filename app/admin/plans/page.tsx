@@ -35,31 +35,31 @@ export default async function PlansPage({ searchParams }: { searchParams: Promis
   })
 
   return (
-    <main className="bg-gray-50 py-8 px-4">
-      <div className="max-w-4xl mx-auto space-y-6 text-gray-900">
-        <div className="bg-white p-6 rounded-lg shadow space-y-4">
+    <main className="bg-gray-50 dark:bg-gray-900 py-8 px-4">
+      <div className="max-w-4xl mx-auto space-y-6 text-gray-900 dark:text-gray-100">
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h1 className="text-2xl font-bold">Raumpläne</h1>
             <Link href="/admin/plans/new" className="bg-blue-600 text-white font-bold py-2 px-4 rounded hover:bg-blue-700">
               Neuer Raumplan
             </Link>
           </div>
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-gray-600 dark:text-gray-400">
             Raumpläne sind Vorlagen. Beim Anlegen eines Events wird der Plan kopiert – spätere Änderungen hier
             verändern keine laufenden Events.
           </p>
           {deleted === '1' && <Notice tone="success">Raumplan gelöscht.</Notice>}
 
           {rows.length === 0 ? (
-            <p className="text-sm text-gray-600">Noch keine Raumpläne vorhanden.</p>
+            <p className="text-sm text-gray-600 dark:text-gray-400">Noch keine Raumpläne vorhanden.</p>
           ) : (
             <ul className="divide-y text-sm">
               {rows.map(plan => (
                 <li key={plan.id} className="py-3 flex flex-wrap items-center gap-x-4 gap-y-2">
                   <div className="grow min-w-0">
-                    <Link href={`/admin/plans/${plan.id}`} className="font-medium text-blue-700 hover:underline">{plan.name}</Link>
-                    {plan.shared && <span className="ml-2 text-xs bg-green-100 text-green-800 rounded px-1.5 py-0.5">gemeinsame Vorlage</span>}
-                    <div className="text-xs text-gray-600">
+                    <Link href={`/admin/plans/${plan.id}`} className="font-medium text-blue-700 dark:text-blue-300 hover:underline">{plan.name}</Link>
+                    {plan.shared && <span className="ml-2 text-xs bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 rounded px-1.5 py-0.5">gemeinsame Vorlage</span>}
+                    <div className="text-xs text-gray-600 dark:text-gray-400">
                       {plan.size}
                       {plan.summary && ` · ${plan.summary.tables} Tische · ${plan.summary.seats} Plätze`}
                       {plan.ownerId !== user.id && ` · von ${plan.owner?.email ?? 'gelöschtem Konto'}`}
@@ -67,14 +67,14 @@ export default async function PlansPage({ searchParams }: { searchParams: Promis
                   </div>
                   <form action={duplicatePlan}>
                     <input type="hidden" name="planId" value={plan.id} />
-                    <button type="submit" className="text-xs text-blue-700 hover:underline">Duplizieren</button>
+                    <button type="submit" className="text-xs text-blue-700 dark:text-blue-300 hover:underline">Duplizieren</button>
                   </form>
                   {/* Bewusst <a>: Datei-Download über einen Route Handler, nicht vorab laden. */}
-                  <a href={`/admin/plans/${plan.id}/export`} className="text-xs text-blue-700 hover:underline">Exportieren</a>
+                  <a href={`/admin/plans/${plan.id}/export`} className="text-xs text-blue-700 dark:text-blue-300 hover:underline">Exportieren</a>
                   {plan.access === 'edit' && (
                     <ConfirmForm action={deletePlan} message={`Raumplan "${plan.name}" endgültig löschen?`}>
                       <input type="hidden" name="planId" value={plan.id} />
-                      <button type="submit" className="text-xs text-red-700 hover:underline">Löschen</button>
+                      <button type="submit" className="text-xs text-red-700 dark:text-red-300 hover:underline">Löschen</button>
                     </ConfirmForm>
                   )}
                 </li>

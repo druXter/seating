@@ -24,16 +24,16 @@ export function CreatePlanForm() {
       <Errors state={state} />
       <div>
         <label htmlFor="create-name" className="block text-sm font-medium mb-1">Name</label>
-        <input id="create-name" name="name" required maxLength={100} placeholder="z. B. Festsaal" className="w-full border border-gray-300 p-2 rounded" />
+        <input id="create-name" name="name" required maxLength={100} placeholder="z. B. Festsaal" className="w-full border border-gray-300 dark:border-gray-600 p-2 rounded" />
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label htmlFor="create-width" className="block text-sm font-medium mb-1">Breite (m)</label>
-          <input id="create-width" name="width" type="number" min={1} max={100} step={0.1} defaultValue={20} required className="w-full border border-gray-300 p-2 rounded" />
+          <input id="create-width" name="width" type="number" min={1} max={100} step={0.1} defaultValue={20} required className="w-full border border-gray-300 dark:border-gray-600 p-2 rounded" />
         </div>
         <div>
           <label htmlFor="create-height" className="block text-sm font-medium mb-1">Länge (m)</label>
-          <input id="create-height" name="height" type="number" min={1} max={100} step={0.1} defaultValue={15} required className="w-full border border-gray-300 p-2 rounded" />
+          <input id="create-height" name="height" type="number" min={1} max={100} step={0.1} defaultValue={15} required className="w-full border border-gray-300 dark:border-gray-600 p-2 rounded" />
         </div>
       </div>
       <SubmitButton disabled={pending}>Leeren Raumplan anlegen</SubmitButton>
@@ -52,10 +52,10 @@ export function ImportPlanForm() {
       </div>
       <div>
         <label htmlFor="import-name" className="block text-sm font-medium mb-1">Name (optional)</label>
-        <input id="import-name" name="name" maxLength={100} placeholder="sonst aus der Datei" className="w-full border border-gray-300 p-2 rounded" />
+        <input id="import-name" name="name" maxLength={100} placeholder="sonst aus der Datei" className="w-full border border-gray-300 dark:border-gray-600 p-2 rounded" />
       </div>
       <SubmitButton disabled={pending}>Importieren</SubmitButton>
-      <p className="text-xs text-gray-600">
+      <p className="text-xs text-gray-600 dark:text-gray-400">
         Der Import legt immer einen neuen Raumplan an. Hintergrundbilder sind nicht Teil der Datei.
       </p>
     </form>

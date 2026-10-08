@@ -25,8 +25,8 @@ export default async function VerifyPage({ params }: { params: Promise<{ booking
   const valid = booking && (booking.status === 'PENDING' || (waitlist && !booking.emailVerifiedAt)) && booking.expiresAt && booking.expiresAt > now
 
   return (
-    <main className="bg-gray-50 flex items-center justify-center px-4 py-16">
-      <div className="max-w-md w-full bg-white p-8 rounded-lg shadow space-y-4 text-gray-900">
+    <main className="bg-gray-50 dark:bg-gray-900 flex items-center justify-center px-4 py-16">
+      <div className="max-w-md w-full bg-white dark:bg-gray-800 p-8 rounded-lg shadow space-y-4 text-gray-900 dark:text-gray-100">
         <h1 className="text-2xl font-bold">{waitlist ? 'Eintrag auf der Warteliste bestätigen' : 'Buchung bestätigen'}</h1>
         {!booking ? (
           <Notice tone="error">
@@ -36,18 +36,18 @@ export default async function VerifyPage({ params }: { params: Promise<{ booking
         ) : !valid ? (
           <>
             <Notice tone="error">{waitlist ? 'Die Frist für die Bestätigung ist abgelaufen.' : 'Die Reservierung ist abgelaufen, der Tisch ist wieder frei.'}</Notice>
-            <p className="text-sm"><Link href={`/${booking.event.slug}`} className="text-blue-700 underline">{waitlist ? 'Neu eintragen' : 'Neu buchen'}</Link></p>
+            <p className="text-sm"><Link href={`/${booking.event.slug}`} className="text-blue-700 dark:text-blue-300 underline">{waitlist ? 'Neu eintragen' : 'Neu buchen'}</Link></p>
           </>
         ) : (
           <>
             <dl className="text-sm grid grid-cols-[auto_1fr] gap-x-4 gap-y-1">
-              <dt className="text-gray-600">Veranstaltung</dt><dd>{booking.event.title}</dd>
-              <dt className="text-gray-600">Wann</dt><dd>{formatRange(booking.event.startsAt, booking.event.endsAt, booking.event.timezone)}</dd>
-              {!waitlist && <><dt className="text-gray-600">{booking.event.mode === 'SEAT' ? 'Plätze' : 'Tisch'}</dt><dd>{placeLabel}</dd></>}
-              <dt className="text-gray-600">Personen</dt><dd>{booking.partySize}</dd>
-              <dt className="text-gray-600">Name</dt><dd>{booking.name}</dd>
+              <dt className="text-gray-600 dark:text-gray-400">Veranstaltung</dt><dd>{booking.event.title}</dd>
+              <dt className="text-gray-600 dark:text-gray-400">Wann</dt><dd>{formatRange(booking.event.startsAt, booking.event.endsAt, booking.event.timezone)}</dd>
+              {!waitlist && <><dt className="text-gray-600 dark:text-gray-400">{booking.event.mode === 'SEAT' ? 'Plätze' : 'Tisch'}</dt><dd>{placeLabel}</dd></>}
+              <dt className="text-gray-600 dark:text-gray-400">Personen</dt><dd>{booking.partySize}</dd>
+              <dt className="text-gray-600 dark:text-gray-400">Name</dt><dd>{booking.name}</dd>
             </dl>
-            <p className="text-sm text-gray-700">
+            <p className="text-sm text-gray-700 dark:text-gray-300">
               {waitlist
                 ? `Bitte bis ${formatDateTime(booking.expiresAt!, booking.event.timezone)} bestätigen. Mit dem Klick bestätigst du deine E-Mail-Adresse und stehst auf der Warteliste.`
                 : `Reserviert bis ${formatDateTime(booking.expiresAt!, booking.event.timezone)}. Mit dem Klick bestätigst du deine E-Mail-Adresse, und die Buchung gilt.`}

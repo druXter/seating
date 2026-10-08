@@ -81,8 +81,8 @@ export default async function EventPublicPage({ params }: { params: Promise<{ sl
   const backgroundUrl = event.backgroundFile ? `/${event.slug}/background?v=${event.backgroundFile.slice(0, 8)}` : null
 
   return (
-    <main className="bg-gray-50 py-6 px-4">
-      <div className="max-w-4xl mx-auto space-y-4 text-gray-900">
+    <main className="bg-gray-50 dark:bg-gray-900 py-6 px-4">
+      <div className="max-w-4xl mx-auto space-y-4 text-gray-900 dark:text-gray-100">
         {preview && (
           <Notice tone="warning">
             Vorschau: Dieses Event ist „{STATUS_LABELS[event.status]}“ und öffentlich nicht sichtbar.{' '}
@@ -90,16 +90,16 @@ export default async function EventPublicPage({ params }: { params: Promise<{ sl
           </Notice>
         )}
 
-        <div className="bg-white p-6 rounded-lg shadow space-y-2">
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow space-y-2">
           <h1 className="text-2xl font-bold">{event.title}</h1>
-          <p className="text-gray-700">{formatRange(event.startsAt, event.endsAt, event.timezone)}</p>
-          {event.location && <p className="text-gray-700">{event.location}</p>}
-          {event.description && <p className="text-sm text-gray-700 whitespace-pre-line pt-2">{event.description}</p>}
+          <p className="text-gray-700 dark:text-gray-300">{formatRange(event.startsAt, event.endsAt, event.timezone)}</p>
+          {event.location && <p className="text-gray-700 dark:text-gray-300">{event.location}</p>}
+          {event.description && <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-line pt-2">{event.description}</p>}
         </div>
 
         <Notice tone="info">{booking.message}</Notice>
 
-        <div className="bg-white p-4 sm:p-6 rounded-lg shadow">
+        <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-lg shadow">
           {seatData ? (
             <SeatBooking
               layout={event.layout}

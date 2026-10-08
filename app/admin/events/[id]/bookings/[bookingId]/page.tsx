@@ -39,9 +39,9 @@ const DONE: Record<string, string> = {
   assigned: 'Tisch zugewiesen, die Buchung ist bestätigt.'
 }
 
-const input = 'w-full border border-gray-300 p-2 rounded'
+const input = 'w-full border border-gray-300 dark:border-gray-600 p-2 rounded'
 const labelClass = 'block text-sm font-medium mb-1'
-const card = 'bg-white rounded-lg shadow p-4 space-y-3'
+const card = 'bg-white dark:bg-gray-800 rounded-lg shadow p-4 space-y-3'
 
 function Checkbox({ name, label, defaultChecked = true }: { name: string; label: string; defaultChecked?: boolean }) {
   return (
@@ -97,13 +97,13 @@ export default async function BookingPage({ params, searchParams }: {
   const link = booking.status === 'CONFIRMED' && bookingSecretsConfigured() ? manageUrl(booking) : null
 
   return (
-    <main className="bg-gray-50 py-6 px-4">
-      <div className="max-w-5xl mx-auto space-y-4 text-gray-900">
+    <main className="bg-gray-50 dark:bg-gray-900 py-6 px-4">
+      <div className="max-w-5xl mx-auto space-y-4 text-gray-900 dark:text-gray-100">
         <div className="space-y-1">
           <p className="text-sm">
-            <Link href={base} className="text-blue-700 hover:underline">{event.title}</Link>
+            <Link href={base} className="text-blue-700 dark:text-blue-300 hover:underline">{event.title}</Link>
             {' › '}
-            <Link href={`${base}/bookings`} className="text-blue-700 hover:underline">Buchungen</Link>
+            <Link href={`${base}/bookings`} className="text-blue-700 dark:text-blue-300 hover:underline">Buchungen</Link>
           </p>
           <h1 className="text-2xl font-bold">{booking.name} <BookingStatusBadge status={status} /></h1>
         </div>
@@ -116,28 +116,28 @@ export default async function BookingPage({ params, searchParams }: {
             <div className={card}>
               <h2 className="font-bold">Buchung</h2>
               <dl className="text-sm grid grid-cols-[auto_1fr] gap-x-4 gap-y-1">
-                <dt className="text-gray-600">{seatMode ? 'Plätze' : 'Tisch'}</dt><dd>{booking.placeLabel}</dd>
-                <dt className="text-gray-600">Personen</dt><dd>{booking.partySize}</dd>
-                <dt className="text-gray-600">E-Mail</dt>
+                <dt className="text-gray-600 dark:text-gray-400">{seatMode ? 'Plätze' : 'Tisch'}</dt><dd>{booking.placeLabel}</dd>
+                <dt className="text-gray-600 dark:text-gray-400">Personen</dt><dd>{booking.partySize}</dd>
+                <dt className="text-gray-600 dark:text-gray-400">E-Mail</dt>
                 <dd>
                   {booking.email ?? 'keine'}
-                  {booking.email && <span className="block text-xs text-gray-600">{booking.emailVerifiedAt ? `bestätigt am ${formatShort(booking.emailVerifiedAt, tz)}` : 'nicht von der Person bestätigt'}</span>}
+                  {booking.email && <span className="block text-xs text-gray-600 dark:text-gray-400">{booking.emailVerifiedAt ? `bestätigt am ${formatShort(booking.emailVerifiedAt, tz)}` : 'nicht von der Person bestätigt'}</span>}
                 </dd>
-                <dt className="text-gray-600">Telefon</dt><dd>{booking.phone ?? '–'}</dd>
-                <dt className="text-gray-600">Anmerkung</dt><dd className="whitespace-pre-line">{booking.note ?? '–'}</dd>
-                <dt className="text-gray-600">Quelle</dt>
+                <dt className="text-gray-600 dark:text-gray-400">Telefon</dt><dd>{booking.phone ?? '–'}</dd>
+                <dt className="text-gray-600 dark:text-gray-400">Anmerkung</dt><dd className="whitespace-pre-line">{booking.note ?? '–'}</dd>
+                <dt className="text-gray-600 dark:text-gray-400">Quelle</dt>
                 <dd>
                   {BOOKING_SOURCE_LABELS[booking.source]}
                   {booking.source === 'RSVP' && booking.rsvpPartySize !== null && booking.rsvpPartySize !== booking.partySize && status === 'CONFIRMED' && (
-                    <span className="block text-xs text-amber-800" data-testid="rsvp-mismatch">In rsvp-app jetzt {booking.rsvpPartySize} Personen – Tisch bzw. Plätze passen nicht mehr.</span>
+                    <span className="block text-xs text-amber-800 dark:text-amber-200" data-testid="rsvp-mismatch">In rsvp-app jetzt {booking.rsvpPartySize} Personen – Tisch bzw. Plätze passen nicht mehr.</span>
                   )}
                 </dd>
-                <dt className="text-gray-600">Gebucht</dt><dd>{formatShort(booking.createdAt, tz)}</dd>
-                {status === 'PENDING' && booking.expiresAt && <><dt className="text-gray-600">Reserviert bis</dt><dd>{formatDeadline(booking.expiresAt, tz, now)}</dd></>}
-                {booking.waitlistedAt && <><dt className="text-gray-600">Warteliste seit</dt><dd>{formatShort(booking.waitlistedAt, tz)}</dd></>}
-                {waiting && !booking.emailVerifiedAt && booking.expiresAt && <><dt className="text-gray-600">Unbestätigt bis</dt><dd>{formatDeadline(booking.expiresAt, tz, now)}</dd></>}
-                {offered && booking.expiresAt && <><dt className="text-gray-600">Angebot gilt bis</dt><dd>{formatDeadline(booking.expiresAt, tz, now)}</dd></>}
-                {booking.cancelledAt && <><dt className="text-gray-600">Storniert</dt><dd>{formatShort(booking.cancelledAt, tz)}</dd></>}
+                <dt className="text-gray-600 dark:text-gray-400">Gebucht</dt><dd>{formatShort(booking.createdAt, tz)}</dd>
+                {status === 'PENDING' && booking.expiresAt && <><dt className="text-gray-600 dark:text-gray-400">Reserviert bis</dt><dd>{formatDeadline(booking.expiresAt, tz, now)}</dd></>}
+                {booking.waitlistedAt && <><dt className="text-gray-600 dark:text-gray-400">Warteliste seit</dt><dd>{formatShort(booking.waitlistedAt, tz)}</dd></>}
+                {waiting && !booking.emailVerifiedAt && booking.expiresAt && <><dt className="text-gray-600 dark:text-gray-400">Unbestätigt bis</dt><dd>{formatDeadline(booking.expiresAt, tz, now)}</dd></>}
+                {offered && booking.expiresAt && <><dt className="text-gray-600 dark:text-gray-400">Angebot gilt bis</dt><dd>{formatDeadline(booking.expiresAt, tz, now)}</dd></>}
+                {booking.cancelledAt && <><dt className="text-gray-600 dark:text-gray-400">Storniert</dt><dd>{formatShort(booking.cancelledAt, tz)}</dd></>}
               </dl>
             </div>
 
@@ -188,7 +188,7 @@ export default async function BookingPage({ params, searchParams }: {
                   </div>
                   {status === 'CONFIRMED' && mailable && <Checkbox name="notify" label="Kund*in per Mail benachrichtigen (mit Gegenüberstellung alt → neu und neuem Kalendereintrag)" />}
                   <SubmitButton>Änderungen speichern</SubmitButton>
-                  <p className="text-xs text-gray-600">
+                  <p className="text-xs text-gray-600 dark:text-gray-400">
                     {seatMode
                       ? 'Zur Wahl stehen die eigenen und alle freien Plätze, auch nicht buchbare; die Obergrenze pro Buchung gilt hier nicht. Die Personenzahl ist die Zahl der Plätze.'
                       : 'Zur Wahl stehen der aktuelle und alle freien Tische, auch nicht buchbare. Die Mindestbelegung gilt hier nicht, die Zahl der Plätze schon.'}
@@ -204,8 +204,8 @@ export default async function BookingPage({ params, searchParams }: {
                 {hidden}
                 <label htmlFor="admin-note" className="sr-only">Interne Notiz</label>
                 <textarea id="admin-note" name="adminNote" maxLength={ADMIN_NOTE_MAX} rows={3} defaultValue={booking.adminNote ?? ''} className={input} />
-                <button type="submit" className="text-sm bg-gray-100 border border-gray-300 rounded px-3 py-1 hover:bg-gray-200">Notiz speichern</button>
-                <p className="text-xs text-gray-600">Nur für Veranstalter*innen sichtbar – nie in Mails oder auf der Seite der Kund*in.</p>
+                <button type="submit" className="text-sm bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded px-3 py-1 hover:bg-gray-200 dark:hover:bg-gray-600">Notiz speichern</button>
+                <p className="text-xs text-gray-600 dark:text-gray-400">Nur für Veranstalter*innen sichtbar – nie in Mails oder auf der Seite der Kund*in.</p>
               </ActionForm>
             </div>
           </div>
@@ -214,7 +214,7 @@ export default async function BookingPage({ params, searchParams }: {
             {waiting && (
               <div className={card}>
                 <h2 className="font-bold">Warteliste</h2>
-                <p className="text-sm text-gray-700">
+                <p className="text-sm text-gray-700 dark:text-gray-300">
                   {booking.emailVerifiedAt
                     ? 'Wird ein passender Tisch frei, bekommt der am längsten wartende passende Eintrag automatisch ein Angebot. Du kannst auch direkt einen Tisch zuweisen – am Nachrück-Verfahren vorbei.'
                     : 'Die Person hat ihre Adresse noch nicht bestätigt – bis dahin zählt der Eintrag nicht. Direkt zuweisen geht trotzdem.'}
@@ -227,7 +227,7 @@ export default async function BookingPage({ params, searchParams }: {
                     {mailable && <Checkbox name="notify" label="Bestätigungsmail mit Kalendereintrag und Verwaltungslink schicken" />}
                     <button type="submit" className="text-sm bg-blue-600 text-white font-bold rounded px-3 py-1 hover:bg-blue-700">Plätze zuweisen und bestätigen</button>
                   </ActionForm>
-                ) : tables.length === 0 ? <p className="text-sm text-gray-600">Gerade ist kein Tisch frei.</p> : (
+                ) : tables.length === 0 ? <p className="text-sm text-gray-600 dark:text-gray-400">Gerade ist kein Tisch frei.</p> : (
                   <ActionForm action={assignWaitlistAdmin}>
                     {hidden}
                     <div>
@@ -248,7 +248,7 @@ export default async function BookingPage({ params, searchParams }: {
             {offered && (
               <div className={card}>
                 <h2 className="font-bold">Angebot aus der Warteliste</h2>
-                <p className="text-sm text-gray-700">{booking.placeLabel}: der Gruppe angeboten. Nimmt sie nicht rechtzeitig an, geht das Angebot an den nächsten passenden Eintrag.</p>
+                <p className="text-sm text-gray-700 dark:text-gray-300">{booking.placeLabel}: der Gruppe angeboten. Nimmt sie nicht rechtzeitig an, geht das Angebot an den nächsten passenden Eintrag.</p>
                 <ActionForm action={confirmBookingAdmin}>
                   {hidden}
                   {mailable && <Checkbox name="notify" label="Bestätigungsmail mit Kalendereintrag schicken" />}
@@ -269,7 +269,7 @@ export default async function BookingPage({ params, searchParams }: {
                   <ActionForm action={resendVerificationAdmin}>
                     {hidden}
                     <Checkbox name="renew" label={`Frist neu beginnen (${event.pendingTtlMinutes} Minuten ab jetzt)`} />
-                    <button type="submit" className="text-sm bg-gray-100 border border-gray-300 rounded px-3 py-1 hover:bg-gray-200">Bestätigungsmail erneut senden</button>
+                    <button type="submit" className="text-sm bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded px-3 py-1 hover:bg-gray-200 dark:hover:bg-gray-600">Bestätigungsmail erneut senden</button>
                   </ActionForm>
                 )}
                 {booking.source !== 'RSVP' && (
@@ -280,8 +280,8 @@ export default async function BookingPage({ params, searchParams }: {
                       <input id="correct-email" name="email" type="email" required maxLength={254} defaultValue={booking.email ?? ''} className={input} />
                     </div>
                     <Checkbox name="renew" label="Frist neu beginnen" />
-                    <button type="submit" className="text-sm bg-gray-100 border border-gray-300 rounded px-3 py-1 hover:bg-gray-200">Korrigieren und Bestätigungsmail schicken</button>
-                    <p className="text-xs text-gray-600">Neuer Link und Code gehen an die neue Adresse. Die alte Adresse bekommt nichts – bei einem Tippfehler gehört sie vermutlich jemand anderem.</p>
+                    <button type="submit" className="text-sm bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded px-3 py-1 hover:bg-gray-200 dark:hover:bg-gray-600">Korrigieren und Bestätigungsmail schicken</button>
+                    <p className="text-xs text-gray-600 dark:text-gray-400">Neuer Link und Code gehen an die neue Adresse. Die alte Adresse bekommt nichts – bei einem Tippfehler gehört sie vermutlich jemand anderem.</p>
                   </ActionForm>
                 )}
               </div>
@@ -294,8 +294,8 @@ export default async function BookingPage({ params, searchParams }: {
                 <ActionForm action={renewManageLinkAdmin} confirm="Neuen Link erzeugen? Der bisherige Link – auch in Kalendereinträgen – funktioniert danach nicht mehr.">
                   {hidden}
                   {mailable && <Checkbox name="notify" label="Neuen Link per Mail schicken" />}
-                  <button type="submit" className="text-sm bg-gray-100 border border-gray-300 rounded px-3 py-1 hover:bg-gray-200">Link neu erzeugen</button>
-                  <p className="text-xs text-gray-600">Zum Beispiel, wenn der Link in falsche Hände geraten ist.</p>
+                  <button type="submit" className="text-sm bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded px-3 py-1 hover:bg-gray-200 dark:hover:bg-gray-600">Link neu erzeugen</button>
+                  <p className="text-xs text-gray-600 dark:text-gray-400">Zum Beispiel, wenn der Link in falsche Hände geraten ist.</p>
                 </ActionForm>
               </div>
             )}
@@ -306,27 +306,27 @@ export default async function BookingPage({ params, searchParams }: {
                 <ActionForm action={cancelBookingAdmin} confirm={waiting || offered ? 'Eintrag beenden? Die Gruppe steht dann nicht mehr auf der Warteliste.' : 'Buchung stornieren? Der Tisch wird sofort wieder frei.'}>
                   {hidden}
                   {status === 'CONFIRMED' && mailable && <Checkbox name="notify" label="Kund*in per Mail benachrichtigen (Kalendereintrag wird entfernt)" />}
-                  <button type="submit" className="text-sm text-red-700 border border-red-300 rounded px-3 py-1 hover:bg-red-50">{waiting || offered ? 'Eintrag beenden' : 'Buchung stornieren'}</button>
+                  <button type="submit" className="text-sm text-red-700 dark:text-red-300 border border-red-300 dark:border-red-700 rounded px-3 py-1 hover:bg-red-50 dark:hover:bg-red-950/50">{waiting || offered ? 'Eintrag beenden' : 'Buchung stornieren'}</button>
                 </ActionForm>
               )}
               <ActionForm action={deleteBookingAdmin} confirm="Buchung endgültig löschen? Alle Daten dazu – auch Verlauf und Mailprotokoll – werden gelöscht.">
                 {hidden}
                 {booking.status === 'CONFIRMED' && mailable && <Checkbox name="notify" label="Vorher Stornomail schicken" />}
-                <button type="submit" className="text-sm text-red-700 hover:underline">Endgültig löschen</button>
-                <p className="text-xs text-gray-600">Z. B. wenn die Person die Löschung ihrer Daten verlangt. Übrig bleibt nur ein Eintrag ohne Personendaten im Verlauf des Events.</p>
+                <button type="submit" className="text-sm text-red-700 dark:text-red-300 hover:underline">Endgültig löschen</button>
+                <p className="text-xs text-gray-600 dark:text-gray-400">Z. B. wenn die Person die Löschung ihrer Daten verlangt. Übrig bleibt nur ein Eintrag ohne Personendaten im Verlauf des Events.</p>
               </ActionForm>
             </div>
 
             <div className={card}>
               <h2 className="font-bold">Verlauf</h2>
-              {auditLog.length === 0 ? <p className="text-sm text-gray-600">Keine Einträge.</p> : (
+              {auditLog.length === 0 ? <p className="text-sm text-gray-600 dark:text-gray-400">Keine Einträge.</p> : (
                 <ul className="text-sm divide-y" data-testid="audit-log">
                   {auditLog.map(entry => {
                     const details = auditDetails(entry, auditContext)
                     return (
                       <li key={entry.id} className="py-1">
-                        <span className="text-gray-600">{formatShort(entry.createdAt, tz)} · {actorText(entry.actor, auditContext)}:</span> {auditText(entry)}
-                        {details.length > 0 && <span className="block text-xs text-gray-600">{details.join('; ')}</span>}
+                        <span className="text-gray-600 dark:text-gray-400">{formatShort(entry.createdAt, tz)} · {actorText(entry.actor, auditContext)}:</span> {auditText(entry)}
+                        {details.length > 0 && <span className="block text-xs text-gray-600 dark:text-gray-400">{details.join('; ')}</span>}
                       </li>
                     )
                   })}
@@ -336,13 +336,13 @@ export default async function BookingPage({ params, searchParams }: {
 
             <div className={card}>
               <h2 className="font-bold">Mails</h2>
-              {mailLog.length === 0 ? <p className="text-sm text-gray-600">Keine Mails.</p> : (
+              {mailLog.length === 0 ? <p className="text-sm text-gray-600 dark:text-gray-400">Keine Mails.</p> : (
                 <ul className="text-sm divide-y" data-testid="mail-log">
                   {mailLog.map(mail => (
                     <li key={mail.id} className="py-1">
-                      <span className="text-gray-600">{formatShort(mail.createdAt, tz)}:</span> {MAIL_TYPE_LABELS[mail.type] ?? mail.type} an {mail.recipient} –{' '}
-                      <span className={mail.status === 'failed' ? 'text-red-700' : undefined}>{MAIL_STATUS_LABELS[mail.status] ?? mail.status}</span>
-                      {mail.error && <span className="block text-xs text-red-700">{mail.error}</span>}
+                      <span className="text-gray-600 dark:text-gray-400">{formatShort(mail.createdAt, tz)}:</span> {MAIL_TYPE_LABELS[mail.type] ?? mail.type} an {mail.recipient} –{' '}
+                      <span className={mail.status === 'failed' ? 'text-red-700 dark:text-red-300' : undefined}>{MAIL_STATUS_LABELS[mail.status] ?? mail.status}</span>
+                      {mail.error && <span className="block text-xs text-red-700 dark:text-red-300">{mail.error}</span>}
                     </li>
                   ))}
                 </ul>

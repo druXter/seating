@@ -10,7 +10,7 @@ import { useId, type KeyboardEvent } from 'react'
  * Rückgängig), setzt der Aufrufer das Feld über `key` neu auf.
  */
 
-const inputClass = 'w-full border border-gray-300 rounded px-2 py-1 text-sm'
+const inputClass = 'w-full border border-gray-300 dark:border-gray-600 rounded px-2 py-1 text-sm'
 
 function commitOnEnter(event: KeyboardEvent<HTMLInputElement>) {
   if (event.key === 'Enter') event.currentTarget.blur()
@@ -23,7 +23,7 @@ export function NumberField({ label, value, min, max, step = 1, onCommit, suffix
   const id = useId()
   return (
     <div>
-      <label htmlFor={id} className="block text-xs text-gray-700 mb-0.5">{label}{suffix ? ` (${suffix})` : ''}</label>
+      <label htmlFor={id} className="block text-xs text-gray-700 dark:text-gray-300 mb-0.5">{label}{suffix ? ` (${suffix})` : ''}</label>
       <input
         id={id} type="number" defaultValue={value} min={min} max={max} step={step} className={inputClass}
         onKeyDown={commitOnEnter}
@@ -48,7 +48,7 @@ export function TextField({ label, value, maxLength = 100, placeholder, onCommit
   const id = useId()
   return (
     <div>
-      <label htmlFor={id} className="block text-xs text-gray-700 mb-0.5">{label}</label>
+      <label htmlFor={id} className="block text-xs text-gray-700 dark:text-gray-300 mb-0.5">{label}</label>
       <input
         id={id} type="text" defaultValue={value} maxLength={maxLength} placeholder={placeholder} className={inputClass}
         onKeyDown={commitOnEnter}
@@ -67,8 +67,8 @@ export function SelectField<T extends string>({ label, value, options, onChange 
   const id = useId()
   return (
     <div>
-      <label htmlFor={id} className="block text-xs text-gray-700 mb-0.5">{label}</label>
-      <select id={id} value={value} onChange={(event) => onChange(event.currentTarget.value as T)} className={`${inputClass} bg-white`}>
+      <label htmlFor={id} className="block text-xs text-gray-700 dark:text-gray-300 mb-0.5">{label}</label>
+      <select id={id} value={value} onChange={(event) => onChange(event.currentTarget.value as T)} className={`${inputClass} bg-white dark:bg-gray-800`}>
         {options.map(([optionValue, text]) => <option key={optionValue} value={optionValue}>{text}</option>)}
       </select>
     </div>

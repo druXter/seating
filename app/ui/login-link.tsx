@@ -15,5 +15,5 @@ export default function LoginLink() {
   const segment = /^\/([^/]+)$/.exec(pathname)?.[1]
   if (segment && !RESERVED_SLUGS.has(segment)) return null
   if (/^\/(b|verify)\//.test(pathname)) return null
-  return <Link href="/login" className="hover:text-gray-900">Anmelden</Link>
+  return <Link href="/login" className="hover:text-gray-900 dark:hover:text-gray-100">Anmelden</Link>
 }

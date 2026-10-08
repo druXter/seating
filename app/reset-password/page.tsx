@@ -38,8 +38,8 @@ export default async function ResetPasswordPage({
   const heading = invite === '1' ? 'Passwort festlegen' : 'Neues Passwort'
 
   return (
-    <main className="bg-gray-50 flex items-center justify-center px-4 py-12">
-      <div className="max-w-sm w-full bg-white p-8 rounded-lg shadow space-y-5 text-gray-900">
+    <main className="bg-gray-50 dark:bg-gray-900 flex items-center justify-center px-4 py-12">
+      <div className="max-w-sm w-full bg-white dark:bg-gray-800 p-8 rounded-lg shadow space-y-5 text-gray-900 dark:text-gray-100">
         <h1 className="text-xl font-bold">{heading}</h1>
 
         {!valid || error === 'invalid' ? (
@@ -49,7 +49,7 @@ export default async function ResetPasswordPage({
               oder bitte die einladende Person um eine neue Einladung.
             </Notice>
             <p className="text-sm">
-              <Link href="/forgot-password" className="text-blue-700 hover:underline">Passwort vergessen</Link>
+              <Link href="/forgot-password" className="text-blue-700 dark:text-blue-300 hover:underline">Passwort vergessen</Link>
             </p>
           </>
         ) : (
@@ -61,16 +61,16 @@ export default async function ResetPasswordPage({
               <input
                 id="password" type="password" name="password" required autoFocus
                 minLength={MIN_PASSWORD_LENGTH} autoComplete="new-password"
-                className="w-full border border-gray-300 p-2 rounded"
+                className="w-full border border-gray-300 dark:border-gray-600 p-2 rounded"
               />
-              <p className="text-xs text-gray-600 mt-1">Mindestens {MIN_PASSWORD_LENGTH} Zeichen - am besten ein ganzer Satz.</p>
+              <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">Mindestens {MIN_PASSWORD_LENGTH} Zeichen - am besten ein ganzer Satz.</p>
             </div>
             <div>
               <label htmlFor="passwordConfirm" className="block text-sm font-medium mb-1">Passwort wiederholen</label>
               <input
                 id="passwordConfirm" type="password" name="passwordConfirm" required
                 minLength={MIN_PASSWORD_LENGTH} autoComplete="new-password"
-                className="w-full border border-gray-300 p-2 rounded"
+                className="w-full border border-gray-300 dark:border-gray-600 p-2 rounded"
               />
             </div>
             <SubmitButton>Passwort speichern</SubmitButton>

@@ -46,9 +46,9 @@ export default async function UsersPage({
     : []
 
   return (
-    <main className="bg-gray-50 py-8 px-4">
-      <div className="max-w-3xl mx-auto space-y-6 text-gray-900">
-        <div className="bg-white p-6 rounded-lg shadow space-y-4">
+    <main className="bg-gray-50 dark:bg-gray-900 py-8 px-4">
+      <div className="max-w-3xl mx-auto space-y-6 text-gray-900 dark:text-gray-100">
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow space-y-4">
           <h1 className="text-2xl font-bold">{isAdmin ? 'Verwaltungskonten' : 'Moderator*in anlegen'}</h1>
 
           {created === 'mailed' && <Notice tone="success">Konto angelegt. Die Einladung wurde per E-Mail verschickt.</Notice>}
@@ -64,16 +64,16 @@ export default async function UsersPage({
           <form action={createUser} className="grid gap-3 sm:grid-cols-2">
             <div>
               <label htmlFor="email" className="block text-sm font-medium mb-1">E-Mail</label>
-              <input id="email" type="email" name="email" required maxLength={254} className="w-full border border-gray-300 p-2 rounded" />
+              <input id="email" type="email" name="email" required maxLength={254} className="w-full border border-gray-300 dark:border-gray-600 p-2 rounded" />
             </div>
             <div>
               <label htmlFor="name" className="block text-sm font-medium mb-1">Name (optional)</label>
-              <input id="name" type="text" name="name" maxLength={100} className="w-full border border-gray-300 p-2 rounded" />
+              <input id="name" type="text" name="name" maxLength={100} className="w-full border border-gray-300 dark:border-gray-600 p-2 rounded" />
             </div>
             {isAdmin && (
               <div>
                 <label htmlFor="role" className="block text-sm font-medium mb-1">Rolle</label>
-                <select id="role" name="role" defaultValue="CREATOR" className="w-full border border-gray-300 p-2 rounded bg-white">
+                <select id="role" name="role" defaultValue="CREATOR" className="w-full border border-gray-300 dark:border-gray-600 p-2 rounded bg-white dark:bg-gray-800">
                   <option value="CREATOR">Creator (legt eigene Events und Raumpläne an)</option>
                   <option value="MODERATOR">Moderator*in (nur freigegebene Events)</option>
                   <option value="ADMIN">Administrator*in</option>
@@ -82,7 +82,7 @@ export default async function UsersPage({
             )}
             <div className="sm:col-span-2">
               <SubmitButton>Konto anlegen und einladen</SubmitButton>
-              <p className="text-xs text-gray-600 mt-2">
+              <p className="text-xs text-gray-600 dark:text-gray-400 mt-2">
                 Die Person legt ihr Passwort selbst über den Einladungslink fest
                 {isMailConfigured() ? ' - er geht direkt per E-Mail raus.' : ' - ohne Mailversand bekommst du den Link zum Weitergeben angezeigt.'}
               </p>
@@ -91,7 +91,7 @@ export default async function UsersPage({
         </div>
 
         {isAdmin && (
-          <div className="bg-white p-6 rounded-lg shadow">
+          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
             <h2 className="font-bold mb-3">Alle Konten ({users.length})</h2>
             <ul className="divide-y text-sm">
               {users.map(u => {
@@ -102,7 +102,7 @@ export default async function UsersPage({
                   <li key={u.id} className="py-3 flex flex-wrap items-center gap-x-4 gap-y-2">
                     <div className="grow min-w-0">
                       <div className="font-medium truncate">{u.name ? `${u.name} · ` : ''}{u.email}</div>
-                      <div className="text-xs text-gray-600">
+                      <div className="text-xs text-gray-600 dark:text-gray-400">
                         {ROLE_LABELS[u.role]}
                         {' · '}
                         {pending ? 'Einladung offen' : u.passwordHash ? 'Passwort' : `Anmeldung über ${via}`}
@@ -116,24 +116,24 @@ export default async function UsersPage({
                       <>
                         <form action={updateUserRole} className="flex items-center gap-1">
                           <input type="hidden" name="userId" value={u.id} />
-                          <select name="role" defaultValue={u.role} aria-label={`Rolle von ${u.email}`} className="border border-gray-300 rounded p-1 text-xs bg-white">
+                          <select name="role" defaultValue={u.role} aria-label={`Rolle von ${u.email}`} className="border border-gray-300 dark:border-gray-600 rounded p-1 text-xs bg-white dark:bg-gray-800">
                             <option value="CREATOR">Creator</option>
                             <option value="MODERATOR">Moderator*in</option>
                             <option value="ADMIN">Administrator*in</option>
                           </select>
-                          <button type="submit" className="text-xs text-blue-700 hover:underline">Ändern</button>
+                          <button type="submit" className="text-xs text-blue-700 dark:text-blue-300 hover:underline">Ändern</button>
                         </form>
 
                         {pending && (
                           <form action={resendInvite}>
                             <input type="hidden" name="userId" value={u.id} />
-                            <button type="submit" className="text-xs text-blue-700 hover:underline">Einladung erneuern</button>
+                            <button type="submit" className="text-xs text-blue-700 dark:text-blue-300 hover:underline">Einladung erneuern</button>
                           </form>
                         )}
 
                         <ConfirmForm action={deleteUser} message={`Konto ${u.email} löschen? Seine Raumpläne gehen an dich über.`}>
                           <input type="hidden" name="userId" value={u.id} />
-                          <button type="submit" className="text-xs text-red-700 hover:underline">Löschen</button>
+                          <button type="submit" className="text-xs text-red-700 dark:text-red-300 hover:underline">Löschen</button>
                         </ConfirmForm>
                       </>
                     )}
@@ -141,7 +141,7 @@ export default async function UsersPage({
                 )
               })}
             </ul>
-            <p className="text-xs text-gray-600 mt-3">
+            <p className="text-xs text-gray-600 dark:text-gray-400 mt-3">
               Konten mit Admin-Rolle lassen sich hier nicht ändern oder löschen (Schutz vor versehentlichem Aussperren) -
               das geht nur per <code>create-user.js</code> auf dem Server.
             </p>

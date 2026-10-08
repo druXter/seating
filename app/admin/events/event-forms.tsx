@@ -24,7 +24,7 @@ function Errors({ state }: { state: FormState }) {
   )
 }
 
-const input = 'w-full border border-gray-300 p-2 rounded'
+const input = 'w-full border border-gray-300 dark:border-gray-600 p-2 rounded'
 const labelClass = 'block text-sm font-medium mb-1'
 
 export type EventFormValues = {
@@ -74,7 +74,7 @@ function TitleAndSlug({ initialTitle, initialSlug, baseUrl }: { initialTitle: st
       <div>
         <label htmlFor="event-slug" className={labelClass}>Adresse</label>
         <div className="flex items-center gap-1">
-          <span className="text-sm text-gray-600 whitespace-nowrap">{baseUrl}/</span>
+          <span className="text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">{baseUrl}/</span>
           <input
             id="event-slug" name="slug" required maxLength={SLUG_MAX_LENGTH} value={slug} className={input}
             pattern="[a-z0-9]+(-[a-z0-9]+)*" aria-describedby="event-slug-hint"
@@ -84,7 +84,7 @@ function TitleAndSlug({ initialTitle, initialSlug, baseUrl }: { initialTitle: st
             }}
           />
         </div>
-        <p id="event-slug-hint" className="text-xs text-gray-600 mt-1">
+        <p id="event-slug-hint" className="text-xs text-gray-600 dark:text-gray-400 mt-1">
           Kleinbuchstaben, Ziffern und Bindestriche. Ändert sich die Adresse später, funktionieren bereits verschickte Links nicht mehr.
         </p>
       </div>
@@ -103,7 +103,7 @@ function ModeSelect({ value }: { value: EventMode }) {
           </option>
         ))}
       </select>
-      <ul className="text-xs text-gray-600 mt-1">
+      <ul className="text-xs text-gray-600 dark:text-gray-400 mt-1">
         {AVAILABLE_MODES.map(mode => <li key={mode}>{MODE_LABELS[mode]}: {MODE_HINTS[mode]}</li>)}
       </ul>
     </div>
@@ -135,7 +135,7 @@ function Details({ values }: { values: Pick<EventFormValues, 'location' | 'descr
       <div>
         <label htmlFor="event-description" className={labelClass}>Beschreibung</label>
         <textarea id="event-description" name="description" maxLength={EVENT_LIMITS.description} defaultValue={values.description} rows={5} className={input} />
-        <p className="text-xs text-gray-600 mt-1">Erscheint auf der öffentlichen Seite als einfacher Text (Zeilenumbrüche bleiben erhalten).</p>
+        <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">Erscheint auf der öffentlichen Seite als einfacher Text (Zeilenumbrüche bleiben erhalten).</p>
       </div>
     </>
   )
@@ -153,13 +153,13 @@ export function CreateEventForm({ plans, baseUrl }: { plans: { id: string; label
           <option value="" disabled>Bitte wählen …</option>
           {plans.map(plan => <option key={plan.id} value={plan.id}>{plan.label}</option>)}
         </select>
-        <p className="text-xs text-gray-600 mt-1">Der Plan wird kopiert. Den Plan des Events kannst du danach unabhängig von der Vorlage anpassen.</p>
+        <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">Der Plan wird kopiert. Den Plan des Events kannst du danach unabhängig von der Vorlage anpassen.</p>
       </div>
       <ModeSelect value="TABLE" />
       <Times values={{ startsAt: '', endsAt: '' }} />
       <Details values={{ location: '', description: '' }} />
       <SubmitButton disabled={pending}>Event anlegen</SubmitButton>
-      <p className="text-xs text-gray-600">Neue Events sind zunächst ein Entwurf und öffentlich nicht sichtbar.</p>
+      <p className="text-xs text-gray-600 dark:text-gray-400">Neue Events sind zunächst ein Entwurf und öffentlich nicht sichtbar.</p>
     </form>
   )
 }
@@ -173,7 +173,7 @@ function RsvpFields({ values, rsvp }: { values: Pick<EventFormValues, 'access' |
     <fieldset className="space-y-3">
       <legend className="text-sm font-bold">Zugang und rsvp-app</legend>
       {!rsvp.available && (
-        <p className="text-xs text-gray-600">Die Anbindung an rsvp-app ist auf diesem Server nicht eingerichtet (RSVP_SEATING_SECRET, RSVP_APP_BASE_URL).</p>
+        <p className="text-xs text-gray-600 dark:text-gray-400">Die Anbindung an rsvp-app ist auf diesem Server nicht eingerichtet (RSVP_SEATING_SECRET, RSVP_APP_BASE_URL).</p>
       )}
       <div>
         <label htmlFor="event-access" className={labelClass}>Wer darf buchen? (nur Tisch- und Platzbuchung)</label>
@@ -181,7 +181,7 @@ function RsvpFields({ values, rsvp }: { values: Pick<EventFormValues, 'access' |
           <option value="OPEN">{ACCESS_LABELS.OPEN}</option>
           <option value="RSVP" disabled={!rsvp.available && values.access !== 'RSVP'}>{ACCESS_LABELS.RSVP}</option>
         </select>
-        <p className="text-xs text-gray-600 mt-1">Bei einer Sitzordnung bucht niemand selbst – dort dient die Verknüpfung dem Abgleich der Gästeliste.</p>
+        <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">Bei einer Sitzordnung bucht niemand selbst – dort dient die Verknüpfung dem Abgleich der Gästeliste.</p>
       </div>
       <div>
         <label htmlFor="event-rsvp" className={labelClass}>rsvp-app-Event-ID (id des Termins in rsvp-app)</label>
@@ -190,14 +190,14 @@ function RsvpFields({ values, rsvp }: { values: Pick<EventFormValues, 'access' |
       {values.rsvpEventId && (
         <div className="space-y-1">
           <CopyableField label="Sitzplatz-Link – in rsvp-app beim Termin eintragen" value={rsvp.seatingLink} />
-          <p className="text-xs text-gray-600">Erst wenn beide Seiten eingetragen sind, gilt die Verknüpfung (Platzwahl, Gästeliste, Rückmeldung der Plätze).</p>
+          <p className="text-xs text-gray-600 dark:text-gray-400">Erst wenn beide Seiten eingetragen sind, gilt die Verknüpfung (Platzwahl, Gästeliste, Rückmeldung der Plätze).</p>
         </div>
       )}
       <label className="flex items-start gap-2 text-sm">
         <input type="checkbox" name="guestSeatingVisible" defaultChecked={values.guestSeatingVisible} className="mt-1" />
         <span>
           Sitzordnung mit Namen für Gäste mit Zusage zeigen (nur Sitzordnung)
-          <span className="block text-xs text-gray-600">
+          <span className="block text-xs text-gray-600 dark:text-gray-400">
             Wer über „Sitzplatz“ bei seiner Zusage in rsvp-app kommt, sieht seinen Platz und wer an welchem Tisch sitzt – nur Namen
             und Plätze. Die öffentliche Eventseite zeigt nie Namen.
           </span>
@@ -241,7 +241,7 @@ export function EventSettingsForm({ eventId, values, baseUrl, rsvp }: { eventId:
         <div>
           <label htmlFor="event-minfill" className={labelClass}>Mindestbelegung eines Tisches in % (optional)</label>
           <input id="event-minfill" name="minFillPercent" type="number" min={1} max={100} step={1} defaultValue={values.minFillPercent} className={input} />
-          <p className="text-xs text-gray-600 mt-1">
+          <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
             Beispiel 50: Ein 8er-Tisch ist erst ab 4 Personen buchbar. Leer lassen, wenn jede Gruppe jeden ausreichend großen Tisch nehmen darf.
           </p>
         </div>
@@ -255,13 +255,13 @@ export function EventSettingsForm({ eventId, values, baseUrl, rsvp }: { eventId:
             <input id="event-selfedit" name="selfEditHoursBefore" type="number" required min={0} max={SELF_EDIT_HOURS_MAX} defaultValue={values.selfEditHoursBefore} className={input} />
           </div>
         </div>
-        <p className="text-xs text-gray-600">
+        <p className="text-xs text-gray-600 dark:text-gray-400">
           So lange hält eine unbestätigte Reservierung ihren Tisch. Bestätigte Buchungen können die Buchenden bis zur
           Änderungsfrist selbst ändern und stornieren (0 = bis Beginn).
         </p>
         <label className="flex items-start gap-2 text-sm">
           <input type="checkbox" name="oneBookingPerEmail" defaultChecked={values.oneBookingPerEmail} className="mt-1" />
-          <span>Pro E-Mail-Adresse nur eine Buchung<span className="block text-xs text-gray-600">Abschalten, wenn z. B. Vereine mehrere Tische buchen sollen.</span></span>
+          <span>Pro E-Mail-Adresse nur eine Buchung<span className="block text-xs text-gray-600 dark:text-gray-400">Abschalten, wenn z. B. Vereine mehrere Tische buchen sollen.</span></span>
         </label>
         <label className="flex items-start gap-2 text-sm">
           <input type="checkbox" name="requirePhone" defaultChecked={values.requirePhone} className="mt-1" />
@@ -275,7 +275,7 @@ export function EventSettingsForm({ eventId, values, baseUrl, rsvp }: { eventId:
           <input type="checkbox" name="waitlistEnabled" defaultChecked={values.waitlistEnabled} className="mt-1" />
           <span>
             Warteliste
-            <span className="block text-xs text-gray-600">
+            <span className="block text-xs text-gray-600 dark:text-gray-400">
               Ist kein passender Tisch frei, können sich Gruppen eintragen. Wird ein Tisch frei, bekommt der am längsten wartende passende
               Eintrag ein befristetes Angebot per Mail.
             </span>
@@ -284,7 +284,7 @@ export function EventSettingsForm({ eventId, values, baseUrl, rsvp }: { eventId:
         <div>
           <label htmlFor="event-offerttl" className={labelClass}>Angebot aus der Warteliste gilt (Stunden)</label>
           <input id="event-offerttl" name="offerTtlHours" type="number" required min={OFFER_TTL_RANGE.min} max={OFFER_TTL_RANGE.max} defaultValue={values.offerTtlHours} className={input} />
-          <p className="text-xs text-gray-600 mt-1">Höchstens bis Buchungsschluss. So lange ist der Tisch für die Gruppe reserviert.</p>
+          <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">Höchstens bis Buchungsschluss. So lange ist der Tisch für die Gruppe reserviert.</p>
         </div>
         <div>
           <label htmlFor="event-replyto" className={labelClass}>Antwortadresse für Buchungsmails (optional)</label>
@@ -314,7 +314,7 @@ export function ResyncForm({ eventId, layoutVersion, planName }: { eventId: stri
       <input type="hidden" name="eventId" value={eventId} />
       <input type="hidden" name="layoutVersion" value={layoutVersion} />
       <Errors state={state} />
-      <button type="submit" disabled={pending} className="text-sm text-blue-700 hover:underline disabled:opacity-50">
+      <button type="submit" disabled={pending} className="text-sm text-blue-700 dark:text-blue-300 hover:underline disabled:opacity-50">
         Plan aus Vorlage neu übernehmen
       </button>
     </form>

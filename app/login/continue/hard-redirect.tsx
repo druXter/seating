@@ -14,9 +14,9 @@ export default function HardRedirect({ to }: { to: string }) {
   }, [to])
 
   return (
-    <p className="text-sm text-gray-600">
+    <p className="text-sm text-gray-600 dark:text-gray-400">
       Du wirst weitergeleitet. Falls nichts passiert:{' '}
-      <a href={to} className="text-blue-700 underline">hier weiter</a>.
+      <a href={to} className="text-blue-700 dark:text-blue-300 underline">hier weiter</a>.
     </p>
   )
 }

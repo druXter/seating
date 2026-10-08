@@ -14,8 +14,8 @@ export default async function ForgotPasswordPage({
   const { sent } = await searchParams
 
   return (
-    <main className="bg-gray-50 flex items-center justify-center px-4 py-12">
-      <div className="max-w-sm w-full bg-white p-8 rounded-lg shadow space-y-5 text-gray-900">
+    <main className="bg-gray-50 dark:bg-gray-900 flex items-center justify-center px-4 py-12">
+      <div className="max-w-sm w-full bg-white dark:bg-gray-800 p-8 rounded-lg shadow space-y-5 text-gray-900 dark:text-gray-100">
         <h1 className="text-xl font-bold">Passwort vergessen</h1>
 
         {sent === '1' ? (
@@ -25,26 +25,26 @@ export default async function ForgotPasswordPage({
           </Notice>
         ) : (
           <form action={requestPasswordReset} className="space-y-3">
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-gray-600 dark:text-gray-400">
               Gib deine E-Mail-Adresse ein. Wir schicken dir einen Link, mit dem du ein neues Passwort festlegen kannst.
             </p>
             <div>
               <label htmlFor="email" className="block text-sm font-medium mb-1">E-Mail</label>
               <input
                 id="email" type="email" name="email" required autoFocus autoComplete="username"
-                className="w-full border border-gray-300 p-2 rounded"
+                className="w-full border border-gray-300 dark:border-gray-600 p-2 rounded"
               />
             </div>
             <SubmitButton>Link anfordern</SubmitButton>
           </form>
         )}
 
-        <p className="text-xs text-gray-600">
+        <p className="text-xs text-gray-600 dark:text-gray-400">
           Für Konten mit Admin-Rolle gibt es aus Sicherheitsgründen keinen Reset per Mail. Konten, die über ein
           anderes Tool angemeldet werden, setzen ihr Passwort dort zurück.
         </p>
         <p className="text-sm">
-          <Link href="/login?local=1" className="text-blue-700 hover:underline">Zurück zur Anmeldung</Link>
+          <Link href="/login?local=1" className="text-blue-700 dark:text-blue-300 hover:underline">Zurück zur Anmeldung</Link>
         </p>
       </div>
     </main>

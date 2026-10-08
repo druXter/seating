@@ -50,7 +50,7 @@ export default function RsvpSyncPanel({ eventId, assigned, changedSince }: { eve
                 {items.map(item => (
                   <label key={item.key} className="flex items-start gap-2 text-sm">
                     <input type="checkbox" name="item" value={item.key} defaultChecked={kind !== 'removed' || !assigned} className="mt-1" />
-                    <span>{item.title}{item.details.length > 0 && <span className="block text-xs text-gray-600">{item.details.join(' · ')}</span>}</span>
+                    <span>{item.title}{item.details.length > 0 && <span className="block text-xs text-gray-600 dark:text-gray-400">{item.details.join(' · ')}</span>}</span>
                   </label>
                 ))}
               </fieldset>
@@ -63,10 +63,10 @@ export default function RsvpSyncPanel({ eventId, assigned, changedSince }: { eve
       ) : (
         <form action={dispatch}>
           <input type="hidden" name="eventId" value={eventId} />
-          <button type="submit" disabled={pending} className="bg-gray-100 border border-gray-300 rounded px-3 py-2 text-sm hover:bg-gray-200 disabled:opacity-50">Mit rsvp-app abgleichen</button>
+          <button type="submit" disabled={pending} className="bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded px-3 py-2 text-sm hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50">Mit rsvp-app abgleichen</button>
         </form>
       )}
-      <p className="text-xs text-gray-600">
+      <p className="text-xs text-gray-600 dark:text-gray-400">
         {assigned
           ? 'Nichts wird still gelöscht: Neue Zusagen werden Gruppen, Absagen erst nach deiner Auswahl abgesagt.'
           : 'Absagen in rsvp-app stornieren die Buchung automatisch; der Abgleich holt nach, was dabei verloren ging.'}
@@ -74,7 +74,7 @@ export default function RsvpSyncPanel({ eventId, assigned, changedSince }: { eve
       <form action={report} className="space-y-2">
         <input type="hidden" name="eventId" value={eventId} />
         <Feedback state={reportState} />
-        <button type="submit" disabled={reporting} className="text-sm text-blue-700 hover:underline disabled:opacity-50">Platzierungen erneut an rsvp-app melden</button>
+        <button type="submit" disabled={reporting} className="text-sm text-blue-700 dark:text-blue-300 hover:underline disabled:opacity-50">Platzierungen erneut an rsvp-app melden</button>
       </form>
     </div>
   )

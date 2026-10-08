@@ -26,6 +26,9 @@ Tische und Einzelplätze lassen sich online buchen (Modus `TABLE` bzw. `SEAT`, Z
 aus rsvp-app), Veranstalter\*innen verwalten die Buchungen im Verwaltungsbereich. Für eine Sitzordnung (Modus `ASSIGNED`) legen sie die Gäste selbst an und
 setzen sie auf Plätze.
 
+**Darkmode:** folgt der Systemeinstellung des Geräts (wie rsvp-app). Der Raumplan bleibt bewusst hell, damit Belegung
+und Schraffuren eindeutig bleiben; Druckansichten (Tischliste, Tischkarten) sind immer hell.
+
 ## Konten
 
 Konten gibt es nur für Veranstalter\*innen. Buchende brauchen nie ein Konto.

@@ -6,7 +6,7 @@ import { sendBroadcast, sendBroadcastTest, type BookingFormState } from '../../b
 import { BROADCAST_LIMITS, broadcastBlocks, renderText, type DetailsEvent } from '../../../../lib/mail-blocks'
 import Notice from '../../../../ui/notice'
 
-const input = 'w-full border border-gray-300 p-2 rounded'
+const input = 'w-full border border-gray-300 dark:border-gray-600 p-2 rounded'
 const labelClass = 'block text-sm font-medium mb-1'
 
 export type BroadcastRecipient = { status: 'CONFIRMED' | 'PENDING'; tableKeys: string[] }
@@ -58,7 +58,7 @@ export default function BroadcastForm({ eventId, event, recipients, tables }: {
         <div>
           <label htmlFor="broadcast-body" className={labelClass}>Text</label>
           <textarea id="broadcast-body" name="body" required maxLength={BROADCAST_LIMITS.body} rows={8} value={body} onChange={e => setBody(e.currentTarget.value)} className={input} />
-          <p className="text-xs text-gray-600 mt-1">Anrede, die Daten der jeweiligen Buchung und der persönliche Link werden automatisch ergänzt.</p>
+          <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">Anrede, die Daten der jeweiligen Buchung und der persönliche Link werden automatisch ergänzt.</p>
         </div>
 
         <fieldset className="space-y-1 text-sm">
@@ -97,10 +97,10 @@ export default function BroadcastForm({ eventId, event, recipients, tables }: {
 
         <div>
           <p className={labelClass}>Vorschau (Klartext)</p>
-          <pre className="text-xs bg-gray-50 border border-gray-200 rounded p-3 whitespace-pre-wrap font-sans" data-testid="broadcast-preview">{`Betreff: ${subject || '(Betreff)'}\n\n${preview}`}</pre>
+          <pre className="text-xs bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded p-3 whitespace-pre-wrap font-sans" data-testid="broadcast-preview">{`Betreff: ${subject || '(Betreff)'}\n\n${preview}`}</pre>
         </div>
 
-        <button type="submit" formAction={test} className="text-sm bg-gray-100 border border-gray-300 rounded px-3 py-2 hover:bg-gray-200">
+        <button type="submit" formAction={test} className="text-sm bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded px-3 py-2 hover:bg-gray-200 dark:hover:bg-gray-600">
           Testmail an mich schicken
         </button>
         <label className="flex items-start gap-2 text-sm">

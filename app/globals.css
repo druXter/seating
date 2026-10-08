@@ -1,1 +1,21 @@
 @import "tailwindcss";
+
+/* Darkmode nach der Systemeinstellung, wie in rsvp-app - aber nur am Bildschirm: Beim Drucken (Listen, Karten)
+   bleibt es hell, sonst käme helle Schrift auf weißes Papier. */
+@custom-variant dark (@media screen and (prefers-color-scheme: dark));
+
+@media screen {
+  :root {
+    color-scheme: light dark;
+  }
+}
+
+/* Ränder ohne eigene Farbe übernehmen in Tailwind 4 die Textfarbe - hell dunkle Linien, dunkel wären sie grellweiß.
+   Im Darkmode deshalb ein gedämpftes Grau; Klassen mit eigener Randfarbe gehen weiterhin vor (Utilities > Base). */
+@layer base {
+  @media screen and (prefers-color-scheme: dark) {
+    *, ::before, ::after, ::backdrop, ::file-selector-button {
+      border-color: var(--color-gray-700);
+    }
+  }
+}

@@ -15,7 +15,7 @@ function Errors({ state }: { state: ManageState }) {
   return <Notice tone="error"><ul className="list-disc list-inside">{state.errors.map((e, i) => <li key={i}>{e}</li>)}</ul></Notice>
 }
 
-const input = 'w-full border border-gray-300 p-2 rounded'
+const input = 'w-full border border-gray-300 dark:border-gray-600 p-2 rounded'
 const labelClass = 'block text-sm font-medium mb-1'
 
 export type ManageValues = {
@@ -78,7 +78,7 @@ export function ChangeForm({ values }: { values: ManageValues }) {
         <textarea id="manage-note" name="note" maxLength={BOOKING_LIMITS.note} rows={2} defaultValue={values.note} className={input} />
       </div>
       <SubmitButton disabled={pending}>Änderungen speichern</SubmitButton>
-      <p className="text-xs text-gray-600">
+      <p className="text-xs text-gray-600 dark:text-gray-400">
         {values.seats ? 'Zur Auswahl stehen deine Plätze und alle gerade freien.' : 'Zur Auswahl stehen dein Tisch und alle gerade freien Tische.'}
         {values.fixedFromRsvp ? ` Name und Personenzahl (${values.partySize}) kommen aus deiner Zusage in rsvp-app und lassen sich dort ändern.` : ' Die E-Mail-Adresse lässt sich nicht ändern.'}
       </p>
@@ -99,7 +99,7 @@ export function CancelForm({ bookingId, token }: { bookingId: string; token: str
       <input type="hidden" name="bookingId" value={bookingId} />
       <input type="hidden" name="token" value={token} />
       <Errors state={state} />
-      <button type="submit" disabled={pending} className="text-sm text-red-700 hover:underline disabled:opacity-50">Buchung stornieren</button>
+      <button type="submit" disabled={pending} className="text-sm text-red-700 dark:text-red-300 hover:underline disabled:opacity-50">Buchung stornieren</button>
     </form>
   )
 }
@@ -125,7 +125,7 @@ export function ManageButtonForm({ action, bookingId, token, label, confirmMessa
       <Errors state={state} />
       {primary
         ? <SubmitButton disabled={pending}>{label}</SubmitButton>
-        : <button type="submit" disabled={pending} className="text-sm text-red-700 hover:underline disabled:opacity-50">{label}</button>}
+        : <button type="submit" disabled={pending} className="text-sm text-red-700 dark:text-red-300 hover:underline disabled:opacity-50">{label}</button>}
     </form>
   )
 }

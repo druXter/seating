@@ -318,34 +318,34 @@ export default function PlanEditor({ name: planName, initialLayout, initialVersi
     )
   }
 
-  const button = 'border border-gray-300 rounded px-2 py-1 text-sm bg-white hover:bg-gray-50 disabled:opacity-40'
+  const button = 'border border-gray-300 dark:border-gray-600 rounded px-2 py-1 text-sm bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-900 disabled:opacity-40'
 
   return (
     <div className="space-y-3">
-      <div className="bg-white rounded-lg shadow p-2 flex flex-wrap items-center gap-2" role="toolbar" aria-label="Werkzeuge">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-2 flex flex-wrap items-center gap-2" role="toolbar" aria-label="Werkzeuge">
         {TABLE_TOOLS.map(tool => (
           <button key={tool.label} type="button" className={button} onClick={() => add(tool.kind)}>+ {tool.label}</button>
         ))}
         <span className="flex items-center gap-1">
           <label htmlFor="static-kind" className="sr-only">Objektart</label>
-          <select id="static-kind" value={staticKind} onChange={event => setStaticKind(event.currentTarget.value as StaticKind)} className="border border-gray-300 rounded px-1 py-1 text-sm bg-white">
+          <select id="static-kind" value={staticKind} onChange={event => setStaticKind(event.currentTarget.value as StaticKind)} className="border border-gray-300 dark:border-gray-600 rounded px-1 py-1 text-sm bg-white dark:bg-gray-800">
             {STATIC_KINDS.map(kind => <option key={kind} value={kind}>{STATIC_LABELS[kind]}</option>)}
           </select>
           <button type="button" className={button} onClick={() => add({ type: 'static', kind: staticKind })}>+ Objekt</button>
         </span>
-        <span className="mx-1 h-6 border-l border-gray-200" aria-hidden />
+        <span className="mx-1 h-6 border-l border-gray-200 dark:border-gray-700" aria-hidden />
         <button type="button" className={button} onClick={() => dispatch({ type: 'undo' })} disabled={state.past.length === 0} title="Strg+Z">Rückgängig</button>
         <button type="button" className={button} onClick={() => dispatch({ type: 'redo' })} disabled={state.future.length === 0} title="Strg+Umschalt+Z">Wiederholen</button>
         <button type="button" className={button} onClick={() => dispatch({ type: 'duplicate' })} disabled={selection.length === 0} title="Strg+D">Duplizieren</button>
         <button type="button" className={button} onClick={() => dispatch({ type: 'delete' })} disabled={selection.length === 0} title="Entf">Löschen</button>
-        <span className="mx-1 h-6 border-l border-gray-200" aria-hidden />
+        <span className="mx-1 h-6 border-l border-gray-200 dark:border-gray-700" aria-hidden />
         <label className="flex items-center gap-1 text-sm"><input type="checkbox" checked={snapEnabled} onChange={e => setSnapEnabled(e.currentTarget.checked)} />Einrasten</label>
         <label className="flex items-center gap-1 text-sm"><input type="checkbox" checked={showGrid} onChange={e => setShowGrid(e.currentTarget.checked)} />Raster</label>
         <button type="button" className={button} onClick={() => zoom(1 / 1.25)} aria-label="Vergrößern">+</button>
         <button type="button" className={button} onClick={() => zoom(1.25)} aria-label="Verkleinern">−</button>
         <button type="button" className={button} onClick={() => setView(fitView(layout))}>Einpassen</button>
         <span className="grow" />
-        <span className="text-sm text-gray-600" role="status">
+        <span className="text-sm text-gray-600 dark:text-gray-400" role="status">
           {saving ? 'Speichert …' : dirty ? 'Ungespeicherte Änderungen' : 'Alles gespeichert'}
         </span>
         <button type="button" onClick={save} disabled={saving || !dirty}
@@ -373,7 +373,7 @@ export default function PlanEditor({ name: planName, initialLayout, initialVersi
       )}
 
       <div className="grid gap-3 lg:grid-cols-[1fr_20rem]">
-        <div className="bg-white rounded-lg shadow overflow-hidden">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
           <PlanSvg
             svgRef={svgRef}
             layout={layout}
@@ -392,13 +392,13 @@ export default function PlanEditor({ name: planName, initialLayout, initialVersi
         </div>
 
         <aside className="space-y-3">
-          <div className="bg-white rounded-lg shadow p-3">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-3">
             <PropertiesPanel layout={layout} selection={selection} dispatch={dispatch} hasBackground={backgroundUrl !== null} />
           </div>
-          <div className="bg-white rounded-lg shadow p-3">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-3">
             <h3 className="text-sm font-bold mb-2">Elemente ({layout.elements.length}) · {summary.tables} Tische · {summary.seats} Plätze</h3>
             {layout.elements.length === 0 ? (
-              <p className="text-xs text-gray-600">Noch leer – füge oben Tische, Stühle oder Objekte hinzu.</p>
+              <p className="text-xs text-gray-600 dark:text-gray-400">Noch leer – füge oben Tische, Stühle oder Objekte hinzu.</p>
             ) : (
               <ul className="max-h-64 overflow-y-auto text-sm divide-y" aria-label="Elemente des Plans">
                 {layout.elements.map(element => (
@@ -407,15 +407,15 @@ export default function PlanEditor({ name: planName, initialLayout, initialVersi
                       type="button"
                       aria-pressed={selectedSet.has(element.id)}
                       onClick={event => dispatch({ type: 'select', ids: [element.id], mode: event.shiftKey ? 'toggle' : 'replace' })}
-                      className={`w-full text-left px-2 py-1 rounded ${selectedSet.has(element.id) ? 'bg-blue-50 text-blue-900 font-medium' : 'hover:bg-gray-50'}`}
+                      className={`w-full text-left px-2 py-1 rounded ${selectedSet.has(element.id) ? 'bg-blue-50 dark:bg-blue-950/50 text-blue-900 dark:text-blue-200 font-medium' : 'hover:bg-gray-50 dark:hover:bg-gray-900'}`}
                     >
-                      {elementTitle(element)} <span className="text-xs text-gray-500">{element.id}</span>
+                      {elementTitle(element)} <span className="text-xs text-gray-500 dark:text-gray-400">{element.id}</span>
                     </button>
                   </li>
                 ))}
               </ul>
             )}
-            <p className="text-xs text-gray-600 mt-2">
+            <p className="text-xs text-gray-600 dark:text-gray-400 mt-2">
               Tastatur: Pfeiltasten verschieben um ein Rasterfeld (mit Alt um 1 cm), Strg+D dupliziert, Entf löscht,
               Strg+Z macht rückgängig, Strg+S speichert. Umschalt+Klick wählt mehrere aus.
             </p>

@@ -57,7 +57,7 @@ export default function InstallHint() {
           await installEvent.userChoice
           setInstallEvent(null)
         }}
-        className="text-sm text-blue-700 hover:underline"
+        className="text-sm text-blue-700 dark:text-blue-300 hover:underline"
       >
         📲 Als App installieren
       </button>
@@ -66,7 +66,7 @@ export default function InstallHint() {
 
   if (isIos) {
     return (
-      <p className="text-xs text-gray-600">
+      <p className="text-xs text-gray-600 dark:text-gray-400">
         Als App auf den Home-Bildschirm: in Safari auf <span aria-hidden="true">⎋</span> &quot;Teilen&quot; tippen und
         dann &quot;Zum Home-Bildschirm&quot; wählen.
       </p>

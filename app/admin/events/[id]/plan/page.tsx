@@ -16,11 +16,11 @@ export default async function EventPlanPage({ params }: { params: Promise<{ id: 
   const backgroundUrl = event.backgroundFile ? `/admin/events/${event.id}/background?v=${event.backgroundFile.slice(0, 8)}` : null
 
   return (
-    <main className="bg-gray-50 py-6 px-4">
-      <div className="max-w-6xl mx-auto space-y-4 text-gray-900">
+    <main className="bg-gray-50 dark:bg-gray-900 py-6 px-4">
+      <div className="max-w-6xl mx-auto space-y-4 text-gray-900 dark:text-gray-100">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h1 className="text-2xl font-bold">Plan: {event.title}</h1>
-          <Link href={`/admin/events/${event.id}`} className="text-sm text-blue-700 hover:underline">Zurück zum Event</Link>
+          <Link href={`/admin/events/${event.id}`} className="text-sm text-blue-700 dark:text-blue-300 hover:underline">Zurück zum Event</Link>
         </div>
         <Notice tone="info">
           Du bearbeitest den Plan dieses Events, nicht die Vorlage. Belegte Tische und Plätze lassen sich umbenennen und

@@ -15,7 +15,7 @@ import { seatPickerData } from '../../../../../lib/events/places'
 
 export const dynamic = 'force-dynamic'
 
-const input = 'w-full border border-gray-300 p-2 rounded'
+const input = 'w-full border border-gray-300 dark:border-gray-600 p-2 rounded'
 const labelClass = 'block text-sm font-medium mb-1'
 
 /**
@@ -41,13 +41,13 @@ export default async function NewBookingPage({ params, searchParams }: { params:
   const nothingFree = seatData ? !seatData.seats.some(s => s.state === 'free') : tables.length === 0
 
   return (
-    <main className="bg-gray-50 py-6 px-4">
-      <div className="max-w-2xl mx-auto space-y-4 text-gray-900">
+    <main className="bg-gray-50 dark:bg-gray-900 py-6 px-4">
+      <div className="max-w-2xl mx-auto space-y-4 text-gray-900 dark:text-gray-100">
         <div className="space-y-1">
           <p className="text-sm">
-            <Link href={`/admin/events/${event.id}`} className="text-blue-700 hover:underline">{event.title}</Link>
+            <Link href={`/admin/events/${event.id}`} className="text-blue-700 dark:text-blue-300 hover:underline">{event.title}</Link>
             {' › '}
-            <Link href={`/admin/events/${event.id}/bookings`} className="text-blue-700 hover:underline">Buchungen</Link>
+            <Link href={`/admin/events/${event.id}/bookings`} className="text-blue-700 dark:text-blue-300 hover:underline">Buchungen</Link>
           </p>
           <h1 className="text-2xl font-bold">Buchung anlegen</h1>
         </div>
@@ -55,7 +55,7 @@ export default async function NewBookingPage({ params, searchParams }: { params:
         {nothingFree ? (
           <Notice tone="warning">{seatMode ? 'Gerade ist kein Platz frei.' : 'Gerade ist kein Tisch frei.'}</Notice>
         ) : (
-          <div className="bg-white rounded-lg shadow p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
             <ActionForm action={createBookingAdmin}>
               <input type="hidden" name="eventId" value={event.id} />
               {seatData ? (
@@ -115,7 +115,7 @@ export default async function NewBookingPage({ params, searchParams }: { params:
                 <span>Bei direkter Bestätigung: Bestätigungsmail mit Kalendereintrag und Verwaltungslink schicken (nur mit E-Mail-Adresse)</span>
               </label>
               <SubmitButton>Buchung anlegen</SubmitButton>
-              <p className="text-xs text-gray-600">
+              <p className="text-xs text-gray-600 dark:text-gray-400">
                 Ohne E-Mail-Adresse bekommt die Person keine Mails und keinen Verwaltungslink – Änderungen laufen dann über euch.
                 {event.oneBookingPerEmail && ' Pro E-Mail-Adresse ist nur eine aktive Buchung möglich (abschaltbar in den Einstellungen).'}
               </p>

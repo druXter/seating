@@ -14,7 +14,7 @@ import SubmitButton from '../ui/submit-button'
  * Seite neu, geht es über den Link in der Mail weiter.
  */
 
-const input = 'w-full border border-gray-300 p-2 rounded'
+const input = 'w-full border border-gray-300 dark:border-gray-600 p-2 rounded'
 const labelClass = 'block text-sm font-medium mb-1'
 
 export function ReserveForm({ eventId, table, partySize, requirePhone, action, pending, errors, onClose }: {
@@ -31,8 +31,8 @@ export function ReserveForm({ eventId, table, partySize, requirePhone, action, p
   return (
     <form action={action} className="space-y-3" aria-labelledby={`${id}-heading`}>
       <div className="flex items-baseline justify-between gap-2">
-        <h2 id={`${id}-heading`} className="font-bold text-lg">{table.label} buchen <span className="text-sm font-normal text-gray-600">({table.capacity} Plätze)</span></h2>
-        <button type="button" onClick={onClose} className="text-sm text-blue-700 hover:underline">Anderen Tisch wählen</button>
+        <h2 id={`${id}-heading`} className="font-bold text-lg">{table.label} buchen <span className="text-sm font-normal text-gray-600 dark:text-gray-400">({table.capacity} Plätze)</span></h2>
+        <button type="button" onClick={onClose} className="text-sm text-blue-700 dark:text-blue-300 hover:underline">Anderen Tisch wählen</button>
       </div>
       {errors.length > 0 && (
         <Notice tone="error"><ul className="list-disc list-inside">{errors.map((e, i) => <li key={i}>{e}</li>)}</ul></Notice>
@@ -68,12 +68,12 @@ export function ReserveForm({ eventId, table, partySize, requirePhone, action, p
       <label className="flex items-start gap-2 text-sm">
         <input type="checkbox" name="privacy" required className="mt-1" />
         <span>
-          Ich habe den <Link href="/datenschutz" target="_blank" className="text-blue-700 underline">Datenschutzhinweis</Link> gelesen.
+          Ich habe den <Link href="/datenschutz" target="_blank" className="text-blue-700 dark:text-blue-300 underline">Datenschutzhinweis</Link> gelesen.
           Meine Angaben werden nur für diese Buchung verwendet.
         </span>
       </label>
       <SubmitButton disabled={pending}>Tisch reservieren</SubmitButton>
-      <p className="text-xs text-gray-600">
+      <p className="text-xs text-gray-600 dark:text-gray-400">
         Du bekommst eine Mail mit Link und Code. Erst mit deiner Bestätigung gilt die Buchung – bis dahin halten wir den Tisch kurz für dich frei.
       </p>
     </form>
@@ -90,7 +90,7 @@ export function PendingPanel({ bookingId, children, resendHint }: { bookingId: s
     return (
       <div className="space-y-2">
         <Notice tone="success">Du stehst jetzt auf der Warteliste. Wird ein passender Tisch frei, bekommst du ein Angebot per Mail.</Notice>
-        <p className="text-sm"><a href={codeState.manageUrl} className="text-blue-700 underline">Eintrag ansehen</a></p>
+        <p className="text-sm"><a href={codeState.manageUrl} className="text-blue-700 dark:text-blue-300 underline">Eintrag ansehen</a></p>
       </div>
     )
   }
@@ -98,7 +98,7 @@ export function PendingPanel({ bookingId, children, resendHint }: { bookingId: s
     return (
       <div className="space-y-2">
         <Notice tone="success">Deine Buchung ist bestätigt. Wir haben dir eine Mail mit Kalendereintrag und dem Link zu deiner Buchung geschickt.</Notice>
-        <p className="text-sm"><a href={codeState.manageUrl} className="text-blue-700 underline">Buchung ansehen oder ändern</a></p>
+        <p className="text-sm"><a href={codeState.manageUrl} className="text-blue-700 dark:text-blue-300 underline">Buchung ansehen oder ändern</a></p>
       </div>
     )
   }
@@ -110,15 +110,15 @@ export function PendingPanel({ bookingId, children, resendHint }: { bookingId: s
         <input type="hidden" name="bookingId" value={bookingId} />
         <div>
           <label htmlFor={`${id}-code`} className={labelClass}>Code aus der Mail</label>
-          <input id={`${id}-code`} name="code" required inputMode="numeric" autoComplete="one-time-code" pattern="[0-9 ]{6,7}" maxLength={7} className="w-36 border border-gray-300 p-2 rounded tracking-widest" />
+          <input id={`${id}-code`} name="code" required inputMode="numeric" autoComplete="one-time-code" pattern="[0-9 ]{6,7}" maxLength={7} className="w-36 border border-gray-300 dark:border-gray-600 p-2 rounded tracking-widest" />
         </div>
         <button type="submit" disabled={codePending} className="bg-blue-600 text-white font-bold py-2 px-4 rounded hover:bg-blue-700 disabled:opacity-50">Bestätigen</button>
       </form>
       {codeState?.kind === 'error' && <Notice tone="error">{codeState.message}</Notice>}
       <form action={resend} className="text-sm">
         <input type="hidden" name="bookingId" value={bookingId} />
-        <button type="submit" disabled={resendPending} className="text-blue-700 hover:underline disabled:opacity-50">Keine Mail bekommen? Erneut senden</button>
-        <span className="block text-xs text-gray-600">Ein neuer Code macht den alten ungültig. {resendHint}</span>
+        <button type="submit" disabled={resendPending} className="text-blue-700 dark:text-blue-300 hover:underline disabled:opacity-50">Keine Mail bekommen? Erneut senden</button>
+        <span className="block text-xs text-gray-600 dark:text-gray-400">Ein neuer Code macht den alten ungültig. {resendHint}</span>
       </form>
       {resendState?.sent === true && <Notice tone="success">Falls die Reservierung bzw. der Eintrag noch besteht, ist eine neue Mail unterwegs.</Notice>}
       {resendState?.sent === false && <Notice tone="error">{resendState.message}</Notice>}
@@ -141,9 +141,9 @@ export function WaitlistForm({ eventId, partySize, requirePhone, action, pending
     <form action={action} className="space-y-3" aria-labelledby={`${id}-heading`}>
       <div className="flex items-baseline justify-between gap-2">
         <h2 id={`${id}-heading`} className="font-bold text-lg">Auf die Warteliste</h2>
-        <button type="button" onClick={onClose} className="text-sm text-blue-700 hover:underline">Abbrechen</button>
+        <button type="button" onClick={onClose} className="text-sm text-blue-700 dark:text-blue-300 hover:underline">Abbrechen</button>
       </div>
-      <p className="text-sm text-gray-700">
+      <p className="text-sm text-gray-700 dark:text-gray-300">
         Wird ein passender Tisch frei, bekommst du ein Angebot per Mail, das du innerhalb einer Frist annehmen kannst. Die Reihenfolge richtet
         sich nach dem Zeitpunkt der Anmeldung.
       </p>
@@ -180,7 +180,7 @@ export function WaitlistForm({ eventId, partySize, requirePhone, action, pending
       <label className="flex items-start gap-2 text-sm">
         <input type="checkbox" name="privacy" required className="mt-1" />
         <span>
-          Ich habe den <Link href="/datenschutz" target="_blank" className="text-blue-700 underline">Datenschutzhinweis</Link> gelesen.
+          Ich habe den <Link href="/datenschutz" target="_blank" className="text-blue-700 dark:text-blue-300 underline">Datenschutzhinweis</Link> gelesen.
           Meine Angaben werden nur für die Warteliste und eine spätere Buchung verwendet.
         </span>
       </label>
@@ -215,7 +215,7 @@ export function SeatContactFields({ requirePhone }: { requirePhone: boolean }) {
       <label className="flex items-start gap-2 text-sm">
         <input type="checkbox" name="privacy" required className="mt-1" />
         <span>
-          Ich habe den <Link href="/datenschutz" target="_blank" className="text-blue-700 underline">Datenschutzhinweis</Link> gelesen.
+          Ich habe den <Link href="/datenschutz" target="_blank" className="text-blue-700 dark:text-blue-300 underline">Datenschutzhinweis</Link> gelesen.
           Meine Angaben werden nur für diese Buchung verwendet.
         </span>
       </label>

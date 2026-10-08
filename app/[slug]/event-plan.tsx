@@ -121,14 +121,14 @@ export default function EventPlan({ layout, backgroundUrl, tables, tableSeats, m
           <input
             id={inputId} type="number" inputMode="numeric" min={1} max={maxCapacity} value={partyInput}
             onChange={event => setPartyInput(event.currentTarget.value)}
-            className="w-32 border border-gray-300 p-2 rounded"
+            className="w-32 border border-gray-300 dark:border-gray-600 p-2 rounded"
           />
         </div>
         {filtering && (
-          <button type="button" className="text-sm text-blue-700 hover:underline pb-2" onClick={() => setPartyInput('')}>Filter aufheben</button>
+          <button type="button" className="text-sm text-blue-700 dark:text-blue-300 hover:underline pb-2" onClick={() => setPartyInput('')}>Filter aufheben</button>
         )}
       </div>
-      <p className="text-sm text-gray-700" role="status" aria-live="polite">
+      <p className="text-sm text-gray-700 dark:text-gray-300" role="status" aria-live="polite">
         {filtering
           ? matching.length > 0
             ? `${matching.length} passende${matching.length === 1 ? 'r' : ''} Tisch${matching.length === 1 ? '' : 'e'} frei für ${partySize} ${partySize === 1 ? 'Person' : 'Personen'}.`
@@ -144,7 +144,7 @@ export default function EventPlan({ layout, backgroundUrl, tables, tableSeats, m
           </button>
         </div>
       )}
-      {choice === 'too-large' && <p className="text-sm text-gray-700">Für so viele Personen gibt es keinen passenden Tisch.</p>}
+      {choice === 'too-large' && <p className="text-sm text-gray-700 dark:text-gray-300">Für so viele Personen gibt es keinen passenden Tisch.</p>}
 
       <PlanViewer
         layout={layout} backgroundUrl={backgroundUrl} units={visuals} title={title}
@@ -152,7 +152,7 @@ export default function EventPlan({ layout, backgroundUrl, tables, tableSeats, m
       />
 
       {booking.open && (busy || selected || waitlistOpen) && (
-        <div ref={panelRef} className="border-2 border-blue-200 rounded-lg p-4 scroll-mt-4">
+        <div ref={panelRef} className="border-2 border-blue-200 dark:border-blue-800 rounded-lg p-4 scroll-mt-4">
           {pendingReservation ? (
             <PendingPanel bookingId={pendingReservation.bookingId} resendHint="Die Reservierung verlängert sich dadurch nicht.">
               <strong>{pendingReservation.placeLabel}</strong> ist bis {pendingReservation.expiresAtText} für dich reserviert. Wir haben eine Mail an{' '}
@@ -190,10 +190,10 @@ export default function EventPlan({ layout, backgroundUrl, tables, tableSeats, m
         </div>
       )}
       {booking.open && !selected && !busy && !waitlistOpen && (
-        <p className="text-sm text-gray-700">Tippe im Plan auf einen freien Tisch oder wähle ihn unten in der Liste, um ihn zu buchen.</p>
+        <p className="text-sm text-gray-700 dark:text-gray-300">Tippe im Plan auf einen freien Tisch oder wähle ihn unten in der Liste, um ihn zu buchen.</p>
       )}
 
-      <ul className="flex flex-wrap gap-x-5 gap-y-2 text-sm text-gray-700" aria-label="Legende">
+      <ul className="flex flex-wrap gap-x-5 gap-y-2 text-sm text-gray-700 dark:text-gray-300" aria-label="Legende">
         <li className="flex items-center gap-1.5"><Swatch kind="free" />frei</li>
         <li className="flex items-center gap-1.5"><Swatch kind="occupied" />belegt (schraffiert)</li>
         <li className="flex items-center gap-1.5"><Swatch kind="unavailable" />nicht buchbar</li>
@@ -204,7 +204,7 @@ export default function EventPlan({ layout, backgroundUrl, tables, tableSeats, m
       <section aria-labelledby="table-list-heading" className="space-y-2">
         <h2 id="table-list-heading" className="font-bold">Alle Tische</h2>
         {sorted.length === 0 ? (
-          <p className="text-sm text-gray-600">Dieser Plan enthält keine Tische.</p>
+          <p className="text-sm text-gray-600 dark:text-gray-400">Dieser Plan enthält keine Tische.</p>
         ) : (
           <table className="w-full text-sm">
             <thead>
@@ -218,7 +218,7 @@ export default function EventPlan({ layout, backgroundUrl, tables, tableSeats, m
             </thead>
             <tbody>
               {sorted.map(table => (
-                <tr key={table.key} className={`border-b last:border-0 ${filtering && !(table.state === 'free' && fits(table)) ? 'text-gray-500' : ''}`}>
+                <tr key={table.key} className={`border-b last:border-0 ${filtering && !(table.state === 'free' && fits(table)) ? 'text-gray-500 dark:text-gray-400' : ''}`}>
                   <th scope="row" className="py-1 pr-2 font-normal text-left">{table.label}</th>
                   <td className="py-1 pr-2">{table.capacity}</td>
                   <td className="py-1 pr-2">{STATE_TEXT[table.state]}</td>
@@ -228,7 +228,7 @@ export default function EventPlan({ layout, backgroundUrl, tables, tableSeats, m
                       {table.state === 'free' && (!filtering || fits(table)) && (
                         <button
                           type="button" onClick={() => select(table.key)} aria-label={`${table.label} buchen`}
-                          className="text-blue-700 hover:underline"
+                          className="text-blue-700 dark:text-blue-300 hover:underline"
                         >
                           Buchen
                         </button>

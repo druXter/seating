@@ -102,20 +102,20 @@ export default function SeatPicker({ layout, backgroundUrl, title, seats, groups
       <div className="flex flex-wrap items-end gap-2">
         <div>
           <label htmlFor={`${id}-n`} className="block text-sm font-medium mb-1">Wie viele Plätze nebeneinander?</label>
-          <input id={`${id}-n`} type="number" inputMode="numeric" min={1} max={max ?? undefined} value={wanted} onChange={e => setWanted(e.currentTarget.value)} className="w-24 border border-gray-300 p-2 rounded" />
+          <input id={`${id}-n`} type="number" inputMode="numeric" min={1} max={max ?? undefined} value={wanted} onChange={e => setWanted(e.currentTarget.value)} className="w-24 border border-gray-300 dark:border-gray-600 p-2 rounded" />
         </div>
-        <button type="button" onClick={suggest} className="bg-gray-100 border border-gray-300 rounded px-3 py-2 text-sm hover:bg-gray-200">Plätze vorschlagen</button>
-        {selected.length > 0 && <button type="button" onClick={() => update([])} className="text-sm text-blue-700 hover:underline pb-2">Auswahl leeren</button>}
+        <button type="button" onClick={suggest} className="bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded px-3 py-2 text-sm hover:bg-gray-200 dark:hover:bg-gray-600">Plätze vorschlagen</button>
+        {selected.length > 0 && <button type="button" onClick={() => update([])} className="text-sm text-blue-700 dark:text-blue-300 hover:underline pb-2">Auswahl leeren</button>}
       </div>
-      <p className="text-sm text-gray-700" role="status" aria-live="polite" data-testid="seat-selection">
+      <p className="text-sm text-gray-700 dark:text-gray-300" role="status" aria-live="polite" data-testid="seat-selection">
         {selected.length === 0
           ? `Keine Plätze gewählt – ${freeCount} von ${seats.length} frei. Tippe im Plan auf freie Plätze oder wähle sie in der Liste.`
           : `${selected.length} ${selected.length === 1 ? 'Platz' : 'Plätze'} gewählt${max !== null ? ` (höchstens ${max})` : ''}: ${selected.map(k => byKey.get(k)?.label ?? k).join('; ')}`}
       </p>
-      {message && <p className="text-sm text-amber-800" role="alert">{message}</p>}
+      {message && <p className="text-sm text-amber-800 dark:text-amber-200" role="alert">{message}</p>}
 
       <PlanViewer layout={layout} backgroundUrl={backgroundUrl} units={visuals} title={title} onUnitClick={toggle} />
-      <p className="text-xs text-gray-600">Bitte lass möglichst keine einzelnen Plätze zwischen zwei Buchungen frei.</p>
+      <p className="text-xs text-gray-600 dark:text-gray-400">Bitte lass möglichst keine einzelnen Plätze zwischen zwei Buchungen frei.</p>
 
       <div className="space-y-1">
         <p className="text-sm font-medium">Alle Plätze</p>
@@ -125,7 +125,7 @@ export default function SeatPicker({ layout, backgroundUrl, title, seats, groups
           const free = keys.filter(key => byKey.get(key)!.state === 'free').length
           return (
             <details
-              key={group.label} open={openGroups.has(group.label)} className="border border-gray-200 rounded"
+              key={group.label} open={openGroups.has(group.label)} className="border border-gray-200 dark:border-gray-700 rounded"
               onToggle={e => {
                 const isOpen = e.currentTarget.open
                 setOpenGroups(current => {
@@ -137,13 +137,13 @@ export default function SeatPicker({ layout, backgroundUrl, title, seats, groups
                 })
               }}
             >
-              <summary className="cursor-pointer px-2 py-1 text-sm">{group.label} <span className="text-gray-600">· {free} von {keys.length} frei</span></summary>
+              <summary className="cursor-pointer px-2 py-1 text-sm">{group.label} <span className="text-gray-600 dark:text-gray-400">· {free} von {keys.length} frei</span></summary>
               <div className="flex flex-wrap gap-x-4 gap-y-1 px-2 py-2 text-sm">
                 {keys.map(key => {
                   const seat = byKey.get(key)!
                   const chosen = selected.includes(key)
                   return (
-                    <label key={key} className={`flex items-center gap-1 ${seat.state !== 'free' && !chosen ? 'text-gray-500' : ''}`}>
+                    <label key={key} className={`flex items-center gap-1 ${seat.state !== 'free' && !chosen ? 'text-gray-500 dark:text-gray-400' : ''}`}>
                       <input type="checkbox" checked={chosen} disabled={seat.state !== 'free' && !chosen} onChange={() => toggle(key)} aria-label={seat.label} />
                       {shortLabel(seat.label)}{seat.state !== 'free' && !chosen && ` (${STATE_TEXT[seat.state]})`}
                     </label>

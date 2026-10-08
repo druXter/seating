@@ -149,7 +149,7 @@ export default function PlanViewer({ layout, backgroundUrl, units, title, onUnit
     return () => svg.removeEventListener('wheel', listener)
   }, [])
 
-  const button = 'border border-gray-300 rounded px-3 py-1 text-sm bg-white hover:bg-gray-50'
+  const button = 'border border-gray-300 dark:border-gray-600 rounded px-3 py-1 text-sm bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-900'
 
   return (
     <div className="space-y-2">
@@ -157,9 +157,9 @@ export default function PlanViewer({ layout, backgroundUrl, units, title, onUnit
         <button type="button" className={button} onClick={() => zoom(1 / 1.25)} aria-label="Plan vergrößern">+</button>
         <button type="button" className={button} onClick={() => zoom(1.25)} aria-label="Plan verkleinern">−</button>
         <button type="button" className={button} onClick={() => setView(fitView(layout))}>Ganzer Plan</button>
-        <span className="text-xs text-gray-600">Zoomen mit zwei Fingern oder Strg + Mausrad, verschieben durch Ziehen.</span>
+        <span className="text-xs text-gray-600 dark:text-gray-400">Zoomen mit zwei Fingern oder Strg + Mausrad, verschieben durch Ziehen.</span>
       </div>
-      <div className="border border-gray-200 rounded overflow-hidden bg-white">
+      <div className="border border-gray-200 dark:border-gray-700 rounded overflow-hidden bg-white dark:bg-gray-800">
         <PlanSvg
           svgRef={svgRef}
           layout={layout}

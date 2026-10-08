@@ -13,13 +13,13 @@ export default function CopyableField({ label, value }: { label: string; value: 
   const id = useId()
   return (
     <div>
-      <label htmlFor={id} className="block text-xs text-gray-600 mb-1">{label}</label>
+      <label htmlFor={id} className="block text-xs text-gray-600 dark:text-gray-400 mb-1">{label}</label>
       <input
         id={id}
         type="text"
         readOnly
         value={value}
-        className="w-full bg-gray-50 border border-gray-200 rounded p-2 text-sm text-gray-700 cursor-pointer"
+        className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded p-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer"
         onClick={(e) => e.currentTarget.select()}
       />
     </div>

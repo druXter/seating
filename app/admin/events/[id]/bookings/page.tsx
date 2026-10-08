@@ -64,53 +64,53 @@ export default async function BookingsPage({ params, searchParams }: { params: P
   const base = `/admin/events/${event.id}`
 
   return (
-    <main className="bg-gray-50 py-6 px-4">
-      <div className="max-w-5xl mx-auto space-y-4 text-gray-900">
+    <main className="bg-gray-50 dark:bg-gray-900 py-6 px-4">
+      <div className="max-w-5xl mx-auto space-y-4 text-gray-900 dark:text-gray-100">
         <div className="space-y-1">
-          <p className="text-sm"><Link href={base} className="text-blue-700 hover:underline">{event.title}</Link></p>
+          <p className="text-sm"><Link href={base} className="text-blue-700 dark:text-blue-300 hover:underline">{event.title}</Link></p>
           <h1 className="text-2xl font-bold">{assigned ? 'Gruppen' : 'Buchungen'}</h1>
         </div>
 
         {search.deleted === '1' && <Notice tone="success">Buchung endgültig gelöscht.</Notice>}
         {search.mail === 'failed' && <Notice tone="warning">Die Mail an die Kund*in konnte nicht verschickt werden.</Notice>}
 
-        <div className="bg-white rounded-lg shadow p-4 space-y-3">
-          <p className="text-sm text-gray-700" data-testid="booking-counts">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 space-y-3">
+          <p className="text-sm text-gray-700 dark:text-gray-300" data-testid="booking-counts">
             {unitKind === 'SEAT' ? 'Plätze' : 'Tische'}: {counts.free} frei · {counts.held} reserviert (unbestätigt) · {counts.confirmed} belegt
             {counts.unavailable > 0 && ` · ${counts.unavailable} nicht buchbar`} — {confirmed.length} {assigned ? (confirmed.length === 1 ? 'Gruppe' : 'Gruppen') : `bestätigte Buchung${confirmed.length === 1 ? '' : 'en'}`} mit {guests} Person{guests === 1 ? '' : 'en'}
-            {waitlist.length > 0 && <> — <Link href={`${base}/bookings?status=waitlist`} className="text-blue-700 hover:underline">{waitlist.length} auf der Warteliste</Link></>}
+            {waitlist.length > 0 && <> — <Link href={`${base}/bookings?status=waitlist`} className="text-blue-700 dark:text-blue-300 hover:underline">{waitlist.length} auf der Warteliste</Link></>}
             {!event.waitlistEnabled && ' — Warteliste aus'}
           </p>
           <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
             {assigned
-              ? <Link href={`${base}/arrange`} className="text-blue-700 hover:underline">Sitzordnung (Gäste anlegen und setzen)</Link>
+              ? <Link href={`${base}/arrange`} className="text-blue-700 dark:text-blue-300 hover:underline">Sitzordnung (Gäste anlegen und setzen)</Link>
               : <>
-                <Link href={`${base}/bookings/new`} className="text-blue-700 hover:underline">Buchung anlegen</Link>
-                <Link href={`${base}/arrange`} className="text-blue-700 hover:underline">Im Plan verschieben</Link>
-                <Link href={`${base}/mail`} className="text-blue-700 hover:underline">Rundmail</Link>
+                <Link href={`${base}/bookings/new`} className="text-blue-700 dark:text-blue-300 hover:underline">Buchung anlegen</Link>
+                <Link href={`${base}/arrange`} className="text-blue-700 dark:text-blue-300 hover:underline">Im Plan verschieben</Link>
+                <Link href={`${base}/mail`} className="text-blue-700 dark:text-blue-300 hover:underline">Rundmail</Link>
               </>}
-            <a href={`${base}/export?${exportQuery}`} className="text-blue-700 hover:underline">CSV-Export (aktuelle Auswahl)</a>
-            <Link href={`${base}/print`} className="text-blue-700 hover:underline">Druckansicht</Link>
-            <Link href={`${base}/print?view=cards`} className="text-blue-700 hover:underline">{event.mode === 'SEAT' ? 'Platzkarten' : 'Tischkarten'}</Link>
+            <a href={`${base}/export?${exportQuery}`} className="text-blue-700 dark:text-blue-300 hover:underline">CSV-Export (aktuelle Auswahl)</a>
+            <Link href={`${base}/print`} className="text-blue-700 dark:text-blue-300 hover:underline">Druckansicht</Link>
+            <Link href={`${base}/print?view=cards`} className="text-blue-700 dark:text-blue-300 hover:underline">{event.mode === 'SEAT' ? 'Platzkarten' : 'Tischkarten'}</Link>
           </div>
         </div>
 
         {event.rsvpEventId && !assigned && (
-          <div className="bg-white rounded-lg shadow p-4 space-y-2">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 space-y-2">
             <h2 className="font-bold">Zusagen aus rsvp-app</h2>
             <RsvpSyncPanel eventId={event.id} assigned={false} changedSince={null} />
           </div>
         )}
 
-        <div className="bg-white rounded-lg shadow p-4 space-y-3">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 space-y-3">
           <form method="get" className="flex flex-wrap items-end gap-2" role="search">
             <div className="grow">
               <label htmlFor="booking-q" className="block text-sm font-medium mb-1">Suche</label>
-              <input id="booking-q" name="q" defaultValue={query} maxLength={100} placeholder="Name, E-Mail, Telefon, Tisch" className="w-full border border-gray-300 p-2 rounded text-sm" />
+              <input id="booking-q" name="q" defaultValue={query} maxLength={100} placeholder="Name, E-Mail, Telefon, Tisch" className="w-full border border-gray-300 dark:border-gray-600 p-2 rounded text-sm" />
             </div>
             <div>
               <label htmlFor="booking-status" className="block text-sm font-medium mb-1">Status</label>
-              <select id="booking-status" name="status" defaultValue={filter} className="border border-gray-300 p-2 rounded text-sm">
+              <select id="booking-status" name="status" defaultValue={filter} className="border border-gray-300 dark:border-gray-600 p-2 rounded text-sm">
                 {LIST_FILTERS.map(f => <option key={f} value={f}>{LIST_FILTER_LABELS[f]}</option>)}
               </select>
             </div>
@@ -119,7 +119,7 @@ export default async function BookingsPage({ params, searchParams }: { params: P
 
           <h2 className="font-bold">{bookings.length} Buchung{bookings.length === 1 ? '' : 'en'} ({LIST_FILTER_LABELS[filter]}{query && `, Suche „${query}“`})</h2>
           {bookings.length === 0 ? (
-            <p className="text-sm text-gray-600">Keine Buchungen in dieser Auswahl.</p>
+            <p className="text-sm text-gray-600 dark:text-gray-400">Keine Buchungen in dieser Auswahl.</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -140,30 +140,30 @@ export default async function BookingsPage({ params, searchParams }: { params: P
                       <tr key={booking.id} className="border-b last:border-0 align-top">
                         <td className="py-1 pr-3">{describePlaces(booking.allocations.map(a => a.unit))}</td>
                         <td className="py-1 pr-3">
-                          <Link href={`${base}/bookings/${booking.id}`} className="text-blue-700 hover:underline">{booking.name}</Link>
-                          {booking.attendees.length > 1 && <span className="block text-xs text-gray-600">{booking.attendees.map(a => a.name).join(', ')}</span>}
-                          {booking.note && <span className="block text-xs text-gray-600 whitespace-pre-line">{booking.note}</span>}
-                          {booking.adminNote && <span className="block text-xs text-purple-800 whitespace-pre-line">Intern: {booking.adminNote}</span>}
+                          <Link href={`${base}/bookings/${booking.id}`} className="text-blue-700 dark:text-blue-300 hover:underline">{booking.name}</Link>
+                          {booking.attendees.length > 1 && <span className="block text-xs text-gray-600 dark:text-gray-400">{booking.attendees.map(a => a.name).join(', ')}</span>}
+                          {booking.note && <span className="block text-xs text-gray-600 dark:text-gray-400 whitespace-pre-line">{booking.note}</span>}
+                          {booking.adminNote && <span className="block text-xs text-purple-800 dark:text-purple-200 whitespace-pre-line">Intern: {booking.adminNote}</span>}
                         </td>
                         <td className="py-1 pr-3">
-                          {booking.email ?? <span className="text-gray-500">keine E-Mail</span>}
-                          {booking.phone && <span className="block text-xs text-gray-600">{booking.phone}</span>}
+                          {booking.email ?? <span className="text-gray-500 dark:text-gray-400">keine E-Mail</span>}
+                          {booking.phone && <span className="block text-xs text-gray-600 dark:text-gray-400">{booking.phone}</span>}
                         </td>
                         <td className="py-1 pr-3">
                           {booking.partySize}
                           {booking.source === 'RSVP' && booking.rsvpPartySize !== null && booking.rsvpPartySize !== booking.partySize && status === 'CONFIRMED' && (
-                            <span className="block text-xs text-amber-800">rsvp-app: {booking.rsvpPartySize}</span>
+                            <span className="block text-xs text-amber-800 dark:text-amber-200">rsvp-app: {booking.rsvpPartySize}</span>
                           )}
                         </td>
                         <td className="py-1 pr-3">
                           <BookingStatusBadge status={status} />
-                          {status === 'PENDING' && booking.expiresAt && <span className="block text-xs text-gray-600">bis {formatDeadline(booking.expiresAt, tz, now)}</span>}
-                          {status === 'OFFERED' && booking.expiresAt && <span className="block text-xs text-gray-600">angeboten bis {formatDeadline(booking.expiresAt, tz, now)}</span>}
+                          {status === 'PENDING' && booking.expiresAt && <span className="block text-xs text-gray-600 dark:text-gray-400">bis {formatDeadline(booking.expiresAt, tz, now)}</span>}
+                          {status === 'OFFERED' && booking.expiresAt && <span className="block text-xs text-gray-600 dark:text-gray-400">angeboten bis {formatDeadline(booking.expiresAt, tz, now)}</span>}
                           {status === 'WAITLISTED' && (
-                            <span className="block text-xs text-gray-600">{booking.waitlistedAt ? `seit ${formatShort(booking.waitlistedAt, tz)}` : 'noch unbestätigt'}</span>
+                            <span className="block text-xs text-gray-600 dark:text-gray-400">{booking.waitlistedAt ? `seit ${formatShort(booking.waitlistedAt, tz)}` : 'noch unbestätigt'}</span>
                           )}
                         </td>
-                        <td className="py-1 text-xs text-gray-600">
+                        <td className="py-1 text-xs text-gray-600 dark:text-gray-400">
                           {formatShort(booking.createdAt, tz)}
                           <span className="block">{BOOKING_SOURCE_LABELS[booking.source]}</span>
                         </td>
@@ -177,13 +177,13 @@ export default async function BookingsPage({ params, searchParams }: { params: P
         </div>
 
         {eventLog.length > 0 && (
-          <div className="bg-white rounded-lg shadow p-4 space-y-2">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 space-y-2">
             <h2 className="font-bold">{assigned ? 'Verlauf: gelöschte Gruppen und Importe' : 'Verlauf: gelöschte Buchungen und Rundmails'}</h2>
             <ul className="text-sm divide-y">
               {eventLog.map(entry => (
                 <li key={entry.id} className="py-1">
-                  <span className="text-gray-600">{formatShort(entry.createdAt, tz)} · {actorText(entry.actor, auditContext)}:</span> {auditText(entry)}
-                  {auditDetails(entry, auditContext).length > 0 && <span className="text-gray-600"> ({auditDetails(entry, auditContext).join('; ')})</span>}
+                  <span className="text-gray-600 dark:text-gray-400">{formatShort(entry.createdAt, tz)} · {actorText(entry.actor, auditContext)}:</span> {auditText(entry)}
+                  {auditDetails(entry, auditContext).length > 0 && <span className="text-gray-600 dark:text-gray-400"> ({auditDetails(entry, auditContext).join('; ')})</span>}
                 </li>
               ))}
             </ul>

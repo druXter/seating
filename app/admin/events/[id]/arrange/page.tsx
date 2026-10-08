@@ -19,7 +19,7 @@ import { formatShort } from '../../../../lib/timezone'
 
 export const dynamic = 'force-dynamic'
 
-const input = 'w-full border border-gray-300 p-2 rounded'
+const input = 'w-full border border-gray-300 dark:border-gray-600 p-2 rounded'
 const labelClass = 'block text-sm font-medium mb-1'
 
 /**
@@ -43,7 +43,7 @@ export default async function ArrangePage({ params }: { params: Promise<{ id: st
     ])
     board = (
       <>
-        <Disclosure summary="Gäste hinzufügen" initiallyOpen={parties.length === 0} className="bg-white rounded-lg shadow p-4">
+        <Disclosure summary="Gäste hinzufügen" initiallyOpen={parties.length === 0} className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
           <div className="grid gap-6 md:grid-cols-2 mt-3">
             <div className="space-y-2">
               <h2 className="font-medium">Gruppe anlegen</h2>
@@ -62,7 +62,7 @@ export default async function ArrangePage({ params }: { params: Promise<{ id: st
                   <textarea id="party-note" name="adminNote" maxLength={ADMIN_NOTE_MAX} rows={2} className={input} placeholder="z. B. vegetarisch, Kinderstuhl" />
                 </div>
                 <SubmitButton>Gruppe anlegen</SubmitButton>
-                <p className="text-xs text-gray-600">
+                <p className="text-xs text-gray-600 dark:text-gray-400">
                   Eine Gruppe sitzt möglichst zusammen (z. B. eine Einladung mit Begleitungen), höchstens {MAX_PARTY} Personen. Ohne
                   Gruppennamen heißt sie wie die erste Person. Kontaktdaten werden hier nicht erfasst.
                 </p>
@@ -75,7 +75,7 @@ export default async function ArrangePage({ params }: { params: Promise<{ id: st
           </div>
         </Disclosure>
         {event.rsvpEventId && (
-          <div className="bg-white rounded-lg shadow p-4 space-y-2">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 space-y-2">
             <h2 className="font-bold">Gäste aus rsvp-app</h2>
             <RsvpSyncPanel eventId={event.id} assigned changedSince={event.rsvpChangedAt ? formatShort(event.rsvpChangedAt, event.timezone) : null} />
           </div>
@@ -103,20 +103,20 @@ export default async function ArrangePage({ params }: { params: Promise<{ id: st
   }
 
   return (
-    <main className="bg-gray-50 py-6 px-4">
-      <div className="max-w-7xl mx-auto space-y-4 text-gray-900">
+    <main className="bg-gray-50 dark:bg-gray-900 py-6 px-4">
+      <div className="max-w-7xl mx-auto space-y-4 text-gray-900 dark:text-gray-100">
         <div className="space-y-1">
           <p className="text-sm">
-            <Link href={base} className="text-blue-700 hover:underline">{event.title}</Link>
+            <Link href={base} className="text-blue-700 dark:text-blue-300 hover:underline">{event.title}</Link>
             {' › '}
-            <Link href={`${base}/bookings`} className="text-blue-700 hover:underline">{assigned ? 'Gruppen' : 'Buchungen'}</Link>
+            <Link href={`${base}/bookings`} className="text-blue-700 dark:text-blue-300 hover:underline">{assigned ? 'Gruppen' : 'Buchungen'}</Link>
           </p>
           <h1 className="text-2xl font-bold">{assigned ? 'Sitzordnung' : 'Buchungen im Plan verschieben'}</h1>
           {assigned && (
             <p className="text-sm space-x-4">
-              <Link href={`${base}/print`} className="text-blue-700 hover:underline">Tischliste drucken</Link>
-              <Link href={`${base}/print?view=cards`} className="text-blue-700 hover:underline">Tischkarten</Link>
-              <a href={`${base}/export`} className="text-blue-700 hover:underline">CSV-Export</a>
+              <Link href={`${base}/print`} className="text-blue-700 dark:text-blue-300 hover:underline">Tischliste drucken</Link>
+              <Link href={`${base}/print?view=cards`} className="text-blue-700 dark:text-blue-300 hover:underline">Tischkarten</Link>
+              <a href={`${base}/export`} className="text-blue-700 dark:text-blue-300 hover:underline">CSV-Export</a>
             </p>
           )}
         </div>

@@ -45,13 +45,13 @@ export default async function MailPage({ params, searchParams }: { params: Promi
   const queuedCount = Number.parseInt(queued ?? '', 10)
 
   return (
-    <main className="bg-gray-50 py-6 px-4">
-      <div className="max-w-3xl mx-auto space-y-4 text-gray-900">
+    <main className="bg-gray-50 dark:bg-gray-900 py-6 px-4">
+      <div className="max-w-3xl mx-auto space-y-4 text-gray-900 dark:text-gray-100">
         <div className="space-y-1">
           <p className="text-sm">
-            <Link href={`/admin/events/${event.id}`} className="text-blue-700 hover:underline">{event.title}</Link>
+            <Link href={`/admin/events/${event.id}`} className="text-blue-700 dark:text-blue-300 hover:underline">{event.title}</Link>
             {' › '}
-            <Link href={`/admin/events/${event.id}/bookings`} className="text-blue-700 hover:underline">Buchungen</Link>
+            <Link href={`/admin/events/${event.id}/bookings`} className="text-blue-700 dark:text-blue-300 hover:underline">Buchungen</Link>
           </p>
           <h1 className="text-2xl font-bold">Rundmail</h1>
         </div>
@@ -63,7 +63,7 @@ export default async function MailPage({ params, searchParams }: { params: Promi
         )}
         {!isMailConfigured() && <Notice tone="warning">Es ist kein Mailserver eingerichtet (SMTP_HOST) – Rundmails lassen sich nicht verschicken.</Notice>}
 
-        <div className="bg-white rounded-lg shadow p-4">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
           <BroadcastForm
             eventId={event.id}
             event={{ title: event.title, location: event.location, startsAt: event.startsAt, endsAt: event.endsAt, timezone: event.timezone, mode: event.mode }}
@@ -73,10 +73,10 @@ export default async function MailPage({ params, searchParams }: { params: Promi
         </div>
 
         {broadcasts.length > 0 && (
-          <div className="bg-white rounded-lg shadow p-4 space-y-2">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 space-y-2">
             <div className="flex items-baseline justify-between gap-2">
               <h2 className="font-bold">Bisherige Rundmails</h2>
-              <Link href={`/admin/events/${event.id}/mail`} className="text-sm text-blue-700 hover:underline">Stand aktualisieren</Link>
+              <Link href={`/admin/events/${event.id}/mail`} className="text-sm text-blue-700 dark:text-blue-300 hover:underline">Stand aktualisieren</Link>
             </div>
             <ul className="text-sm divide-y" data-testid="broadcasts">
               {broadcasts.map(broadcast => {
@@ -85,7 +85,7 @@ export default async function MailPage({ params, searchParams }: { params: Promi
                 return (
                   <li key={broadcast.id} className="py-2">
                     <p className="font-medium">{broadcast.subject}</p>
-                    <p className="text-xs text-gray-600">
+                    <p className="text-xs text-gray-600 dark:text-gray-400">
                       {formatShort(broadcast.createdAt, event.timezone)} · {broadcast.createdBy?.email ?? 'gelöschtes Konto'} ·{' '}
                       {[...tally].map(([status, n]) => `${n} ${MAIL_STATUS_LABELS[status] ?? status}`).join(', ')}
                     </p>

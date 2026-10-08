@@ -14,8 +14,8 @@ export default async function ContinuePage({ searchParams }: { searchParams: Pro
   const { to } = await searchParams
 
   return (
-    <main className="bg-gray-50 flex items-center justify-center px-4 py-12">
-      <div className="max-w-sm w-full bg-white p-8 rounded-lg shadow text-gray-900">
+    <main className="bg-gray-50 dark:bg-gray-900 flex items-center justify-center px-4 py-12">
+      <div className="max-w-sm w-full bg-white dark:bg-gray-800 p-8 rounded-lg shadow text-gray-900 dark:text-gray-100">
         <HardRedirect to={continueTarget(to)} />
       </div>
     </main>

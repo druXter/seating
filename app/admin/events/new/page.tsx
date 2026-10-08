@@ -26,12 +26,12 @@ export default async function NewEventPage() {
   }))
 
   return (
-    <main className="bg-gray-50 py-8 px-4">
-      <div className="max-w-2xl mx-auto bg-white p-6 rounded-lg shadow space-y-4 text-gray-900">
+    <main className="bg-gray-50 dark:bg-gray-900 py-8 px-4">
+      <div className="max-w-2xl mx-auto bg-white dark:bg-gray-800 p-6 rounded-lg shadow space-y-4 text-gray-900 dark:text-gray-100">
         <h1 className="text-2xl font-bold">Neues Event</h1>
         {options.length === 0 ? (
-          <p className="text-sm text-gray-700">
-            Ein Event braucht einen Raumplan. <Link href="/admin/plans/new" className="text-blue-700 hover:underline">Lege zuerst einen Raumplan an</Link>.
+          <p className="text-sm text-gray-700 dark:text-gray-300">
+            Ein Event braucht einen Raumplan. <Link href="/admin/plans/new" className="text-blue-700 dark:text-blue-300 hover:underline">Lege zuerst einen Raumplan an</Link>.
           </p>
         ) : (
           <CreateEventForm plans={options} baseUrl={baseUrl()} />

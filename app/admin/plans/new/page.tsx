@@ -11,13 +11,13 @@ export default async function NewPlanPage() {
   if (!canCreatePlans(user)) redirect('/admin')
 
   return (
-    <main className="bg-gray-50 py-8 px-4">
-      <div className="max-w-3xl mx-auto grid gap-6 md:grid-cols-2 text-gray-900">
-        <div className="bg-white p-6 rounded-lg shadow space-y-4">
+    <main className="bg-gray-50 dark:bg-gray-900 py-8 px-4">
+      <div className="max-w-3xl mx-auto grid gap-6 md:grid-cols-2 text-gray-900 dark:text-gray-100">
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow space-y-4">
           <h1 className="text-xl font-bold">Neuer Raumplan</h1>
           <CreatePlanForm />
         </div>
-        <div className="bg-white p-6 rounded-lg shadow space-y-4">
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow space-y-4">
           <h2 className="text-xl font-bold">Importieren</h2>
           <ImportPlanForm />
         </div>

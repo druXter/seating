@@ -72,12 +72,12 @@ export default async function EventPage({ params, searchParams }: { params: Prom
   const tz = event.timezone
 
   return (
-    <main className="bg-gray-50 py-6 px-4">
-      <div className="max-w-5xl mx-auto space-y-4 text-gray-900">
+    <main className="bg-gray-50 dark:bg-gray-900 py-6 px-4">
+      <div className="max-w-5xl mx-auto space-y-4 text-gray-900 dark:text-gray-100">
         <div className="space-y-1">
-          <p className="text-sm"><Link href="/admin/events" className="text-blue-700 hover:underline">Alle Events</Link></p>
+          <p className="text-sm"><Link href="/admin/events" className="text-blue-700 dark:text-blue-300 hover:underline">Alle Events</Link></p>
           <h1 className="text-2xl font-bold">{event.title} <StatusBadge status={event.status} /></h1>
-          <p className="text-sm text-gray-600">{formatRange(event.startsAt, event.endsAt, tz)}{event.location && ` · ${event.location}`}</p>
+          <p className="text-sm text-gray-600 dark:text-gray-400">{formatRange(event.startsAt, event.endsAt, tz)}{event.location && ` · ${event.location}`}</p>
         </div>
 
         {search.created === '1' && <Notice tone="success">Event angelegt. Es ist noch ein Entwurf – veröffentliche es unten unter „Status“, wenn alles passt.</Notice>}
@@ -89,14 +89,14 @@ export default async function EventPage({ params, searchParams }: { params: Prom
         {search.shareError === 'owner' && <Notice tone="error">Diesem Konto gehört das Event bereits.</Notice>}
         <BackgroundNotice outcome={search.background} />
 
-        <div className="bg-white rounded-lg shadow p-4 space-y-2">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 space-y-2">
           <CopyableField label="Öffentlicher Link" value={publicUrl} />
           <p className="text-sm">
-            <a href={`/${event.slug}`} className="text-blue-700 hover:underline">
+            <a href={`/${event.slug}`} className="text-blue-700 dark:text-blue-300 hover:underline">
               {event.status === 'DRAFT' || event.status === 'ARCHIVED' ? 'Vorschau ansehen' : 'Öffentliche Seite ansehen'}
             </a>
             {(event.status === 'DRAFT' || event.status === 'ARCHIVED') && (
-              <span className="text-gray-600"> – öffentlich noch nicht sichtbar, nur Konten mit Zugriff sehen die Vorschau.</span>
+              <span className="text-gray-600 dark:text-gray-400"> – öffentlich noch nicht sichtbar, nur Konten mit Zugriff sehen die Vorschau.</span>
             )}
           </p>
         </div>
@@ -105,12 +105,12 @@ export default async function EventPage({ params, searchParams }: { params: Prom
           <Notice tone="warning">{unitKind === 'SEAT' ? 'Der Plan enthält keine buchbaren Plätze – füge im Plan Reihen, Stühle oder Tische mit Plätzen hinzu.' : 'Der Plan enthält keine buchbaren Tische – für eine Tischbuchung füge im Plan Tische hinzu.'}</Notice>
         )}
 
-        <div className="bg-white rounded-lg shadow p-4 space-y-3">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 space-y-3">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <h2 className="font-bold">Plan und Belegung</h2>
-            <Link href={`/admin/events/${event.id}/plan`} className="text-sm text-blue-700 hover:underline">Plan bearbeiten</Link>
+            <Link href={`/admin/events/${event.id}/plan`} className="text-sm text-blue-700 dark:text-blue-300 hover:underline">Plan bearbeiten</Link>
           </div>
-          <p className="text-sm text-gray-700" data-testid="table-counts">
+          <p className="text-sm text-gray-700 dark:text-gray-300" data-testid="table-counts">
             {seating
               ? `Plätze: ${counts.free + counts.unavailable} frei · ${counts.confirmed} besetzt — ${seating.seated} von ${seating.persons} Personen haben einen Platz`
               : <>
@@ -119,7 +119,7 @@ export default async function EventPage({ params, searchParams }: { params: Prom
               </>}
           </p>
           <PlanSvg layout={event.layout} backgroundUrl={backgroundUrl} units={visuals} title={`Plan von ${event.title} mit Belegung`} className="w-full h-auto max-h-[60vh]" />
-          <p className="text-xs text-gray-600">
+          <p className="text-xs text-gray-600 dark:text-gray-400">
             Kopie der Vorlage {event.sourcePlanId ? (sourcePlan ? `„${sourcePlan.name}“` : '(für dich nicht sichtbar)') : '(inzwischen gelöscht)'}.
             Änderungen an der Vorlage wirken sich nicht auf dieses Event aus.
           </p>
@@ -127,32 +127,32 @@ export default async function EventPage({ params, searchParams }: { params: Prom
         </div>
 
         {seating ? (
-          <div className="bg-white rounded-lg shadow p-4 space-y-2">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 space-y-2">
             <h2 className="font-bold">Gäste ({seating.parties} {seating.parties === 1 ? 'Gruppe' : 'Gruppen'}, {seating.persons} {seating.persons === 1 ? 'Person' : 'Personen'})</h2>
             <p className="text-sm space-x-4">
-              <Link href={`/admin/events/${event.id}/arrange`} className="text-blue-700 hover:underline">Sitzordnung</Link>
-              <Link href={`/admin/events/${event.id}/bookings`} className="text-blue-700 hover:underline">Gruppen verwalten</Link>
-              <Link href={`/admin/events/${event.id}/print`} className="text-blue-700 hover:underline">Druckansicht</Link>
+              <Link href={`/admin/events/${event.id}/arrange`} className="text-blue-700 dark:text-blue-300 hover:underline">Sitzordnung</Link>
+              <Link href={`/admin/events/${event.id}/bookings`} className="text-blue-700 dark:text-blue-300 hover:underline">Gruppen verwalten</Link>
+              <Link href={`/admin/events/${event.id}/print`} className="text-blue-700 dark:text-blue-300 hover:underline">Druckansicht</Link>
             </p>
-            <p className="text-xs text-gray-600">
+            <p className="text-xs text-gray-600 dark:text-gray-400">
               Keine Online-Buchung: Ihr legt die Gäste an (von Hand, per CSV{event.rsvpEventId ? ' oder per Abgleich mit rsvp-app' : ''}) und setzt sie in der
               Sitzordnung auf Plätze. Gäste bekommen keine Mails.
             </p>
             {event.rsvpChangedAt && <Notice tone="info">rsvp-app hat Änderungen an der Gästeliste gemeldet – bitte in der Sitzordnung abgleichen.</Notice>}
           </div>
         ) : (
-          <div className="bg-white rounded-lg shadow p-4 space-y-2">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 space-y-2">
             <h2 className="font-bold">Buchungen ({activeBookings} aktiv)</h2>
             <p className="text-sm space-x-4">
-              <Link href={`/admin/events/${event.id}/bookings`} className="text-blue-700 hover:underline">Buchungen verwalten</Link>
-              <Link href={`/admin/events/${event.id}/bookings/new`} className="text-blue-700 hover:underline">Buchung anlegen</Link>
-              <Link href={`/admin/events/${event.id}/arrange`} className="text-blue-700 hover:underline">Im Plan verschieben</Link>
-              <Link href={`/admin/events/${event.id}/mail`} className="text-blue-700 hover:underline">Rundmail</Link>
-              <Link href={`/admin/events/${event.id}/print`} className="text-blue-700 hover:underline">Druckansicht</Link>
+              <Link href={`/admin/events/${event.id}/bookings`} className="text-blue-700 dark:text-blue-300 hover:underline">Buchungen verwalten</Link>
+              <Link href={`/admin/events/${event.id}/bookings/new`} className="text-blue-700 dark:text-blue-300 hover:underline">Buchung anlegen</Link>
+              <Link href={`/admin/events/${event.id}/arrange`} className="text-blue-700 dark:text-blue-300 hover:underline">Im Plan verschieben</Link>
+              <Link href={`/admin/events/${event.id}/mail`} className="text-blue-700 dark:text-blue-300 hover:underline">Rundmail</Link>
+              <Link href={`/admin/events/${event.id}/print`} className="text-blue-700 dark:text-blue-300 hover:underline">Druckansicht</Link>
             </p>
-            <p className="text-xs text-gray-600">Im Plan führt ein Klick auf einen belegten Tisch zur Buchung, auf einen freien zum Anlegen einer Buchung. Verschieben per Ziehen: „Im Plan verschieben“.</p>
+            <p className="text-xs text-gray-600 dark:text-gray-400">Im Plan führt ein Klick auf einen belegten Tisch zur Buchung, auf einen freien zum Anlegen einer Buchung. Verschieben per Ziehen: „Im Plan verschieben“.</p>
             {event.access === 'RSVP' && (
-              <p className="text-sm text-gray-700" data-testid="access-rsvp">
+              <p className="text-sm text-gray-700 dark:text-gray-300" data-testid="access-rsvp">
                 Zugang: nur mit Zusage aus rsvp-app – Gäste wählen ihre {event.mode === 'SEAT' ? 'Plätze' : 'Tische'} über „Sitzplatz wählen“ in rsvp-app.
                 Absagen dort stornieren die Buchung hier automatisch.
               </p>
@@ -161,7 +161,7 @@ export default async function EventPage({ params, searchParams }: { params: Prom
         )}
 
         <div className="grid gap-4 md:grid-cols-2 items-start">
-          <div className="bg-white rounded-lg shadow p-4 space-y-3">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 space-y-3">
             <h2 className="font-bold">Einstellungen</h2>
             <EventSettingsForm
               eventId={event.id}
@@ -202,9 +202,9 @@ export default async function EventPage({ params, searchParams }: { params: Prom
             />
 
             {event.level === 'owner' && (
-              <div className="bg-white rounded-lg shadow p-4 space-y-3">
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 space-y-3">
                 <h2 className="font-bold">Freigaben</h2>
-                <p className="text-xs text-gray-600">
+                <p className="text-xs text-gray-600 dark:text-gray-400">
                   Freigegebene Konten können das Event bearbeiten (Einstellungen, Plan, Buchungen) – aber nicht löschen
                   und nicht weiter freigeben.
                 </p>
@@ -215,7 +215,7 @@ export default async function EventPage({ params, searchParams }: { params: Prom
                         <span>{share.user.email}</span>
                         <form action={unshareEvent}>
                           <input type="hidden" name="accessId" value={share.id} />
-                          <button type="submit" className="text-xs text-red-700 hover:underline">Entfernen</button>
+                          <button type="submit" className="text-xs text-red-700 dark:text-red-300 hover:underline">Entfernen</button>
                         </form>
                       </li>
                     ))}
@@ -224,16 +224,16 @@ export default async function EventPage({ params, searchParams }: { params: Prom
                 <form action={shareEvent} className="flex gap-2">
                   <input type="hidden" name="eventId" value={event.id} />
                   <label htmlFor="share-email" className="sr-only">E-Mail-Adresse des Kontos</label>
-                  <input id="share-email" name="email" type="email" required placeholder="E-Mail-Adresse des Kontos" className="grow border border-gray-300 p-2 rounded text-sm" />
+                  <input id="share-email" name="email" type="email" required placeholder="E-Mail-Adresse des Kontos" className="grow border border-gray-300 dark:border-gray-600 p-2 rounded text-sm" />
                   <button type="submit" className="bg-blue-600 text-white font-bold py-2 px-3 rounded hover:bg-blue-700 text-sm">Freigeben</button>
                 </form>
               </div>
             )}
 
             {event.level === 'owner' && (
-              <div className="bg-white rounded-lg shadow p-4 space-y-2">
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 space-y-2">
                 <h2 className="font-bold">Event löschen</h2>
-                <p className="text-xs text-gray-600">
+                <p className="text-xs text-gray-600 dark:text-gray-400">
                   Löscht das Event mit Plan, Buchungen und Freigaben endgültig.
                   {activeBookings > 0 && ` Es hat ${activeBookings} aktive Buchung${activeBookings === 1 ? '' : 'en'} – die Buchenden werden nicht benachrichtigt. Wer Bescheid bekommen soll: vorher eine Rundmail schicken oder die Buchungen einzeln mit Mail stornieren.`}
                 </p>
@@ -242,7 +242,7 @@ export default async function EventPage({ params, searchParams }: { params: Prom
                   message={`Event „${event.title}“ endgültig löschen?${activeBookings > 0 ? ` ${activeBookings} aktive Buchung(en) gehen dabei verloren, ohne dass die Buchenden benachrichtigt werden.` : ''}`}
                 >
                   <input type="hidden" name="eventId" value={event.id} />
-                  <button type="submit" className="text-sm text-red-700 hover:underline">Event löschen</button>
+                  <button type="submit" className="text-sm text-red-700 dark:text-red-300 hover:underline">Event löschen</button>
                 </ConfirmForm>
               </div>
             )}

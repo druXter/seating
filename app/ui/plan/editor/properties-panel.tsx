@@ -89,7 +89,7 @@ export default function PropertiesPanel({ layout, selection, dispatch, hasBackgr
             </div>
           </Section>
         )}
-        <p className="text-xs text-gray-600">Klicke ein Element an oder wähle es in der Liste, um es zu bearbeiten.</p>
+        <p className="text-xs text-gray-600 dark:text-gray-400">Klicke ein Element an oder wähle es in der Liste, um es zu bearbeiten.</p>
       </div>
     )
   }
@@ -97,7 +97,7 @@ export default function PropertiesPanel({ layout, selection, dispatch, hasBackgr
   if (selected.length > 1) {
     return (
       <Section title={`${selected.length} Elemente ausgewählt`}>
-        <p className="text-xs text-gray-600">Mit den Pfeiltasten verschieben, Strg+D dupliziert, Entf löscht.</p>
+        <p className="text-xs text-gray-600 dark:text-gray-400">Mit den Pfeiltasten verschieben, Strg+D dupliziert, Entf löscht.</p>
       </Section>
     )
   }
@@ -133,7 +133,7 @@ export default function PropertiesPanel({ layout, selection, dispatch, hasBackgr
           <NumberField key={k('seats', element.seats)} label="Plätze" value={element.seats} min={0} max={LIMITS.maxSeatsPerTable} onCommit={seats => update({ seats })} />
           {element.shape === 'rect' && (
             <fieldset className="grid grid-cols-2 gap-1">
-              <legend className="text-xs text-gray-700 mb-1">Plätze an den Seiten</legend>
+              <legend className="text-xs text-gray-700 dark:text-gray-300 mb-1">Plätze an den Seiten</legend>
               {([['top', 'oben'], ['right', 'rechts'], ['bottom', 'unten'], ['left', 'links']] as const).map(([side, text]) => {
                 const active = Object.values(element.sides).filter(Boolean).length
                 const isLastActive = element.sides[side] && active === 1

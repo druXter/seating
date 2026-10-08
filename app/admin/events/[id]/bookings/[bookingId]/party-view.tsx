@@ -23,9 +23,9 @@ const DONE: Record<string, string> = {
   cancelled: 'Gruppe abgesagt, ihre Plätze sind wieder frei.'
 }
 
-const input = 'w-full border border-gray-300 p-2 rounded'
+const input = 'w-full border border-gray-300 dark:border-gray-600 p-2 rounded'
 const labelClass = 'block text-sm font-medium mb-1'
-const card = 'bg-white rounded-lg shadow p-4 space-y-3'
+const card = 'bg-white dark:bg-gray-800 rounded-lg shadow p-4 space-y-3'
 
 /**
  * Eine Gruppe der Sitzordnung (Modus ASSIGNED, docs/KONZEPT.md Abschnitt 8): Personen mit Platz,
@@ -54,15 +54,15 @@ export default async function PartyView({ event, booking, done }: { event: Loade
   )
 
   return (
-    <main className="bg-gray-50 py-6 px-4">
-      <div className="max-w-5xl mx-auto space-y-4 text-gray-900">
+    <main className="bg-gray-50 dark:bg-gray-900 py-6 px-4">
+      <div className="max-w-5xl mx-auto space-y-4 text-gray-900 dark:text-gray-100">
         <div className="space-y-1">
           <p className="text-sm">
-            <Link href={base} className="text-blue-700 hover:underline">{event.title}</Link>
+            <Link href={base} className="text-blue-700 dark:text-blue-300 hover:underline">{event.title}</Link>
             {' › '}
-            <Link href={`${base}/bookings`} className="text-blue-700 hover:underline">Gruppen</Link>
+            <Link href={`${base}/bookings`} className="text-blue-700 dark:text-blue-300 hover:underline">Gruppen</Link>
             {' › '}
-            <Link href={`${base}/arrange`} className="text-blue-700 hover:underline">Sitzordnung</Link>
+            <Link href={`${base}/arrange`} className="text-blue-700 dark:text-blue-300 hover:underline">Sitzordnung</Link>
           </p>
           <h1 className="text-2xl font-bold">{booking.name} <BookingStatusBadge status={status} /></h1>
         </div>
@@ -77,22 +77,22 @@ export default async function PartyView({ event, booking, done }: { event: Loade
                 {attendees.map(person => (
                   <li key={person.id} className="py-1 flex justify-between gap-2">
                     <span>{person.name}</span>
-                    <span className={person.allocation ? 'text-gray-700' : 'text-amber-800'}>{person.allocation?.unit.label ?? 'ohne Platz'}</span>
+                    <span className={person.allocation ? 'text-gray-700 dark:text-gray-300' : 'text-amber-800 dark:text-amber-200'}>{person.allocation?.unit.label ?? 'ohne Platz'}</span>
                   </li>
                 ))}
               </ul>
-              <p className="text-xs text-gray-600">
+              <p className="text-xs text-gray-600 dark:text-gray-400">
                 Quelle: {BOOKING_SOURCE_LABELS[booking.source]} · angelegt {formatShort(booking.createdAt, tz)}.
-                {active && <> Plätze setzt du in der <Link href={`${base}/arrange`} className="text-blue-700 hover:underline">Sitzordnung</Link>.</>}
+                {active && <> Plätze setzt du in der <Link href={`${base}/arrange`} className="text-blue-700 dark:text-blue-300 hover:underline">Sitzordnung</Link>.</>}
               </p>
             </div>
 
             {active && booking.source === 'RSVP' && (
               <div className={card}>
                 <h2 className="font-bold">Bearbeiten</h2>
-                <p className="text-sm text-gray-700">
+                <p className="text-sm text-gray-700 dark:text-gray-300">
                   Diese Gruppe kommt aus einer Zusage in rsvp-app. Name und Begleitungen ändern sich dort und kommen über
-                  „Mit rsvp-app abgleichen“ in der <Link href={`${base}/arrange`} className="text-blue-700 hover:underline">Sitzordnung</Link> hierher.
+                  „Mit rsvp-app abgleichen“ in der <Link href={`${base}/arrange`} className="text-blue-700 dark:text-blue-300 hover:underline">Sitzordnung</Link> hierher.
                 </p>
               </div>
             )}
@@ -124,7 +124,7 @@ export default async function PartyView({ event, booking, done }: { event: Loade
                     <textarea id="party-added" name="added" rows={2} className={input} />
                   </div>
                   <SubmitButton>Gruppe speichern</SubmitButton>
-                  <p className="text-xs text-gray-600">Wer entfernt wird, gibt seinen Platz frei.</p>
+                  <p className="text-xs text-gray-600 dark:text-gray-400">Wer entfernt wird, gibt seinen Platz frei.</p>
                 </ActionForm>
               </div>
             )}
@@ -135,8 +135,8 @@ export default async function PartyView({ event, booking, done }: { event: Loade
                 {hidden}
                 <label htmlFor="admin-note" className="sr-only">Interne Notiz</label>
                 <textarea id="admin-note" name="adminNote" maxLength={ADMIN_NOTE_MAX} rows={3} defaultValue={booking.adminNote ?? ''} className={input} />
-                <button type="submit" className="text-sm bg-gray-100 border border-gray-300 rounded px-3 py-1 hover:bg-gray-200">Notiz speichern</button>
-                <p className="text-xs text-gray-600">Nur für Veranstalter*innen sichtbar, z. B. für Essenswünsche.</p>
+                <button type="submit" className="text-sm bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded px-3 py-1 hover:bg-gray-200 dark:hover:bg-gray-600">Notiz speichern</button>
+                <p className="text-xs text-gray-600 dark:text-gray-400">Nur für Veranstalter*innen sichtbar, z. B. für Essenswünsche.</p>
               </ActionForm>
             </div>
           </div>
@@ -147,26 +147,26 @@ export default async function PartyView({ event, booking, done }: { event: Loade
               {active && (
                 <ActionForm action={cancelBookingAdmin} confirm="Gruppe absagen? Ihre Plätze werden sofort frei, die Gruppe bleibt als abgesagt in der Liste.">
                   {hidden}
-                  <button type="submit" className="text-sm text-red-700 border border-red-300 rounded px-3 py-1 hover:bg-red-50">Gruppe hat abgesagt</button>
+                  <button type="submit" className="text-sm text-red-700 dark:text-red-300 border border-red-300 dark:border-red-700 rounded px-3 py-1 hover:bg-red-50 dark:hover:bg-red-950/50">Gruppe hat abgesagt</button>
                 </ActionForm>
               )}
               <ActionForm action={deleteBookingAdmin} confirm="Gruppe endgültig löschen? Alle Daten dazu – auch Personen und Verlauf – werden gelöscht.">
                 {hidden}
-                <button type="submit" className="text-sm text-red-700 hover:underline">Endgültig löschen</button>
-                <p className="text-xs text-gray-600">Z. B. nach einem Tippfehler beim Import oder wenn eine Person die Löschung ihrer Daten verlangt.</p>
+                <button type="submit" className="text-sm text-red-700 dark:text-red-300 hover:underline">Endgültig löschen</button>
+                <p className="text-xs text-gray-600 dark:text-gray-400">Z. B. nach einem Tippfehler beim Import oder wenn eine Person die Löschung ihrer Daten verlangt.</p>
               </ActionForm>
             </div>
 
             <div className={card}>
               <h2 className="font-bold">Verlauf</h2>
-              {auditLog.length === 0 ? <p className="text-sm text-gray-600">Keine Einträge.</p> : (
+              {auditLog.length === 0 ? <p className="text-sm text-gray-600 dark:text-gray-400">Keine Einträge.</p> : (
                 <ul className="text-sm divide-y" data-testid="audit-log">
                   {auditLog.map(entry => {
                     const details = auditDetails(entry, auditContext)
                     return (
                       <li key={entry.id} className="py-1">
-                        <span className="text-gray-600">{formatShort(entry.createdAt, tz)} · {actorText(entry.actor, auditContext)}:</span> {auditText(entry)}
-                        {details.length > 0 && <span className="block text-xs text-gray-600">{details.join('; ')}</span>}
+                        <span className="text-gray-600 dark:text-gray-400">{formatShort(entry.createdAt, tz)} · {actorText(entry.actor, auditContext)}:</span> {auditText(entry)}
+                        {details.length > 0 && <span className="block text-xs text-gray-600 dark:text-gray-400">{details.join('; ')}</span>}
                       </li>
                     )
                   })}

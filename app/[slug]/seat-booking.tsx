@@ -41,7 +41,7 @@ export default function SeatBooking({ layout, backgroundUrl, title, seats, group
     const free = seats.filter(s => s.state === 'free').length
     return (
       <div className="space-y-3">
-        <p className="text-sm text-gray-700">{free} von {seats.length} Plätzen frei.</p>
+        <p className="text-sm text-gray-700 dark:text-gray-300">{free} von {seats.length} Plätzen frei.</p>
         <PlanViewer layout={layout} backgroundUrl={backgroundUrl} units={visuals} title={title} />
       </div>
     )
@@ -76,14 +76,14 @@ export default function SeatBooking({ layout, backgroundUrl, title, seats, group
           onNoSuggestion={setMissing}
         />
         {selected.length > 0 && (
-          <div className="border-2 border-blue-200 rounded-lg p-4 space-y-3">
+          <div className="border-2 border-blue-200 dark:border-blue-800 rounded-lg p-4 space-y-3">
             <h2 className="font-bold text-lg">{selected.length} {selected.length === 1 ? 'Platz' : 'Plätze'} reservieren</h2>
             {reserveState?.step === 'form' && reserveState.errors.length > 0 && (
               <Notice tone="error"><ul className="list-disc list-inside">{reserveState.errors.map((e, i) => <li key={i}>{e}</li>)}</ul></Notice>
             )}
             <SeatContactFields requirePhone={booking.requirePhone} />
             <SubmitButton disabled={reserving}>Plätze reservieren</SubmitButton>
-            <p className="text-xs text-gray-600">
+            <p className="text-xs text-gray-600 dark:text-gray-400">
               Du bekommst eine Mail mit Link und Code. Erst mit deiner Bestätigung gilt die Buchung – bis dahin halten wir die Plätze kurz für dich frei.
             </p>
           </div>
@@ -97,10 +97,10 @@ export default function SeatBooking({ layout, backgroundUrl, title, seats, group
         </div>
       )}
       {missing !== null && !canWait && booking.waitlist && missing > largestGroup && (
-        <p className="text-sm text-gray-700">So viele Plätze liegen nirgends nebeneinander.</p>
+        <p className="text-sm text-gray-700 dark:text-gray-300">So viele Plätze liegen nirgends nebeneinander.</p>
       )}
       {canWait && waitlistOpen && missing !== null && (
-        <div className="border-2 border-blue-200 rounded-lg p-4">
+        <div className="border-2 border-blue-200 dark:border-blue-800 rounded-lg p-4">
           <WaitlistForm
             eventId={booking.eventId} partySize={missing} requirePhone={booking.requirePhone} action={joinWaitlist} pending={joining}
             errors={waitlistState?.step === 'form' ? waitlistState.errors : []} onClose={() => setWaitlistOpen(false)}

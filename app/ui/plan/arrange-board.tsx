@@ -109,12 +109,12 @@ function DragGhost({ drag }: { drag: { label: string; point: Point } | null }) {
 }
 
 const chip = 'select-none rounded border px-2 py-1 text-sm text-left'
-const button = 'text-sm rounded px-3 py-1 border border-gray-300 bg-white hover:bg-gray-50 disabled:opacity-50'
+const button = 'text-sm rounded px-3 py-1 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-900 disabled:opacity-50'
 const primary = 'text-sm rounded px-3 py-1 bg-blue-600 text-white font-bold hover:bg-blue-700 disabled:opacity-50'
 
 function Message({ result }: { result: ArrangeResult | null }) {
   return (
-    <p role="status" aria-live="polite" data-testid="arrange-message" className={`text-sm min-h-5 ${result?.ok === false ? 'text-red-700' : 'text-green-800'}`}>
+    <p role="status" aria-live="polite" data-testid="arrange-message" className={`text-sm min-h-5 ${result?.ok === false ? 'text-red-700 dark:text-red-300' : 'text-green-800 dark:text-green-200'}`}>
       {result ? (result.ok ? result.message : result.error) : ''}
     </p>
   )
@@ -270,37 +270,37 @@ export function AssignBoard({ eventId, layout, backgroundUrl, title, parties, se
       <DragGhost drag={drag.drag} />
       <section
         aria-label="Gästeliste" data-drop="list"
-        className={`bg-white rounded-lg shadow p-4 space-y-3 ${drag.drag?.target?.kind === 'list' ? 'ring-2 ring-blue-500' : ''}`}
+        className={`bg-white dark:bg-gray-800 rounded-lg shadow p-4 space-y-3 ${drag.drag?.target?.kind === 'list' ? 'ring-2 ring-blue-500' : ''}`}
       >
         <h2 className="font-bold">Gäste</h2>
-        <p className="text-sm text-gray-700" data-testid="seated-count">{seated} von {total} {total === 1 ? 'Person hat' : 'Personen haben'} einen Platz.</p>
+        <p className="text-sm text-gray-700 dark:text-gray-300" data-testid="seated-count">{seated} von {total} {total === 1 ? 'Person hat' : 'Personen haben'} einen Platz.</p>
         <div className="space-y-2">
           <label htmlFor={`${id}-q`} className="sr-only">Gäste suchen</label>
-          <input id={`${id}-q`} value={query} onChange={e => setQuery(e.currentTarget.value)} placeholder="Suchen" className="w-full border border-gray-300 p-2 rounded text-sm" />
+          <input id={`${id}-q`} value={query} onChange={e => setQuery(e.currentTarget.value)} placeholder="Suchen" className="w-full border border-gray-300 dark:border-gray-600 p-2 rounded text-sm" />
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" checked={onlyOpen} onChange={e => setOnlyOpen(e.currentTarget.checked)} /> Nur Gruppen mit Personen ohne Platz
           </label>
         </div>
-        {parties.length === 0 && <p className="text-sm text-gray-600">Noch keine Gäste – leg oben Gruppen an oder importiere eine CSV-Datei.</p>}
+        {parties.length === 0 && <p className="text-sm text-gray-600 dark:text-gray-400">Noch keine Gäste – leg oben Gruppen an oder importiere eine CSV-Datei.</p>}
         <ul className="space-y-2">
           {shown.map(party => {
             const open = party.persons.filter(p => !p.seatKey).length
             const partySelected = selected?.kind === 'party' && selected.id === party.id
             return (
-              <li key={party.id} className="border border-gray-200 rounded p-2 space-y-1" data-testid="party">
+              <li key={party.id} className="border border-gray-200 dark:border-gray-700 rounded p-2 space-y-1" data-testid="party">
                 <div className="flex flex-wrap items-baseline justify-between gap-x-2">
                   <span className="font-medium">{party.name}</span>
-                  <Link href={`/admin/events/${eventId}/bookings/${party.id}`} className="text-xs text-blue-700 hover:underline">bearbeiten</Link>
+                  <Link href={`/admin/events/${eventId}/bookings/${party.id}`} className="text-xs text-blue-700 dark:text-blue-300 hover:underline">bearbeiten</Link>
                 </div>
-                <p className="text-xs text-gray-600">
+                <p className="text-xs text-gray-600 dark:text-gray-400">
                   {party.persons.length - open} von {party.persons.length} mit Platz
-                  {party.spread.length > 1 && <span className="text-amber-800" data-testid="party-split"> · getrennt: {party.spread.join(', ')}</span>}
+                  {party.spread.length > 1 && <span className="text-amber-800 dark:text-amber-200" data-testid="party-split"> · getrennt: {party.spread.join(', ')}</span>}
                 </p>
-                {party.adminNote && <p className="text-xs text-purple-800 whitespace-pre-line">{party.adminNote}</p>}
+                {party.adminNote && <p className="text-xs text-purple-800 dark:text-purple-200 whitespace-pre-line">{party.adminNote}</p>}
                 {open > 0 && party.persons.length > 1 && (
                   <button
                     type="button" aria-pressed={partySelected} disabled={busy}
-                    className={`${chip} ${partySelected ? 'border-blue-600 bg-blue-50' : 'border-dashed border-gray-400 bg-gray-50'} cursor-grab`}
+                    className={`${chip} ${partySelected ? 'border-blue-600 bg-blue-50 dark:bg-blue-950/50' : 'border-dashed border-gray-400 dark:border-gray-500 bg-gray-50 dark:bg-gray-900'} cursor-grab`}
                     onPointerDown={e => { drag.start({ kind: 'party', id: party.id }, `Gruppe ${party.name}`, e) }}
                     onClick={() => toggle({ kind: 'party', id: party.id })}
                   >
@@ -314,12 +314,12 @@ export function AssignBoard({ eventId, layout, backgroundUrl, title, parties, se
                       <li key={person.id}>
                         <button
                           type="button" aria-pressed={isSelected} disabled={busy} data-attendee={person.name}
-                          className={`${chip} cursor-grab ${isSelected ? 'border-blue-600 bg-blue-50' : person.seatKey ? 'border-gray-300 bg-white' : 'border-amber-400 bg-amber-50'}`}
+                          className={`${chip} cursor-grab ${isSelected ? 'border-blue-600 bg-blue-50 dark:bg-blue-950/50' : person.seatKey ? 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800' : 'border-amber-400 dark:border-amber-600 bg-amber-50 dark:bg-amber-950/50'}`}
                           onPointerDown={e => { drag.start({ kind: 'person', id: person.id }, person.name, e) }}
                           onClick={() => toggle({ kind: 'person', id: person.id })}
                         >
                           {person.name}
-                          <span className="block text-xs text-gray-600">{seatLabel(person.seatKey)}</span>
+                          <span className="block text-xs text-gray-600 dark:text-gray-400">{seatLabel(person.seatKey)}</span>
                         </button>
                       </li>
                     )
@@ -329,13 +329,13 @@ export function AssignBoard({ eventId, layout, backgroundUrl, title, parties, se
             )
           })}
         </ul>
-        {parties.length > 0 && <p className="text-xs text-gray-600">Eine Person hierher ziehen nimmt sie vom Platz.</p>}
+        {parties.length > 0 && <p className="text-xs text-gray-600 dark:text-gray-400">Eine Person hierher ziehen nimmt sie vom Platz.</p>}
       </section>
 
-      <section aria-label="Plan" className="bg-white rounded-lg shadow p-4 space-y-3">
-        <div className="space-y-2 border border-gray-200 rounded p-2 bg-gray-50" data-testid="selection">
+      <section aria-label="Plan" className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 space-y-3">
+        <div className="space-y-2 border border-gray-200 dark:border-gray-700 rounded p-2 bg-gray-50 dark:bg-gray-900" data-testid="selection">
           {!selected ? (
-            <p className="text-sm text-gray-700">
+            <p className="text-sm text-gray-700 dark:text-gray-300">
               Ziehe Personen oder Gruppen auf Plätze oder Tische – oder wähle sie in der Liste und tippe dann auf einen Platz.
               Auf einen besetzten Platz gezogen, tauschen die beiden.
             </p>
@@ -355,7 +355,7 @@ export function AssignBoard({ eventId, layout, backgroundUrl, title, parties, se
               <div className="flex flex-wrap items-end gap-2">
                 <div>
                   <label htmlFor={`${id}-target`} className="block text-xs font-medium mb-1">{selected.kind === 'party' ? 'Ab Platz' : 'Platz'}</label>
-                  <select id={`${id}-target`} value={targetKey} onChange={e => setTargetKey(e.currentTarget.value)} className="border border-gray-300 p-1 rounded text-sm max-w-72">
+                  <select id={`${id}-target`} value={targetKey} onChange={e => setTargetKey(e.currentTarget.value)} className="border border-gray-300 dark:border-gray-600 p-1 rounded text-sm max-w-72">
                     <option value="">– Platz wählen –</option>
                     {groupsOfSeats.map(group => (
                       <optgroup key={group} label={group}>
@@ -380,7 +380,7 @@ export function AssignBoard({ eventId, layout, backgroundUrl, title, parties, se
           <Message result={result} />
         </div>
         <PlanViewer layout={layout} backgroundUrl={backgroundUrl} units={visuals} title={title} onUnitClick={onUnitClick} onUnitDragStart={onUnitDragStart} />
-        <p className="text-xs text-gray-600">Im Plan stehen die Initialen, der volle Name erscheint beim Zeigen auf den Platz. Die Sitzordnung ist nur hier sichtbar – öffentlich nie.</p>
+        <p className="text-xs text-gray-600 dark:text-gray-400">Im Plan stehen die Initialen, der volle Name erscheint beim Zeigen auf den Platz. Die Sitzordnung ist nur hier sichtbar – öffentlich nie.</p>
       </section>
     </div>
   )
@@ -495,12 +495,12 @@ export function MoveBoard({ eventId, mode, layout, backgroundUrl, title, booking
   const list: ReactNode = (
     <ul className="space-y-2">
       {bookings.map(booking => (
-        <li key={booking.id} className="border border-gray-200 rounded p-2 space-y-1">
+        <li key={booking.id} className="border border-gray-200 dark:border-gray-700 rounded p-2 space-y-1">
           <div className="flex flex-wrap items-baseline justify-between gap-x-2">
             <span className="font-medium">{booking.name}</span>
-            <Link href={`/admin/events/${eventId}/bookings/${booking.id}`} className="text-xs text-blue-700 hover:underline">Buchung</Link>
+            <Link href={`/admin/events/${eventId}/bookings/${booking.id}`} className="text-xs text-blue-700 dark:text-blue-300 hover:underline">Buchung</Link>
           </div>
-          <p className="text-xs text-gray-600">{booking.partySize} {booking.partySize === 1 ? 'Person' : 'Personen'}{booking.status !== 'CONFIRMED' && ` · ${booking.status === 'PENDING' ? 'unbestätigt' : 'Angebot'}`}</p>
+          <p className="text-xs text-gray-600 dark:text-gray-400">{booking.partySize} {booking.partySize === 1 ? 'Person' : 'Personen'}{booking.status !== 'CONFIRMED' && ` · ${booking.status === 'PENDING' ? 'unbestätigt' : 'Angebot'}`}</p>
           <ul className="flex flex-wrap gap-1">
             {booking.keys.map(key => {
               const isSelected = selected?.bookingId === booking.id && selected.from === key
@@ -509,7 +509,7 @@ export function MoveBoard({ eventId, mode, layout, backgroundUrl, title, booking
                   <button
                     type="button" aria-pressed={isSelected} disabled={busy || pending !== null}
                     aria-label={`${booking.name}: ${label(key)} verschieben`}
-                    className={`${chip} cursor-grab ${isSelected ? 'border-blue-600 bg-blue-50' : 'border-gray-300 bg-white'}`}
+                    className={`${chip} cursor-grab ${isSelected ? 'border-blue-600 bg-blue-50 dark:bg-blue-950/50' : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800'}`}
                     onPointerDown={e => { drag.start({ bookingId: booking.id, from: key }, `${booking.name} (${label(key)})`, e) }}
                     onClick={() => {
                       if (drag.clickSuppressed()) return
@@ -531,13 +531,13 @@ export function MoveBoard({ eventId, mode, layout, backgroundUrl, title, booking
   return (
     <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] items-start">
       <DragGhost drag={drag.drag} />
-      <section aria-label="Buchungen" className="bg-white rounded-lg shadow p-4 space-y-3">
+      <section aria-label="Buchungen" className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 space-y-3">
         <h2 className="font-bold">Aktive Buchungen</h2>
-        {bookings.length === 0 ? <p className="text-sm text-gray-600">Keine aktiven Buchungen.</p> : list}
+        {bookings.length === 0 ? <p className="text-sm text-gray-600 dark:text-gray-400">Keine aktiven Buchungen.</p> : list}
       </section>
 
-      <section aria-label="Plan" className="bg-white rounded-lg shadow p-4 space-y-3">
-        <div className="space-y-2 border border-gray-200 rounded p-2 bg-gray-50" data-testid="selection">
+      <section aria-label="Plan" className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 space-y-3">
+        <div className="space-y-2 border border-gray-200 dark:border-gray-700 rounded p-2 bg-gray-50 dark:bg-gray-900" data-testid="selection">
           <label className="flex items-start gap-2 text-sm">
             <input type="checkbox" checked={notify} onChange={e => setNotify(e.currentTarget.checked)} className="mt-1" />
             <span>Kund*innen per Mail benachrichtigen (bestätigte Buchungen, mit Gegenüberstellung alt → neu und neuem Kalendereintrag)</span>
@@ -545,7 +545,7 @@ export function MoveBoard({ eventId, mode, layout, backgroundUrl, title, booking
           {pending ? (
             <div className="space-y-2" role="alertdialog" aria-labelledby={`${id}-confirm`}>
               <p id={`${id}-confirm`} className="text-sm font-medium">{pending.text}</p>
-              <p className="text-xs text-gray-600">
+              <p className="text-xs text-gray-600 dark:text-gray-400">
                 {pendingMailable ? (notify ? 'Die Kund*in bekommt eine Änderungsmail.' : 'Ohne Mail an die Kund*in.') : 'Diese Buchung bekommt keine Mail (unbestätigt oder ohne Adresse).'}
               </p>
               <div className="flex gap-2">
@@ -554,7 +554,7 @@ export function MoveBoard({ eventId, mode, layout, backgroundUrl, title, booking
               </div>
             </div>
           ) : !selected ? (
-            <p className="text-sm text-gray-700">
+            <p className="text-sm text-gray-700 dark:text-gray-300">
               Ziehe {mode === 'SEAT' ? 'einen belegten Platz auf einen freien' : 'einen belegten Tisch auf einen freien'} – oder wähle in der Liste und tippe dann auf das Ziel.
               Vor dem Verschieben fragen wir nach.
             </p>
@@ -570,7 +570,7 @@ export function MoveBoard({ eventId, mode, layout, backgroundUrl, title, booking
               <div className="flex flex-wrap items-end gap-2">
                 <div>
                   <label htmlFor={`${id}-target`} className="block text-xs font-medium mb-1">Neuer {what}</label>
-                  <select id={`${id}-target`} value={targetKey} onChange={e => setTargetKey(e.currentTarget.value)} className="border border-gray-300 p-1 rounded text-sm max-w-72">
+                  <select id={`${id}-target`} value={targetKey} onChange={e => setTargetKey(e.currentTarget.value)} className="border border-gray-300 dark:border-gray-600 p-1 rounded text-sm max-w-72">
                     <option value="">– {what} wählen –</option>
                     {freeUnits.map(unit => <option key={unit.key} value={unit.key}>{unit.label}{unit.state === 'unavailable' ? ' – nicht buchbar' : ''}</option>)}
                   </select>
@@ -583,7 +583,7 @@ export function MoveBoard({ eventId, mode, layout, backgroundUrl, title, booking
           <Message result={result} />
         </div>
         <PlanViewer layout={layout} backgroundUrl={backgroundUrl} units={visuals} title={title} onUnitClick={onUnitClick} onUnitDragStart={onUnitDragStart} />
-        <p className="text-xs text-gray-600">
+        <p className="text-xs text-gray-600 dark:text-gray-400">
           {mode === 'SEAT'
             ? 'Verschoben wird der eine Platz; die übrigen Plätze der Buchung bleiben. Freie, nicht buchbare Plätze sind als Ziel erlaubt.'
             : 'Die Kapazität des Zieltisches muss reichen, die Mindestbelegung gilt hier nicht. Freie, nicht buchbare Tische sind als Ziel erlaubt.'}
