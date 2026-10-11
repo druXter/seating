@@ -217,7 +217,8 @@ export default function DatenschutzPage() {
           <p className="mt-2">
             Bei einer Sitzordnung (Punkt 5b) können die Veranstalter*innen die Gästeliste aus rsvp-app übernehmen – dann
             speichern wir die Namen von dort, aber keine Kontaktdaten. In beiden Fällen melden wir <strong>deinen Platz</strong>
-            (z. B. „Tisch 7, Plätze 3, 4“) an rsvp-app zurück, damit du ihn dort siehst und er beim Einlass angezeigt werden kann.
+            (z. B. „Tisch 7, Plätze 3, 4“) an rsvp-app zurück, damit du ihn dort siehst und er beim Einlass angezeigt werden kann,
+            und – soweit bekannt – Tisch und Platz jeder Person deiner Gruppe, damit die Küche weiß, was an welchen Tisch geht.
             Rechtsgrundlage ist die Durchführung deiner Anmeldung und Buchung (Art. 6 Abs. 1 lit. b DSGVO); zur Speicherdauer
             siehe Punkt 10.
           </p>

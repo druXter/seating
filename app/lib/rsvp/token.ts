@@ -102,7 +102,11 @@ const SCHEMAS = {
   /** Seating -> rsvp-app: vollständiger Stand der Platzierungen (fehlende rsvpIds = kein Platz). */
   placements: z.object({
     typ: z.literal('placements'), ...envelope,
-    placements: z.array(z.object({ rsvpId: z.string().regex(ID), label: z.string().max(500) })).max(5000)
+    placements: z.array(z.object({
+      rsvpId: z.string().regex(ID), label: z.string().max(500),
+      // Tisch und Platz pro Person (rules.ts, personPlaces) - optional, ältere rsvp-app-Versionen ignorieren es
+      persons: z.array(z.object({ key: z.string().regex(/^(guest|companion-\d{1,2})$/), table: z.string().max(200).nullable(), seat: z.string().max(200).nullable() })).max(50).optional()
+    })).max(5000)
   })
 }
 

@@ -35,6 +35,34 @@ export function personsOf(guest: { name: string; companions: readonly (string | 
   ]
 }
 
+// --- Tisch pro Person -----------------------------------------------------------------------------
+
+/** Tisch und Platz einer Person einer Zusage (key wie bei personsOf: "guest", "companion-1", ...). */
+export type PersonPlace = { key: string; table: string | null; seat: string | null }
+export type PlacedUnit = { label: string; kind: 'TABLE' | 'SEAT'; tableKey: string | null }
+
+/**
+ * Wo jede Person einer Zusage sitzt - für die Küchenliste pro Tisch in rsvp-app (placements, persons). Im Modus
+ * ASSIGNED steht die Person an ihrem Platz (Attendee.externalKey). Sonst gilt: liegen alle Plätze bzw. Tische der
+ * Buchung an genau einem Tisch, sitzen alle Personen dort (Platz unbekannt). Verteilt sich eine Buchung auf mehrere
+ * Tische oder sitzt sie in Reihen ohne Tisch, bleibt es bei undefined - rsvp-app hat dann nur den Platztext.
+ */
+export function personPlaces(
+  partySize: number,
+  allocations: readonly { unit: PlacedUnit; attendeeKey: string | null }[],
+  tableLabels: ReadonlyMap<string, string>
+): PersonPlace[] | undefined {
+  const tableOf = (unit: PlacedUnit) => (unit.kind === 'TABLE' ? unit.label : unit.tableKey ? tableLabels.get(unit.tableKey) ?? null : null)
+  const assigned = allocations.filter(a => a.attendeeKey)
+  if (assigned.length > 0) {
+    return assigned.map(a => ({ key: a.attendeeKey!, table: tableOf(a.unit), seat: a.unit.kind === 'SEAT' ? a.unit.label : null }))
+  }
+  const tables = new Set(allocations.map(a => tableOf(a.unit)))
+  if (allocations.length === 0 || tables.size !== 1 || tables.has(null)) return undefined
+  const table = [...tables][0]
+  return Array.from({ length: Math.min(partySize, 50) }, (_, i) => ({ key: i === 0 ? 'guest' : `companion-${i}`, table, seat: null }))
+}
+
 // --- Abgleich -----------------------------------------------------------------------------------
 
 export type SyncKind = 'new' | 'changed' | 'removed'

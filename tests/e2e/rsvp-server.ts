@@ -22,13 +22,13 @@ export function setGuestList(rsvpEventId: string, guests: TestGuest[] | null) {
   else writeFileSync(file, JSON.stringify(guests))
 }
 
-export function placementsOf(rsvpEventId: string): { rsvpId: string; label: string }[] | null {
+export function placementsOf(rsvpEventId: string): { rsvpId: string; label: string; persons?: { key: string; table: string | null; seat: string | null }[] }[] | null {
   const file = join(RSVP_DIR, `placements-${rsvpEventId}.json`)
   return existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) : null
 }
 
 /** Wartet, bis rsvp-app einen Stand mit dieser Bedingung bekommen hat (Meldungen laufen nach der Antwort). */
-export async function waitForPlacements(rsvpEventId: string, check: (placements: { rsvpId: string; label: string }[]) => boolean, timeoutMs = 10_000) {
+export async function waitForPlacements(rsvpEventId: string, check: (placements: { rsvpId: string; label: string; persons?: { key: string; table: string | null; seat: string | null }[] }[]) => boolean, timeoutMs = 10_000) {
   const deadline = Date.now() + timeoutMs
   for (;;) {
     const placements = placementsOf(rsvpEventId)

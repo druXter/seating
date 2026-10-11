@@ -301,7 +301,9 @@ rsvp-app im selben Abschnitt eintragen. Erst mit beiden Einträgen gilt die Verk
   „Begleitung“ (ohne Namen „Begleitung von …“), keine Kontaktdaten; ändern lassen sie sich nur über den Abgleich.
   Meldet rsvp-app eine Änderung, zeigt die Sitzordnung „bitte abgleichen“.
 * **Rückmeldung:** Nach jeder Änderung meldet Seating den vollständigen Stand der Platzierungen an rsvp-app
-  („Tisch 7, Plätze 3, 4“) – für die Gästeansicht und den Einlass. Best-effort nach der Antwort, dazu „Platzierungen
+  („Tisch 7, Plätze 3, 4“) – für die Gästeansicht und den Einlass –, dazu, wo bekannt, Tisch und Platz pro Person
+  (`persons`, für die Küchenliste pro Tisch in rsvp-app; `app/lib/rsvp/rules.ts`, `personPlaces`: in der Sitzordnung
+  jede Person an ihrem Platz, sonst alle am Tisch, wenn die Buchung an genau einem Tisch liegt). Best-effort nach der Antwort, dazu „Platzierungen
   erneut an rsvp-app melden“. Vor dem Löschen eines Events geht ein leerer Stand raus.
 
 **Vertrag** (`app/lib/rsvp/token.ts`, Format wie zwischen rsvp-app und Abstimmungstool):
@@ -315,7 +317,7 @@ Identität eines Gasts ist die Zusage (`rsvpId`), nicht die E-Mail.
 | `rsvp-change` | rsvp-app → Seating | `POST /api/rsvp-webhook`, Body = Nachricht, `text/plain` | `rsvpId`, `attending`, `name`, `email`, `companions` |
 | `guest-list-request` | Seating → rsvp-app | `POST <RSVP_APP_BASE_URL>/api/seating/guest-list` | – |
 | `guest-list` | rsvp-app → Seating | Antwort darauf, `text/plain` | `guests`: Zusagen (bestätigt, nicht auf der Warteliste) |
-| `placements` | Seating → rsvp-app | `POST <RSVP_APP_BASE_URL>/api/seating/placements` | `placements`: vollständiger Stand `{ rsvpId, label }` |
+| `placements` | Seating → rsvp-app | `POST <RSVP_APP_BASE_URL>/api/seating/placements` | `placements`: vollständiger Stand `{ rsvpId, label, persons? }`, `persons`: `[{ key: "guest" \| "companion-N", table, seat }]` (optional, Werte oder null) |
 
 Webhook: 401 bei ungültiger Signatur, falschem Empfänger oder Ablauf; 200 ohne Wirkung für nicht so verknüpfte
 Events. Ältere Meldungen als die zuletzt angewandte (`iat`) werden ignoriert.

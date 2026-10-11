@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  diffBookings, diffParties, externalRefOf, isEmptyChange, parseSyncKeys, partyChange, partySizeOf, personsOf, rsvpIdOf, type RsvpGuest
+  diffBookings, diffParties, externalRefOf, isEmptyChange, parseSyncKeys, partyChange, partySizeOf, personPlaces, personsOf, rsvpIdOf, type RsvpGuest
 } from '../../../app/lib/rsvp/rules'
 
 const ev = 'cmrsvpevent00000001'
@@ -77,5 +77,33 @@ describe('parseSyncKeys', () => {
   it('nur bekannte Formen', () => {
     expect([...parseSyncKeys([`new:${id(1)}`, `changed:${id(2)}`, 'removed:../x', 'delete:all', 42, `removed:${id(3)}`])])
       .toEqual([`new:${id(1)}`, `changed:${id(2)}`, `removed:${id(3)}`])
+  })
+})
+
+describe('Tisch pro Person (Küchenliste in rsvp-app)', () => {
+  const tables = new Map([['t1', 'Tisch 1'], ['t2', 'Brauttisch']])
+  const seat = (table: string | null, label: string) => ({ label, kind: 'SEAT' as const, tableKey: table })
+
+  it('ASSIGNED: jede Person an ihrem Platz, Personen ohne Kennung zählen nicht', () => {
+    expect(personPlaces(3, [
+      { unit: seat('t2', 'Brauttisch, Platz 1'), attendeeKey: 'guest' },
+      { unit: seat('t1', 'Tisch 1, Platz 4'), attendeeKey: 'companion-2' },
+      { unit: seat(null, 'Reihe A, Platz 1'), attendeeKey: 'companion-1' },
+      { unit: seat('t1', 'Tisch 1, Platz 5'), attendeeKey: null }
+    ], tables)).toEqual([
+      { key: 'guest', table: 'Brauttisch', seat: 'Brauttisch, Platz 1' },
+      { key: 'companion-2', table: 'Tisch 1', seat: 'Tisch 1, Platz 4' },
+      { key: 'companion-1', table: null, seat: 'Reihe A, Platz 1' }
+    ])
+  })
+
+  it('TABLE/SEAT: alle an einem Tisch -> alle Personen dort; mehrere Tische oder Reihen -> unbekannt', () => {
+    const atTable = [{ key: 'guest', table: 'Tisch 1', seat: null }, { key: 'companion-1', table: 'Tisch 1', seat: null }]
+    expect(personPlaces(2, [{ unit: { label: 'Tisch 1', kind: 'TABLE', tableKey: null }, attendeeKey: null }], tables)).toEqual(atTable)
+    expect(personPlaces(2, [{ unit: seat('t1', 'Tisch 1, Platz 1'), attendeeKey: null }, { unit: seat('t1', 'Tisch 1, Platz 2'), attendeeKey: null }], tables)).toEqual(atTable)
+    expect(personPlaces(2, [{ unit: seat('t1', 'a'), attendeeKey: null }, { unit: seat('t2', 'b'), attendeeKey: null }], tables)).toBeUndefined()
+    expect(personPlaces(2, [{ unit: seat(null, 'Reihe A, Platz 1'), attendeeKey: null }], tables)).toBeUndefined()
+    expect(personPlaces(2, [], tables)).toBeUndefined()
+    expect(personPlaces(80, [{ unit: { label: 'Saal', kind: 'TABLE', tableKey: null }, attendeeKey: null }], tables)).toHaveLength(50)
   })
 })

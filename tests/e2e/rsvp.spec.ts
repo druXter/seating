@@ -122,7 +122,7 @@ test('Tischwahl über eine Zusage: GET ändert nichts, Buchung per POST, Mail, R
   expect(booking.allocations.map(a => a.unit.key)).toEqual(['t2'])
   const mail = await waitForMail(email)
   expect(mail.subject).toMatch(/bestätigt/i)
-  await waitForPlacements(rsvpEventId, p => p.some(x => x.rsvpId === erika.rsvpId && x.label === 'Tisch 2'))
+  await waitForPlacements(rsvpEventId, p => p.some(x => x.rsvpId === erika.rsvpId && x.label === 'Tisch 2' && x.persons?.every(person => person.table === 'Tisch 2') === true))
 
   // Derselbe (oder ein neuer) Link führt zur bestehenden Buchung - keine zweite.
   await page.goto(seatLink(event, erika))
@@ -360,7 +360,11 @@ test('Sitzordnung: Gästeliste mit rsvp-app abgleichen - neu, geändert, abgesag
   await page.getByLabel('Ab Platz').selectOption('t1-s1')
   await page.getByRole('button', { name: 'Hierher setzen' }).click()
   await expect(page.getByTestId('arrange-message')).toContainText('sitzt jetzt zusammen')
-  await waitForPlacements(rsvpEventId, p => p.some(x => x.rsvpId === erika.rsvpId && x.label === 'Tisch 1, Plätze 1, 2'))
+  const placed = await waitForPlacements(rsvpEventId, p => p.some(x => x.rsvpId === erika.rsvpId && x.label === 'Tisch 1, Plätze 1, 2'))
+  // Tisch und Platz pro Person (Küchenliste pro Tisch in rsvp-app)
+  expect(placed.find(x => x.rsvpId === erika.rsvpId)!.persons).toEqual([
+    { key: 'guest', table: 'Tisch 1', seat: 'Tisch 1, Platz 1' }, { key: 'companion-1', table: 'Tisch 1', seat: 'Tisch 1, Platz 2' }
+  ])
 
   // In rsvp-app: Max fällt weg, Oma sagt ab, Paul heißt jetzt anders. Webhook -> nur Hinweis.
   setGuestList(rsvpEventId, [{ ...erika, companions: [] }, { ...paul, name: 'Paul P.' }])

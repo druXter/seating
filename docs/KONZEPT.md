@@ -567,7 +567,8 @@ Umgesetzt in Phase 7 auf der Seite von Seating (`app/lib/rsvp/`, Einstieg `app/r
   Abgleich änderbar; von Hand ergänzte Personen und Gruppen bleiben unberührt.
 * **Rückmeldung (A.4):** immer der vollständige Stand aller Platzierungen eines Events (rsvp-app setzt die
   genannten, löscht die übrigen) – nach jeder Änderung best-effort, dazu manuell; vor dem Löschen eines Events ein
-  leerer Stand.
+  leerer Stand. Seit 2026-10-11 mit Tisch und Platz pro Person (`persons`, optional) für die Küchenliste pro Tisch
+  in rsvp-app.
 * **Einstieg bei Events ohne Platzwahl über Zusagen:** rsvp-app kennt den Modus nicht und zeigt „Sitzplatz wählen“
   für jeden verknüpften Termin. Ist der Link gültig (Signatur, Verknüpfung), das Event aber eine Sitzordnung oder
   offen buchbar, zeigt `/rsvp/<eventId>` einen Hinweis statt „ungültig“; gebucht wird darüber nie. Ungültige Links
