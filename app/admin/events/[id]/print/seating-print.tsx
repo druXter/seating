@@ -1,5 +1,5 @@
 // app/admin/events/[id]/print/seating-print.tsx
-import Link from 'next/link'
+import { Segmented } from '../../../../ui/kit'
 import type { LoadedEvent } from '../../../../lib/events/store'
 import { loadSeatingBoard } from '../../../../lib/events/assign'
 import { formatRange } from '../../../../lib/timezone'
@@ -21,22 +21,20 @@ export default async function SeatingPrint({ event, cards }: { event: LoadedEven
   const base = `/admin/events/${event.id}`
 
   return (
-    <main className="bg-white dark:bg-gray-800 py-6 px-4 print:p-0">
-      <div className="max-w-4xl mx-auto space-y-4 text-gray-900 dark:text-gray-100">
+    <div className="space-y-4">
         <div className="print:hidden flex flex-wrap items-center justify-between gap-2">
-          <p className="text-sm space-x-4">
-            <Link href={`${base}/arrange`} className="text-blue-700 dark:text-blue-300 hover:underline">Zurück zur Sitzordnung</Link>
-            {cards
-              ? <Link href={`${base}/print`} className="text-blue-700 dark:text-blue-300 hover:underline">Tischliste</Link>
-              : <Link href={`${base}/print?view=cards`} className="text-blue-700 dark:text-blue-300 hover:underline">Tischkarten</Link>}
-          </p>
+          <Segmented label="Druckart" items={[
+            { href: `${base}/print`, label: 'Tischliste', active: !cards },
+            { href: `${base}/print?view=cards`, label: 'Tischkarten', active: cards }
+          ]} />
           <PrintButton />
         </div>
+        <div className="space-y-4 rounded-xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6 dark:border-gray-700 dark:bg-gray-800 print:rounded-none print:border-0 print:p-0 print:shadow-none">
 
         {cards ? (
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid gap-4 sm:grid-cols-2 print:grid-cols-2">
             {seated.map(({ seat, person }) => (
-              <div key={seat.key} className="border-2 border-gray-800 rounded p-6 text-center break-inside-avoid" data-testid="table-card">
+              <div key={seat.key} className="border-2 border-gray-800 dark:border-gray-300 rounded-lg p-6 text-center break-inside-avoid" data-testid="table-card">
                 <p className="text-sm text-gray-600 dark:text-gray-400">{event.title}</p>
                 <p className="text-3xl font-bold my-3">{person.name}</p>
                 <p className="text-lg">{seat.label}</p>
@@ -47,14 +45,14 @@ export default async function SeatingPrint({ event, cards }: { event: LoadedEven
         ) : (
           <>
             <div>
-              <h1 className="text-2xl font-bold">{event.title} – Sitzordnung</h1>
+              <h1 className="text-2xl font-semibold">{event.title} – Sitzordnung</h1>
               <p className="text-sm text-gray-600 dark:text-gray-400">
                 {formatRange(event.startsAt, event.endsAt, event.timezone)}{event.location && ` · ${event.location}`} · {seated.length} von {persons.size} Personen mit Platz
               </p>
             </div>
             {groups.map(group => (
               <section key={group} className="break-inside-avoid">
-                <h2 className="font-bold border-b-2 border-gray-800 mt-4">{group}</h2>
+                <h2 className="font-semibold border-b-2 border-gray-800 mt-4">{group}</h2>
                 <table className="w-full text-sm border-collapse">
                   <tbody>
                     {seated.filter(s => s.seat.group === group).map(({ seat, person }) => (
@@ -71,7 +69,7 @@ export default async function SeatingPrint({ event, cards }: { event: LoadedEven
             ))}
             {unseated.length > 0 && (
               <section className="break-inside-avoid">
-                <h2 className="font-bold border-b-2 border-gray-800 mt-4">Ohne Platz ({unseated.length})</h2>
+                <h2 className="font-semibold border-b-2 border-gray-800 mt-4">Ohne Platz ({unseated.length})</h2>
                 <ul className="text-sm">
                   {unseated.map(person => <li key={person.id} className="py-1 border-b border-gray-300 dark:border-gray-600">{person.name}{person.party.name !== person.name && ` (${person.party.name})`}</li>)}
                 </ul>
@@ -79,7 +77,7 @@ export default async function SeatingPrint({ event, cards }: { event: LoadedEven
             )}
           </>
         )}
-      </div>
-    </main>
+        </div>
+    </div>
   )
 }

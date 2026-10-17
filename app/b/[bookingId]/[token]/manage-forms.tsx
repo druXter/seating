@@ -15,8 +15,8 @@ function Errors({ state }: { state: ManageState }) {
   return <Notice tone="error"><ul className="list-disc list-inside">{state.errors.map((e, i) => <li key={i}>{e}</li>)}</ul></Notice>
 }
 
-const input = 'w-full border border-gray-300 dark:border-gray-600 p-2 rounded'
-const labelClass = 'block text-sm font-medium mb-1'
+const input = 'w-full rounded-lg border border-gray-300 bg-white p-2 text-base sm:text-sm text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100 dark:focus:ring-blue-900'
+const labelClass = 'block text-sm font-medium text-gray-800 dark:text-gray-200 mb-1'
 
 export type ManageValues = {
   bookingId: string; token: string; name: string; phone: string; note: string; partySize: number; unitKey: string; requirePhone: boolean

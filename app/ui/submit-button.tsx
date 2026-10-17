@@ -18,7 +18,7 @@ export default function SubmitButton({
     <button
       type="submit"
       disabled={disabled}
-      className={`w-full bg-blue-600 text-white font-bold py-2 px-4 rounded hover:bg-blue-700 transition disabled:opacity-50 ${className}`}
+      className={`w-full rounded-lg border border-blue-600 bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60 ${className}`}
     >
       {children}
     </button>

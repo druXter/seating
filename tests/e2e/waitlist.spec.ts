@@ -256,10 +256,10 @@ test('Admin: Reihenfolge in der Liste, Tisch direkt zuweisen, Eintrag beenden; f
   await page.goto(`/admin/events/${event.id}/bookings`)
   await expect(page.getByTestId('booking-counts')).toContainText('2 auf der Warteliste')
   await page.goto(`/admin/events/${event.id}/bookings?status=waitlist`)
-  const rows = page.getByRole('table').getByRole('row')
-  await expect(rows).toHaveCount(3)
-  await expect(rows.nth(1)).toContainText('Gruppe 3/60')
-  await expect(rows.nth(2)).toContainText('Gruppe 6/5')
+  const rows = page.getByTestId('booking-list').getByRole('listitem')
+  await expect(rows).toHaveCount(2)
+  await expect(rows.nth(0)).toContainText('Gruppe 3/60')
+  await expect(rows.nth(1)).toContainText('Gruppe 6/5')
 
   // Der 8er wird frei (ohne Anstoß eines Angebots). Admin weist ihn am Nachrück-Verfahren vorbei der
   // neueren Gruppe zu - ohne Zuweisung hätte ihn auch die neuere bekommen, denn die ältere (3) passt

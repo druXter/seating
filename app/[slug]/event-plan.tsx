@@ -117,11 +117,11 @@ export default function EventPlan({ layout, backgroundUrl, tables, tableSeats, m
     <div className="space-y-4">
       <div className="flex flex-wrap items-end gap-3">
         <div>
-          <label htmlFor={inputId} className="block text-sm font-medium mb-1">Wie viele Personen seid ihr?</label>
+          <label htmlFor={inputId} className="block text-sm font-medium text-gray-800 dark:text-gray-200 mb-1">Wie viele Personen seid ihr?</label>
           <input
             id={inputId} type="number" inputMode="numeric" min={1} max={maxCapacity} value={partyInput}
             onChange={event => setPartyInput(event.currentTarget.value)}
-            className="w-32 border border-gray-300 dark:border-gray-600 p-2 rounded"
+            className="w-32 rounded-lg border border-gray-300 bg-white p-2 text-base sm:text-sm text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100 dark:focus:ring-blue-900"
           />
         </div>
         {filtering && (
@@ -139,7 +139,7 @@ export default function EventPlan({ layout, backgroundUrl, tables, tableSeats, m
       {booking.open && !busy && !selected && !waitlistOpen && choice === 'waitlist' && (
         <div className="flex flex-wrap items-center gap-3 text-sm">
           <span>Trag dich auf die Warteliste ein – wird ein passender Tisch frei, bekommst du ein Angebot per Mail.</span>
-          <button type="button" onClick={() => { setWaitlistOpen(true); setSelectedKey(null) }} className="bg-blue-600 text-white font-bold py-1.5 px-3 rounded hover:bg-blue-700">
+          <button type="button" onClick={() => { setWaitlistOpen(true); setSelectedKey(null) }} className="inline-flex items-center justify-center gap-1.5 rounded-lg font-medium transition disabled:opacity-60 whitespace-nowrap px-3.5 py-2 text-sm bg-blue-600 text-white hover:bg-blue-700 border border-blue-600">
             Auf die Warteliste
           </button>
         </div>
@@ -152,7 +152,7 @@ export default function EventPlan({ layout, backgroundUrl, tables, tableSeats, m
       />
 
       {booking.open && (busy || selected || waitlistOpen) && (
-        <div ref={panelRef} className="border-2 border-blue-200 dark:border-blue-800 rounded-lg p-4 scroll-mt-4">
+        <div ref={panelRef} className="rounded-xl border-2 border-blue-200 bg-blue-50/40 p-4 dark:border-blue-800 dark:bg-blue-950/30 scroll-mt-20">
           {pendingReservation ? (
             <PendingPanel bookingId={pendingReservation.bookingId} resendHint="Die Reservierung verlängert sich dadurch nicht.">
               <strong>{pendingReservation.placeLabel}</strong> ist bis {pendingReservation.expiresAtText} für dich reserviert. Wir haben eine Mail an{' '}
@@ -202,7 +202,7 @@ export default function EventPlan({ layout, backgroundUrl, tables, tableSeats, m
       </ul>
 
       <section aria-labelledby="table-list-heading" className="space-y-2">
-        <h2 id="table-list-heading" className="font-bold">Alle Tische</h2>
+        <h2 id="table-list-heading" className="font-semibold">Alle Tische</h2>
         {sorted.length === 0 ? (
           <p className="text-sm text-gray-600 dark:text-gray-400">Dieser Plan enthält keine Tische.</p>
         ) : (

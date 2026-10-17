@@ -38,9 +38,9 @@ export default async function LoginPage({
   const preferred = loginRedirectIdp()
   if (preferred && shouldAutoRedirect(params, target)) {
     return (
-      <main className="bg-gray-50 dark:bg-gray-900 flex items-center justify-center px-4 py-12">
-        <div className="max-w-sm w-full bg-white dark:bg-gray-800 p-8 rounded-lg shadow space-y-4 text-gray-900 dark:text-gray-100">
-          <h1 className="text-xl font-bold">Anmelden mit {idpLabel(preferred)}</h1>
+      <main className="flex items-center justify-center px-4 py-12">
+        <div className="max-w-sm w-full bg-white dark:bg-gray-800 p-6 sm:p-8 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm space-y-4 text-gray-900 dark:text-gray-100">
+          <h1 className="text-xl font-semibold">Anmelden mit {idpLabel(preferred)}</h1>
           <HardRedirect to={`/api/suite/login?idp=${encodeURIComponent(preferred.issuer)}&next=${encodeURIComponent(target)}`} />
           <p className="text-sm">
             <Link href={`/login?local=1&next=${encodeURIComponent(target)}`} className="text-blue-700 dark:text-blue-300 hover:underline">
@@ -56,9 +56,9 @@ export default async function LoginPage({
   const idps = getIdps()
 
   return (
-    <main className="bg-gray-50 dark:bg-gray-900 flex items-center justify-center px-4 py-12">
-      <div className="max-w-sm w-full bg-white dark:bg-gray-800 p-8 rounded-lg shadow space-y-5 text-gray-900 dark:text-gray-100">
-        <h1 className="text-xl font-bold">Anmelden</h1>
+    <main className="flex items-center justify-center px-4 py-12">
+      <div className="max-w-sm w-full bg-white dark:bg-gray-800 p-6 sm:p-8 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm space-y-5 text-gray-900 dark:text-gray-100">
+        <h1 className="text-xl font-semibold">Anmelden</h1>
 
         {reset === '1' && <Notice tone="success">Dein Passwort wurde gesetzt. Du kannst dich jetzt anmelden.</Notice>}
         {error && <Notice tone="error">{ERRORS[error] ?? ERRORS['1']}</Notice>}
@@ -66,17 +66,17 @@ export default async function LoginPage({
         <form action={loginUser} className="space-y-3">
           <input type="hidden" name="next" value={target} />
           <div>
-            <label htmlFor="email" className="block text-sm font-medium mb-1">E-Mail</label>
+            <label htmlFor="email" className="block text-sm font-medium text-gray-800 dark:text-gray-200 mb-1">E-Mail</label>
             <input
               id="email" type="email" name="email" required autoFocus autoComplete="username"
-              className="w-full border border-gray-300 dark:border-gray-600 p-2 rounded"
+              className="w-full rounded-lg border border-gray-300 bg-white p-2 text-base sm:text-sm text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100 dark:focus:ring-blue-900"
             />
           </div>
           <div>
-            <label htmlFor="password" className="block text-sm font-medium mb-1">Passwort</label>
+            <label htmlFor="password" className="block text-sm font-medium text-gray-800 dark:text-gray-200 mb-1">Passwort</label>
             <input
               id="password" type="password" name="password" required autoComplete="current-password"
-              className="w-full border border-gray-300 dark:border-gray-600 p-2 rounded"
+              className="w-full rounded-lg border border-gray-300 bg-white p-2 text-base sm:text-sm text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100 dark:focus:ring-blue-900"
             />
           </div>
           <SubmitButton>Anmelden</SubmitButton>
@@ -94,7 +94,7 @@ export default async function LoginPage({
               <a
                 key={idp.issuer}
                 href={`/api/suite/login?idp=${encodeURIComponent(idp.issuer)}&next=${encodeURIComponent(target)}`}
-                className="block w-full text-center border border-gray-300 dark:border-gray-600 rounded py-2 text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-900"
+                className="block w-full text-center border border-gray-300 dark:border-gray-600 rounded-lg py-2 text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-900"
               >
                 Mit {idpLabel(idp)} anmelden
               </a>

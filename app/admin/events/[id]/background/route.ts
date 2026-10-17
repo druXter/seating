@@ -27,7 +27,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const event = await loadEventForUser((await params).id, user)
   if (!event) return new NextResponse('Nicht gefunden', { status: 404 })
 
-  const back = `/admin/events/${event.id}`
+  const back = `/admin/events/${event.id}/plan`
   const received = await receiveImage(request)
   if (received === null) return new NextResponse('Länge erforderlich', { status: 411 })
   if (typeof received === 'string') return backTo(back, received)

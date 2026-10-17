@@ -14,6 +14,7 @@ import { formatDeadline, formatShort } from '../../../../lib/timezone'
 import BookingStatusBadge from '../../../../ui/booking-status-badge'
 import Notice from '../../../../ui/notice'
 import RsvpSyncPanel from '../../rsvp-sync-panel'
+import { ButtonLink, buttonClass, Card, EmptyState, inputClass, labelClass, SettingsSection } from '../../../../ui/kit'
 
 export const dynamic = 'force-dynamic'
 
@@ -64,132 +65,107 @@ export default async function BookingsPage({ params, searchParams }: { params: P
   const base = `/admin/events/${event.id}`
 
   return (
-    <main className="bg-gray-50 dark:bg-gray-900 py-6 px-4">
-      <div className="max-w-5xl mx-auto space-y-4 text-gray-900 dark:text-gray-100">
-        <div className="space-y-1">
-          <p className="text-sm"><Link href={base} className="text-blue-700 dark:text-blue-300 hover:underline">{event.title}</Link></p>
-          <h1 className="text-2xl font-bold">{assigned ? 'Gruppen' : 'Buchungen'}</h1>
+    <div className="space-y-4">
+      {search.deleted === '1' && <Notice tone="success">Buchung endgültig gelöscht.</Notice>}
+      {search.mail === 'failed' && <Notice tone="warning">Die Mail an die Kund*in konnte nicht verschickt werden.</Notice>}
+
+      <Card className="space-y-3">
+        <p className="text-sm text-gray-700 dark:text-gray-300" data-testid="booking-counts">
+          {unitKind === 'SEAT' ? 'Plätze' : 'Tische'}: {counts.free} frei · {counts.held} reserviert (unbestätigt) · {counts.confirmed} belegt
+          {counts.unavailable > 0 && ` · ${counts.unavailable} nicht buchbar`} — {confirmed.length} {assigned ? (confirmed.length === 1 ? 'Gruppe' : 'Gruppen') : `bestätigte Buchung${confirmed.length === 1 ? '' : 'en'}`} mit {guests} Person{guests === 1 ? '' : 'en'}
+          {waitlist.length > 0 && <> — <Link href={`${base}/bookings?status=waitlist`} className="text-blue-700 dark:text-blue-300 hover:underline">{waitlist.length} auf der Warteliste</Link></>}
+          {!event.waitlistEnabled && !assigned && ' — Warteliste aus'}
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {assigned
+            ? <ButtonLink href={`${base}/arrange`} variant="primary">Gäste anlegen und setzen</ButtonLink>
+            : <ButtonLink href={`${base}/bookings/new`} variant="primary">Buchung anlegen</ButtonLink>}
+          <a href={`${base}/export?${exportQuery}`} className={buttonClass()}>CSV-Export (aktuelle Auswahl)</a>
+          <ButtonLink href={`${base}/print`}>Druckansicht</ButtonLink>
+          <ButtonLink href={`${base}/print?view=cards`}>{event.mode === 'SEAT' ? 'Platzkarten' : 'Tischkarten'}</ButtonLink>
         </div>
+      </Card>
 
-        {search.deleted === '1' && <Notice tone="success">Buchung endgültig gelöscht.</Notice>}
-        {search.mail === 'failed' && <Notice tone="warning">Die Mail an die Kund*in konnte nicht verschickt werden.</Notice>}
+      {event.rsvpEventId && !assigned && (
+        <SettingsSection id="rsvp-sync" title="Zusagen aus rsvp-app" marker="pink">
+          <RsvpSyncPanel eventId={event.id} assigned={false} changedSince={null} />
+        </SettingsSection>
+      )}
 
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 space-y-3">
-          <p className="text-sm text-gray-700 dark:text-gray-300" data-testid="booking-counts">
-            {unitKind === 'SEAT' ? 'Plätze' : 'Tische'}: {counts.free} frei · {counts.held} reserviert (unbestätigt) · {counts.confirmed} belegt
-            {counts.unavailable > 0 && ` · ${counts.unavailable} nicht buchbar`} — {confirmed.length} {assigned ? (confirmed.length === 1 ? 'Gruppe' : 'Gruppen') : `bestätigte Buchung${confirmed.length === 1 ? '' : 'en'}`} mit {guests} Person{guests === 1 ? '' : 'en'}
-            {waitlist.length > 0 && <> — <Link href={`${base}/bookings?status=waitlist`} className="text-blue-700 dark:text-blue-300 hover:underline">{waitlist.length} auf der Warteliste</Link></>}
-            {!event.waitlistEnabled && ' — Warteliste aus'}
-          </p>
-          <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
-            {assigned
-              ? <Link href={`${base}/arrange`} className="text-blue-700 dark:text-blue-300 hover:underline">Sitzordnung (Gäste anlegen und setzen)</Link>
-              : <>
-                <Link href={`${base}/bookings/new`} className="text-blue-700 dark:text-blue-300 hover:underline">Buchung anlegen</Link>
-                <Link href={`${base}/arrange`} className="text-blue-700 dark:text-blue-300 hover:underline">Im Plan verschieben</Link>
-                <Link href={`${base}/mail`} className="text-blue-700 dark:text-blue-300 hover:underline">Rundmail</Link>
-              </>}
-            <a href={`${base}/export?${exportQuery}`} className="text-blue-700 dark:text-blue-300 hover:underline">CSV-Export (aktuelle Auswahl)</a>
-            <Link href={`${base}/print`} className="text-blue-700 dark:text-blue-300 hover:underline">Druckansicht</Link>
-            <Link href={`${base}/print?view=cards`} className="text-blue-700 dark:text-blue-300 hover:underline">{event.mode === 'SEAT' ? 'Platzkarten' : 'Tischkarten'}</Link>
+      <Card className="space-y-4">
+        <form method="get" className="grid gap-2 sm:grid-cols-[1fr_auto_auto] sm:items-end" role="search">
+          <div>
+            <label htmlFor="booking-q" className={labelClass}>Suche</label>
+            <input id="booking-q" name="q" type="search" defaultValue={query} maxLength={100} placeholder="Name, E-Mail, Telefon, Tisch" className={inputClass} />
           </div>
-        </div>
-
-        {event.rsvpEventId && !assigned && (
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 space-y-2">
-            <h2 className="font-bold">Zusagen aus rsvp-app</h2>
-            <RsvpSyncPanel eventId={event.id} assigned={false} changedSince={null} />
+          <div>
+            <label htmlFor="booking-status" className={labelClass}>Status</label>
+            <select id="booking-status" name="status" defaultValue={filter} className={inputClass}>
+              {LIST_FILTERS.map(f => <option key={f} value={f}>{LIST_FILTER_LABELS[f]}</option>)}
+            </select>
           </div>
-        )}
+          <button type="submit" className={buttonClass('secondary')}>Anzeigen</button>
+        </form>
 
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 space-y-3">
-          <form method="get" className="flex flex-wrap items-end gap-2" role="search">
-            <div className="grow">
-              <label htmlFor="booking-q" className="block text-sm font-medium mb-1">Suche</label>
-              <input id="booking-q" name="q" defaultValue={query} maxLength={100} placeholder="Name, E-Mail, Telefon, Tisch" className="w-full border border-gray-300 dark:border-gray-600 p-2 rounded text-sm" />
-            </div>
-            <div>
-              <label htmlFor="booking-status" className="block text-sm font-medium mb-1">Status</label>
-              <select id="booking-status" name="status" defaultValue={filter} className="border border-gray-300 dark:border-gray-600 p-2 rounded text-sm">
-                {LIST_FILTERS.map(f => <option key={f} value={f}>{LIST_FILTER_LABELS[f]}</option>)}
-              </select>
-            </div>
-            <button type="submit" className="bg-blue-600 text-white font-bold py-2 px-3 rounded hover:bg-blue-700 text-sm">Anzeigen</button>
-          </form>
-
-          <h2 className="font-bold">{bookings.length} Buchung{bookings.length === 1 ? '' : 'en'} ({LIST_FILTER_LABELS[filter]}{query && `, Suche „${query}“`})</h2>
-          {bookings.length === 0 ? (
-            <p className="text-sm text-gray-600 dark:text-gray-400">Keine Buchungen in dieser Auswahl.</p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-left border-b">
-                    <th scope="col" className="py-1 pr-3">{unitKind === 'SEAT' ? 'Plätze' : 'Tisch'}</th>
-                    <th scope="col" className="py-1 pr-3">Name</th>
-                    <th scope="col" className="py-1 pr-3">Kontakt</th>
-                    <th scope="col" className="py-1 pr-3">Personen</th>
-                    <th scope="col" className="py-1 pr-3">Status</th>
-                    <th scope="col" className="py-1">Gebucht</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {bookings.map(booking => {
-                    const status = effectiveStatus(booking, now)
-                    return (
-                      <tr key={booking.id} className="border-b last:border-0 align-top">
-                        <td className="py-1 pr-3">{describePlaces(booking.allocations.map(a => a.unit))}</td>
-                        <td className="py-1 pr-3">
-                          <Link href={`${base}/bookings/${booking.id}`} className="text-blue-700 dark:text-blue-300 hover:underline">{booking.name}</Link>
-                          {booking.attendees.length > 1 && <span className="block text-xs text-gray-600 dark:text-gray-400">{booking.attendees.map(a => a.name).join(', ')}</span>}
-                          {booking.note && <span className="block text-xs text-gray-600 dark:text-gray-400 whitespace-pre-line">{booking.note}</span>}
-                          {booking.adminNote && <span className="block text-xs text-purple-800 dark:text-purple-200 whitespace-pre-line">Intern: {booking.adminNote}</span>}
-                        </td>
-                        <td className="py-1 pr-3">
-                          {booking.email ?? <span className="text-gray-500 dark:text-gray-400">keine E-Mail</span>}
-                          {booking.phone && <span className="block text-xs text-gray-600 dark:text-gray-400">{booking.phone}</span>}
-                        </td>
-                        <td className="py-1 pr-3">
-                          {booking.partySize}
-                          {booking.source === 'RSVP' && booking.rsvpPartySize !== null && booking.rsvpPartySize !== booking.partySize && status === 'CONFIRMED' && (
-                            <span className="block text-xs text-amber-800 dark:text-amber-200">rsvp-app: {booking.rsvpPartySize}</span>
-                          )}
-                        </td>
-                        <td className="py-1 pr-3">
-                          <BookingStatusBadge status={status} />
-                          {status === 'PENDING' && booking.expiresAt && <span className="block text-xs text-gray-600 dark:text-gray-400">bis {formatDeadline(booking.expiresAt, tz, now)}</span>}
-                          {status === 'OFFERED' && booking.expiresAt && <span className="block text-xs text-gray-600 dark:text-gray-400">angeboten bis {formatDeadline(booking.expiresAt, tz, now)}</span>}
-                          {status === 'WAITLISTED' && (
-                            <span className="block text-xs text-gray-600 dark:text-gray-400">{booking.waitlistedAt ? `seit ${formatShort(booking.waitlistedAt, tz)}` : 'noch unbestätigt'}</span>
-                          )}
-                        </td>
-                        <td className="py-1 text-xs text-gray-600 dark:text-gray-400">
-                          {formatShort(booking.createdAt, tz)}
-                          <span className="block">{BOOKING_SOURCE_LABELS[booking.source]}</span>
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-
-        {eventLog.length > 0 && (
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 space-y-2">
-            <h2 className="font-bold">{assigned ? 'Verlauf: gelöschte Gruppen und Importe' : 'Verlauf: gelöschte Buchungen und Rundmails'}</h2>
-            <ul className="text-sm divide-y">
-              {eventLog.map(entry => (
-                <li key={entry.id} className="py-1">
-                  <span className="text-gray-600 dark:text-gray-400">{formatShort(entry.createdAt, tz)} · {actorText(entry.actor, auditContext)}:</span> {auditText(entry)}
-                  {auditDetails(entry, auditContext).length > 0 && <span className="text-gray-600 dark:text-gray-400"> ({auditDetails(entry, auditContext).join('; ')})</span>}
+        <h2 className="font-semibold">{bookings.length} {assigned ? (bookings.length === 1 ? 'Gruppe' : 'Gruppen') : `Buchung${bookings.length === 1 ? '' : 'en'}`} ({LIST_FILTER_LABELS[filter]}{query && `, Suche „${query}“`})</h2>
+        {bookings.length === 0 ? (
+          <EmptyState>{assigned ? 'Keine Gruppen in dieser Auswahl.' : 'Keine Buchungen in dieser Auswahl.'}</EmptyState>
+        ) : (
+          <ul className="divide-y divide-gray-100 dark:divide-gray-700" data-testid="booking-list">
+            {bookings.map(booking => {
+              const status = effectiveStatus(booking, now)
+              return (
+                <li key={booking.id} className="flex flex-col gap-1 py-3 text-sm sm:flex-row sm:gap-4">
+                  <div className="font-medium sm:w-32 sm:shrink-0">{describePlaces(booking.allocations.map(a => a.unit)) || <span className="text-gray-500 dark:text-gray-400">ohne Platz</span>}</div>
+                  <div className="min-w-0 flex-1 space-y-0.5">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Link href={`${base}/bookings/${booking.id}`} className="font-medium text-blue-700 dark:text-blue-300 hover:underline">{booking.name}</Link>
+                      <BookingStatusBadge status={status} />
+                      <span className="text-gray-600 dark:text-gray-400">{booking.partySize} {booking.partySize === 1 ? 'Person' : 'Personen'}</span>
+                    </div>
+                    {booking.source === 'RSVP' && booking.rsvpPartySize !== null && booking.rsvpPartySize !== booking.partySize && status === 'CONFIRMED' && (
+                      <p className="text-xs text-amber-800 dark:text-amber-200">rsvp-app: {booking.rsvpPartySize} Personen</p>
+                    )}
+                    {status === 'PENDING' && booking.expiresAt && <p className="text-xs text-gray-600 dark:text-gray-400">reserviert bis {formatDeadline(booking.expiresAt, tz, now)}</p>}
+                    {status === 'OFFERED' && booking.expiresAt && <p className="text-xs text-gray-600 dark:text-gray-400">angeboten bis {formatDeadline(booking.expiresAt, tz, now)}</p>}
+                    {status === 'WAITLISTED' && (
+                      <p className="text-xs text-gray-600 dark:text-gray-400">{booking.waitlistedAt ? `auf der Warteliste seit ${formatShort(booking.waitlistedAt, tz)}` : 'Warteliste, noch unbestätigt'}</p>
+                    )}
+                    {booking.attendees.length > 1 && <p className="text-xs text-gray-600 dark:text-gray-400">{booking.attendees.map(a => a.name).join(', ')}</p>}
+                    {(booking.email || booking.phone) && (
+                      <p className="text-xs text-gray-600 dark:text-gray-400">
+                        {booking.email && <a href={`mailto:${booking.email}`} className="hover:underline">{booking.email}</a>}
+                        {booking.email && booking.phone && ' · '}
+                        {booking.phone && <a href={`tel:${booking.phone.replace(/[^\d+]/g, '')}`} className="hover:underline">{booking.phone}</a>}
+                      </p>
+                    )}
+                    {!assigned && !booking.email && <p className="text-xs text-gray-500 dark:text-gray-400">keine E-Mail</p>}
+                    {booking.note && <p className="text-xs text-gray-600 dark:text-gray-400 whitespace-pre-line">{booking.note}</p>}
+                    {booking.adminNote && <p className="text-xs text-purple-800 dark:text-purple-200 whitespace-pre-line">Intern: {booking.adminNote}</p>}
+                  </div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400 sm:w-32 sm:shrink-0 sm:text-right">
+                    {formatShort(booking.createdAt, tz)}
+                    <span className="block">{BOOKING_SOURCE_LABELS[booking.source]}</span>
+                  </div>
                 </li>
-              ))}
-            </ul>
-          </div>
+              )
+            })}
+          </ul>
         )}
-      </div>
-    </main>
+      </Card>
+
+      {eventLog.length > 0 && (
+        <SettingsSection id="history" title={assigned ? 'Verlauf: gelöschte Gruppen und Importe' : 'Verlauf: gelöschte Buchungen und Rundmails'} summary={`${eventLog.length} ${eventLog.length === 1 ? 'Eintrag' : 'Einträge'}`}>
+          <ul className="text-sm divide-y divide-gray-100 dark:divide-gray-700">
+            {eventLog.map(entry => (
+              <li key={entry.id} className="py-1.5">
+                <span className="text-gray-600 dark:text-gray-400">{formatShort(entry.createdAt, tz)} · {actorText(entry.actor, auditContext)}:</span> {auditText(entry)}
+                {auditDetails(entry, auditContext).length > 0 && <span className="text-gray-600 dark:text-gray-400"> ({auditDetails(entry, auditContext).join('; ')})</span>}
+              </li>
+            ))}
+          </ul>
+        </SettingsSection>
+      )}
+    </div>
   )
 }

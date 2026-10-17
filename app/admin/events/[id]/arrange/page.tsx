@@ -1,5 +1,4 @@
 // app/admin/events/[id]/arrange/page.tsx
-import Link from 'next/link'
 import { prisma } from '../../../../lib/prisma'
 import { requireUser } from '../../../../lib/auth'
 import { loadEventOr404, loadUnitStates } from '../../../../lib/events/store'
@@ -12,15 +11,15 @@ import { createPartyAction } from '../../arrange-actions'
 import { AssignBoard, MoveBoard } from '../../../../ui/plan/arrange-board'
 import ActionForm from '../../../../ui/action-form'
 import SubmitButton from '../../../../ui/submit-button'
-import Disclosure from '../../../../ui/disclosure'
+import { ButtonLink, buttonClass, hintClass, inputClass, labelClass as kitLabelClass, SettingsSection } from '../../../../ui/kit'
 import GuestImportForm from './guest-import-form'
 import RsvpSyncPanel from '../../rsvp-sync-panel'
 import { formatShort } from '../../../../lib/timezone'
 
 export const dynamic = 'force-dynamic'
 
-const input = 'w-full border border-gray-300 dark:border-gray-600 p-2 rounded'
-const labelClass = 'block text-sm font-medium mb-1'
+const input = inputClass
+const labelClass = kitLabelClass
 
 /**
  * Sitzordnung (Modus ASSIGNED: Gäste anlegen/importieren und auf Plätze setzen) bzw. Buchungen im Plan
@@ -43,10 +42,10 @@ export default async function ArrangePage({ params }: { params: Promise<{ id: st
     ])
     board = (
       <>
-        <Disclosure summary="Gäste hinzufügen" initiallyOpen={parties.length === 0} className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
-          <div className="grid gap-6 md:grid-cols-2 mt-3">
+        <SettingsSection id="guests" title="Gäste hinzufügen" summary="von Hand oder per CSV" open={parties.length === 0}>
+          <div className="grid gap-6 md:grid-cols-2">
             <div className="space-y-2">
-              <h2 className="font-medium">Gruppe anlegen</h2>
+              <h3 className="font-medium">Gruppe anlegen</h3>
               <ActionForm action={createPartyAction}>
                 <input type="hidden" name="eventId" value={event.id} />
                 <div>
@@ -62,23 +61,22 @@ export default async function ArrangePage({ params }: { params: Promise<{ id: st
                   <textarea id="party-note" name="adminNote" maxLength={ADMIN_NOTE_MAX} rows={2} className={input} placeholder="z. B. vegetarisch, Kinderstuhl" />
                 </div>
                 <SubmitButton>Gruppe anlegen</SubmitButton>
-                <p className="text-xs text-gray-600 dark:text-gray-400">
+                <p className={hintClass}>
                   Eine Gruppe sitzt möglichst zusammen (z. B. eine Einladung mit Begleitungen), höchstens {MAX_PARTY} Personen. Ohne
                   Gruppennamen heißt sie wie die erste Person. Kontaktdaten werden hier nicht erfasst.
                 </p>
               </ActionForm>
             </div>
             <div className="space-y-2">
-              <h2 className="font-medium">Gästeliste importieren (CSV)</h2>
+              <h3 className="font-medium">Gästeliste importieren (CSV)</h3>
               <GuestImportForm eventId={event.id} />
             </div>
           </div>
-        </Disclosure>
+        </SettingsSection>
         {event.rsvpEventId && (
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 space-y-2">
-            <h2 className="font-bold">Gäste aus rsvp-app</h2>
+          <SettingsSection id="rsvp-sync" title="Gäste aus rsvp-app" marker="pink" summary={event.rsvpChangedAt ? 'Änderungen gemeldet' : undefined} open={event.rsvpChangedAt !== null || parties.length === 0}>
             <RsvpSyncPanel eventId={event.id} assigned changedSince={event.rsvpChangedAt ? formatShort(event.rsvpChangedAt, event.timezone) : null} />
-          </div>
+          </SettingsSection>
         )}
         <AssignBoard
           eventId={event.id} layout={event.layout} backgroundUrl={backgroundUrl} title={`Sitzordnung ${event.title}`}
@@ -103,25 +101,18 @@ export default async function ArrangePage({ params }: { params: Promise<{ id: st
   }
 
   return (
-    <main className="bg-gray-50 dark:bg-gray-900 py-6 px-4">
-      <div className="max-w-7xl mx-auto space-y-4 text-gray-900 dark:text-gray-100">
-        <div className="space-y-1">
-          <p className="text-sm">
-            <Link href={base} className="text-blue-700 dark:text-blue-300 hover:underline">{event.title}</Link>
-            {' › '}
-            <Link href={`${base}/bookings`} className="text-blue-700 dark:text-blue-300 hover:underline">{assigned ? 'Gruppen' : 'Buchungen'}</Link>
-          </p>
-          <h1 className="text-2xl font-bold">{assigned ? 'Sitzordnung' : 'Buchungen im Plan verschieben'}</h1>
-          {assigned && (
-            <p className="text-sm space-x-4">
-              <Link href={`${base}/print`} className="text-blue-700 dark:text-blue-300 hover:underline">Tischliste drucken</Link>
-              <Link href={`${base}/print?view=cards`} className="text-blue-700 dark:text-blue-300 hover:underline">Tischkarten</Link>
-              <a href={`${base}/export`} className="text-blue-700 dark:text-blue-300 hover:underline">CSV-Export</a>
-            </p>
-          )}
-        </div>
-        {board}
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 className="text-xl font-semibold">{assigned ? 'Sitzordnung' : 'Buchungen im Plan verschieben'}</h2>
+        {assigned && (
+          <div className="flex flex-wrap gap-2">
+            <ButtonLink href={`${base}/print`} size="sm">Tischliste drucken</ButtonLink>
+            <ButtonLink href={`${base}/print?view=cards`} size="sm">Tischkarten</ButtonLink>
+            <a href={`${base}/export`} className={buttonClass('secondary', 'sm')}>CSV-Export</a>
+          </div>
+        )}
       </div>
-    </main>
+      {board}
+    </div>
   )
 }

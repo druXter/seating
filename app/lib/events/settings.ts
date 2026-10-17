@@ -29,6 +29,9 @@ export const MODE_LABELS: Record<EventMode, string> = {
   ASSIGNED: 'Sitzordnung durch Veranstalter*innen'
 }
 
+/** Kurzform für Badges in Übersichten. */
+export const MODE_SHORT: Record<EventMode, string> = { TABLE: 'Tischbuchung', SEAT: 'Platzbuchung', ASSIGNED: 'Sitzordnung' }
+
 /** Modi, die die Oberfläche anbietet (SEAT seit Phase 5, ASSIGNED seit Phase 6). */
 export const AVAILABLE_MODES: readonly EventMode[] = ['TABLE', 'SEAT', 'ASSIGNED']
 
@@ -56,6 +59,11 @@ export function accessForMode(mode: EventMode, requested: string = 'OPEN'): Book
 export const RSVP_EVENT_ID = /^[a-z0-9]{10,40}$/
 
 const STATUSES: readonly EventStatus[] = ['DRAFT', 'OPEN', 'CLOSED', 'ARCHIVED']
+
+/** Status aus einem Formularwert, null bei unbekanntem Wert. */
+export function parseStatus(value: string): EventStatus | null {
+  return STATUSES.includes(value as EventStatus) ? value as EventStatus : null
+}
 
 export type EventFields = {
   title: string

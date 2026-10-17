@@ -10,6 +10,7 @@ import type { UnitState } from '../../lib/events/occupancy'
 import { initials } from '../../lib/events/assign-rules'
 import { moveBookingOnPlan, placeAttendeeOnPlan, placePartyOnPlan, type ArrangeResult } from '../../admin/events/arrange-actions'
 import PlanViewer from './plan-viewer'
+import { buttonClass } from '../kit'
 import { STATE_TEXT, type UnitVisual } from './plan-svg'
 
 /**
@@ -108,9 +109,17 @@ function DragGhost({ drag }: { drag: { label: string; point: Point } | null }) {
   )
 }
 
-const chip = 'select-none rounded border px-2 py-1 text-sm text-left'
-const button = 'text-sm rounded px-3 py-1 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-900 disabled:opacity-50'
-const primary = 'text-sm rounded px-3 py-1 bg-blue-600 text-white font-bold hover:bg-blue-700 disabled:opacity-50'
+const chip = 'select-none rounded-lg border px-2.5 py-1.5 text-sm text-left'
+const button = buttonClass('secondary')
+const primary = buttonClass('primary')
+
+/**
+ * Auswahl-Feld über dem Plan. Auf dem Handy liegen Liste und Plan untereinander - solange etwas gewählt ist, hängt das
+ * Feld deshalb unten am Bildschirm (Ziel wählen, ohne zum Plan zu scrollen; der Plan bleibt antippbar).
+ */
+function selectionClass(active: boolean): string {
+  return `space-y-2 rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-900 ${active ? 'max-lg:fixed max-lg:inset-x-0 max-lg:bottom-0 max-lg:z-30 max-lg:max-h-[60vh] max-lg:overflow-y-auto max-lg:rounded-none max-lg:border-x-0 max-lg:border-b-0 max-lg:bg-white max-lg:p-4 max-lg:pb-[max(1rem,env(safe-area-inset-bottom))] max-lg:shadow-[0_-4px_16px_rgba(0,0,0,0.12)] max-lg:dark:bg-gray-800' : ''}`
+}
 
 function Message({ result }: { result: ArrangeResult | null }) {
   return (
@@ -266,17 +275,17 @@ export function AssignBoard({ eventId, layout, backgroundUrl, title, parties, se
   const unplacedOfSelectedParty = selected?.kind === 'party' ? selectedParty?.persons.filter(p => !p.seatKey).length ?? 0 : 0
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] items-start">
+    <div className={`grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] items-start ${selected ? 'max-lg:pb-64' : ''}`}>
       <DragGhost drag={drag.drag} />
       <section
         aria-label="Gästeliste" data-drop="list"
-        className={`bg-white dark:bg-gray-800 rounded-lg shadow p-4 space-y-3 ${drag.drag?.target?.kind === 'list' ? 'ring-2 ring-blue-500' : ''}`}
+        className={`bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-4 space-y-3 ${drag.drag?.target?.kind === 'list' ? 'ring-2 ring-blue-500' : ''}`}
       >
-        <h2 className="font-bold">Gäste</h2>
+        <h2 className="font-semibold">Gäste</h2>
         <p className="text-sm text-gray-700 dark:text-gray-300" data-testid="seated-count">{seated} von {total} {total === 1 ? 'Person hat' : 'Personen haben'} einen Platz.</p>
         <div className="space-y-2">
           <label htmlFor={`${id}-q`} className="sr-only">Gäste suchen</label>
-          <input id={`${id}-q`} value={query} onChange={e => setQuery(e.currentTarget.value)} placeholder="Suchen" className="w-full border border-gray-300 dark:border-gray-600 p-2 rounded text-sm" />
+          <input id={`${id}-q`} value={query} onChange={e => setQuery(e.currentTarget.value)} placeholder="Suchen" className="w-full rounded-lg border border-gray-300 bg-white p-2 text-base sm:text-sm text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100 dark:focus:ring-blue-900" />
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" checked={onlyOpen} onChange={e => setOnlyOpen(e.currentTarget.checked)} /> Nur Gruppen mit Personen ohne Platz
           </label>
@@ -287,7 +296,7 @@ export function AssignBoard({ eventId, layout, backgroundUrl, title, parties, se
             const open = party.persons.filter(p => !p.seatKey).length
             const partySelected = selected?.kind === 'party' && selected.id === party.id
             return (
-              <li key={party.id} className="border border-gray-200 dark:border-gray-700 rounded p-2 space-y-1" data-testid="party">
+              <li key={party.id} className="rounded-lg border border-gray-200 dark:border-gray-700 p-3 space-y-1.5" data-testid="party">
                 <div className="flex flex-wrap items-baseline justify-between gap-x-2">
                   <span className="font-medium">{party.name}</span>
                   <Link href={`/admin/events/${eventId}/bookings/${party.id}`} className="text-xs text-blue-700 dark:text-blue-300 hover:underline">bearbeiten</Link>
@@ -332,8 +341,8 @@ export function AssignBoard({ eventId, layout, backgroundUrl, title, parties, se
         {parties.length > 0 && <p className="text-xs text-gray-600 dark:text-gray-400">Eine Person hierher ziehen nimmt sie vom Platz.</p>}
       </section>
 
-      <section aria-label="Plan" className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 space-y-3">
-        <div className="space-y-2 border border-gray-200 dark:border-gray-700 rounded p-2 bg-gray-50 dark:bg-gray-900" data-testid="selection">
+      <section aria-label="Plan" className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-4 space-y-3">
+        <div className={selectionClass(selected !== null)} data-testid="selection">
           {!selected ? (
             <p className="text-sm text-gray-700 dark:text-gray-300">
               Ziehe Personen oder Gruppen auf Plätze oder Tische – oder wähle sie in der Liste und tippe dann auf einen Platz.
@@ -355,7 +364,7 @@ export function AssignBoard({ eventId, layout, backgroundUrl, title, parties, se
               <div className="flex flex-wrap items-end gap-2">
                 <div>
                   <label htmlFor={`${id}-target`} className="block text-xs font-medium mb-1">{selected.kind === 'party' ? 'Ab Platz' : 'Platz'}</label>
-                  <select id={`${id}-target`} value={targetKey} onChange={e => setTargetKey(e.currentTarget.value)} className="border border-gray-300 dark:border-gray-600 p-1 rounded text-sm max-w-72">
+                  <select id={`${id}-target`} value={targetKey} onChange={e => setTargetKey(e.currentTarget.value)} className="max-w-full rounded-lg border border-gray-300 bg-white p-2 text-base sm:max-w-72 sm:text-sm dark:border-gray-600 dark:bg-gray-900">
                     <option value="">– Platz wählen –</option>
                     {groupsOfSeats.map(group => (
                       <optgroup key={group} label={group}>
@@ -495,7 +504,7 @@ export function MoveBoard({ eventId, mode, layout, backgroundUrl, title, booking
   const list: ReactNode = (
     <ul className="space-y-2">
       {bookings.map(booking => (
-        <li key={booking.id} className="border border-gray-200 dark:border-gray-700 rounded p-2 space-y-1">
+        <li key={booking.id} className="rounded-lg border border-gray-200 dark:border-gray-700 p-3 space-y-1.5">
           <div className="flex flex-wrap items-baseline justify-between gap-x-2">
             <span className="font-medium">{booking.name}</span>
             <Link href={`/admin/events/${eventId}/bookings/${booking.id}`} className="text-xs text-blue-700 dark:text-blue-300 hover:underline">Buchung</Link>
@@ -529,15 +538,15 @@ export function MoveBoard({ eventId, mode, layout, backgroundUrl, title, booking
   )
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] items-start">
+    <div className={`grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] items-start ${selected || pending ? 'max-lg:pb-64' : ''}`}>
       <DragGhost drag={drag.drag} />
-      <section aria-label="Buchungen" className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 space-y-3">
-        <h2 className="font-bold">Aktive Buchungen</h2>
+      <section aria-label="Buchungen" className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-4 space-y-3">
+        <h2 className="font-semibold">Aktive Buchungen</h2>
         {bookings.length === 0 ? <p className="text-sm text-gray-600 dark:text-gray-400">Keine aktiven Buchungen.</p> : list}
       </section>
 
-      <section aria-label="Plan" className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 space-y-3">
-        <div className="space-y-2 border border-gray-200 dark:border-gray-700 rounded p-2 bg-gray-50 dark:bg-gray-900" data-testid="selection">
+      <section aria-label="Plan" className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-4 space-y-3">
+        <div className={selectionClass(selected !== null || pending !== null)} data-testid="selection">
           <label className="flex items-start gap-2 text-sm">
             <input type="checkbox" checked={notify} onChange={e => setNotify(e.currentTarget.checked)} className="mt-1" />
             <span>Kund*innen per Mail benachrichtigen (bestätigte Buchungen, mit Gegenüberstellung alt → neu und neuem Kalendereintrag)</span>
@@ -570,7 +579,7 @@ export function MoveBoard({ eventId, mode, layout, backgroundUrl, title, booking
               <div className="flex flex-wrap items-end gap-2">
                 <div>
                   <label htmlFor={`${id}-target`} className="block text-xs font-medium mb-1">Neuer {what}</label>
-                  <select id={`${id}-target`} value={targetKey} onChange={e => setTargetKey(e.currentTarget.value)} className="border border-gray-300 dark:border-gray-600 p-1 rounded text-sm max-w-72">
+                  <select id={`${id}-target`} value={targetKey} onChange={e => setTargetKey(e.currentTarget.value)} className="max-w-full rounded-lg border border-gray-300 bg-white p-2 text-base sm:max-w-72 sm:text-sm dark:border-gray-600 dark:bg-gray-900">
                     <option value="">– {what} wählen –</option>
                     {freeUnits.map(unit => <option key={unit.key} value={unit.key}>{unit.label}{unit.state === 'unavailable' ? ' – nicht buchbar' : ''}</option>)}
                   </select>

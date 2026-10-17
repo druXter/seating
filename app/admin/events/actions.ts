@@ -2,6 +2,7 @@
 'use server'
 
 import { redirect } from 'next/navigation'
+import { revalidatePath } from 'next/cache'
 import { Prisma } from '@prisma/client'
 import { prisma } from '../../lib/prisma'
 import { requireUser } from '../../lib/auth'
@@ -12,7 +13,7 @@ import { loadPlan } from '../../lib/floorplan/store'
 import { parseLayout } from '../../lib/floorplan/schema'
 import type { SaveResult } from '../../lib/floorplan/editor-state'
 import { loadEventForUser } from '../../lib/events/store'
-import { parseEventForm } from '../../lib/events/settings'
+import { parseEventForm, parseStatus } from '../../lib/events/settings'
 import { initialUnits, replaceEventLayout } from '../../lib/events/save-layout'
 import { afterBookingChange } from '../../lib/events/waitlist'
 import { emailBlockingWhere } from '../../lib/events/booking-tx'
@@ -71,7 +72,26 @@ export async function createEvent(_previous: FormState, formData: FormData): Pro
   redirect(`/admin/events/${eventId}?created=1`)
 }
 
-/** Titel, Adresse, Zeiten, Status, Buchungszeitraum, Mindestbelegung. */
+/**
+ * Status wechseln (Knöpfe in der Übersicht des Events): Entwurf, veröffentlicht, Buchung geschlossen, archiviert.
+ * Wie die Einstellungen für alle Konten mit Zugriff auf das Event.
+ */
+export async function setEventStatus(formData: FormData) {
+  const user = await requireUser('/admin/events')
+  const event = await loadEventForUser(formString(formData, 'eventId', 50), user)
+  if (!event) redirect('/admin/events')
+  const status = parseStatus(formString(formData, 'status', 20))
+  if (status && status !== event.status) {
+    await prisma.event.update({ where: { id: event.id }, data: { status } })
+    // Veröffentlicht oder wieder geöffnet: vielleicht wartet jemand auf einen Tisch.
+    afterBookingChange(event.id)
+  }
+  // Kopf und Reiter (Layout des Events) zeigen den Status - neu laden, nicht nur die Seite.
+  revalidatePath(`/admin/events/${event.id}`, 'layout')
+  redirect(`/admin/events/${event.id}?status=${status ?? 'invalid'}`)
+}
+
+/** Titel, Adresse, Zeiten, Buchungszeitraum, Mindestbelegung und die übrigen Einstellungen. */
 export async function updateEventSettings(_previous: FormState, formData: FormData): Promise<FormState> {
   const user = await requireUser('/admin/events')
   const event = await loadEventForUser(formString(formData, 'eventId', 50), user)
@@ -108,7 +128,9 @@ export async function updateEventSettings(_previous: FormState, formData: FormDa
   }
   // Warteliste eingeschaltet, Mindestbelegung gesenkt, Event veröffentlicht ...: vielleicht passt jetzt ein Tisch.
   afterBookingChange(event.id)
-  redirect(`/admin/events/${event.id}?settings=1`)
+  // Titel, Modus (Reiter) und Zugang stehen im Kopf, der zum Layout gehört.
+  revalidatePath(`/admin/events/${event.id}`, 'layout')
+  redirect(`/admin/events/${event.id}/settings?saved=1`)
 }
 
 /**
@@ -161,7 +183,7 @@ export async function resyncEventFromTemplate(_previous: FormState, formData: Fo
   })
   await deleteUpload(event.backgroundFile)
   afterBookingChange(event.id)
-  redirect(`/admin/events/${event.id}?resynced=1`)
+  redirect(`/admin/events/${event.id}/plan?resynced=1`)
 }
 
 export async function removeEventBackground(formData: FormData) {
@@ -171,7 +193,7 @@ export async function removeEventBackground(formData: FormData) {
 
   await prisma.event.update({ where: { id: event.id }, data: { backgroundFile: null, backgroundType: null } })
   await deleteUpload(event.backgroundFile)
-  redirect(`/admin/events/${event.id}?background=removed`)
+  redirect(`/admin/events/${event.id}/plan?background=removed`)
 }
 
 /**
@@ -187,15 +209,15 @@ export async function shareEvent(formData: FormData) {
 
   const email = normalizeEmail(formString(formData, 'email', 254))
   const target = email ? await prisma.user.findUnique({ where: { email }, select: { id: true } }) : null
-  if (!target) redirect(`/admin/events/${event.id}?shareError=notfound`)
-  if (target.id === event.ownerId) redirect(`/admin/events/${event.id}?shareError=owner`)
+  if (!target) redirect(`/admin/events/${event.id}/settings?shareError=notfound`)
+  if (target.id === event.ownerId) redirect(`/admin/events/${event.id}/settings?shareError=owner`)
 
   await prisma.eventAccess.upsert({
     where: { eventId_userId: { eventId: event.id, userId: target.id } },
     update: {},
     create: { eventId: event.id, userId: target.id }
   })
-  redirect(`/admin/events/${event.id}?shared=1`)
+  redirect(`/admin/events/${event.id}/settings?shared=1`)
 }
 
 /** Nimmt eine Freigabe zurück. Nur owner des betroffenen Events. */
@@ -207,7 +229,7 @@ export async function unshareEvent(formData: FormData) {
   if (!event || event.level !== 'owner') redirect('/admin/events')
 
   await prisma.eventAccess.delete({ where: { id: access.id } })
-  redirect(`/admin/events/${event.id}?unshared=1`)
+  redirect(`/admin/events/${event.id}/settings?unshared=1`)
 }
 
 /**

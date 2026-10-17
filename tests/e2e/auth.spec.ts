@@ -47,6 +47,7 @@ test('Abmelden löscht die Sitzung auch in der Datenbank', async ({ page }) => {
   const user = await createAccount('CREATOR')
   await login(page, user.email)
   await expect(page).toHaveURL(/\/admin$/)
+  await page.getByLabel('Konto-Menü').click()
   await page.getByRole('button', { name: 'Abmelden' }).click()
   await expect(page).toHaveURL(`${BASE_URL}/`)
   expect(await prisma.session.count({ where: { userId: user.id } })).toBe(0)
@@ -138,20 +139,20 @@ test('Passwortwechsel verlangt das aktuelle Passwort und die Passwort-Regel', as
   await expect(page).toHaveURL(/error=weak/)
 })
 
-test('Kopfleiste bricht auf Handybreite um, statt Menüpunkte links abzuschneiden', async ({ page }) => {
+test('Kopfzeile passt auf Handybreite: Navigation und Konto-Menü ohne seitliches Scrollen', async ({ page }) => {
   const user = await createAccount('ADMIN', { email: uniqueEmail('eine-sehr-lange-adresse-zum-umbrechen') })
   await page.setViewportSize({ width: 360, height: 740 })
   await login(page, user.email)
   await expect(page).toHaveURL(/\/admin$/)
 
-  const nav = page.getByRole('navigation', { name: 'Konto' })
+  const nav = page.getByRole('navigation', { name: 'Hauptnavigation' })
+  await page.getByLabel('Konto-Menü').click()
   const items = [
-    nav.getByRole('link', { name: 'Verwaltung' }),
     nav.getByRole('link', { name: 'Events' }),
     nav.getByRole('link', { name: 'Raumpläne' }),
     nav.getByRole('link', { name: 'Konten' }),
-    nav.getByRole('link', { name: user.email }),
-    nav.getByRole('button', { name: 'Abmelden' })
+    page.getByRole('link', { name: 'Mein Konto' }),
+    page.getByRole('button', { name: 'Abmelden' })
   ]
   for (const item of items) {
     const box = await item.boundingBox()

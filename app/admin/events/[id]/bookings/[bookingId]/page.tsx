@@ -39,9 +39,9 @@ const DONE: Record<string, string> = {
   assigned: 'Tisch zugewiesen, die Buchung ist bestätigt.'
 }
 
-const input = 'w-full border border-gray-300 dark:border-gray-600 p-2 rounded'
-const labelClass = 'block text-sm font-medium mb-1'
-const card = 'bg-white dark:bg-gray-800 rounded-lg shadow p-4 space-y-3'
+const input = 'w-full rounded-lg border border-gray-300 bg-white p-2 text-base sm:text-sm text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100 dark:focus:ring-blue-900'
+const labelClass = 'block text-sm font-medium text-gray-800 dark:text-gray-200 mb-1'
+const card = 'bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-4 sm:p-5 space-y-3'
 
 function Checkbox({ name, label, defaultChecked = true }: { name: string; label: string; defaultChecked?: boolean }) {
   return (
@@ -97,15 +97,10 @@ export default async function BookingPage({ params, searchParams }: {
   const link = booking.status === 'CONFIRMED' && bookingSecretsConfigured() ? manageUrl(booking) : null
 
   return (
-    <main className="bg-gray-50 dark:bg-gray-900 py-6 px-4">
-      <div className="max-w-5xl mx-auto space-y-4 text-gray-900 dark:text-gray-100">
+    <div className="space-y-4">
         <div className="space-y-1">
-          <p className="text-sm">
-            <Link href={base} className="text-blue-700 dark:text-blue-300 hover:underline">{event.title}</Link>
-            {' › '}
-            <Link href={`${base}/bookings`} className="text-blue-700 dark:text-blue-300 hover:underline">Buchungen</Link>
-          </p>
-          <h1 className="text-2xl font-bold">{booking.name} <BookingStatusBadge status={status} /></h1>
+          <Link href={`${base}/bookings`} className="text-sm text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200">← Alle Buchungen</Link>
+          <h2 className="flex flex-wrap items-center gap-2 text-xl font-semibold">{booking.name} <BookingStatusBadge status={status} /></h2>
         </div>
 
         {search.done && DONE[search.done] && <Notice tone={search.done === 'unchanged' ? 'info' : 'success'}>{DONE[search.done]}</Notice>}
@@ -114,7 +109,7 @@ export default async function BookingPage({ params, searchParams }: {
         <div className="grid gap-4 md:grid-cols-2 items-start">
           <div className="space-y-4">
             <div className={card}>
-              <h2 className="font-bold">Buchung</h2>
+              <h2 className="font-semibold">Buchung</h2>
               <dl className="text-sm grid grid-cols-[auto_1fr] gap-x-4 gap-y-1">
                 <dt className="text-gray-600 dark:text-gray-400">{seatMode ? 'Plätze' : 'Tisch'}</dt><dd>{booking.placeLabel}</dd>
                 <dt className="text-gray-600 dark:text-gray-400">Personen</dt><dd>{booking.partySize}</dd>
@@ -143,7 +138,7 @@ export default async function BookingPage({ params, searchParams }: {
 
             {active && (
               <div className={card}>
-                <h2 className="font-bold">Ändern</h2>
+                <h2 className="font-semibold">Ändern</h2>
                 <ActionForm action={changeBookingAdmin}>
                   {hidden}
                   <input type="hidden" name="updatedAt" value={booking.updatedAt.toISOString()} />
@@ -199,12 +194,12 @@ export default async function BookingPage({ params, searchParams }: {
             )}
 
             <div className={card}>
-              <h2 className="font-bold">Interne Notiz</h2>
+              <h2 className="font-semibold">Interne Notiz</h2>
               <ActionForm action={saveAdminNote}>
                 {hidden}
                 <label htmlFor="admin-note" className="sr-only">Interne Notiz</label>
                 <textarea id="admin-note" name="adminNote" maxLength={ADMIN_NOTE_MAX} rows={3} defaultValue={booking.adminNote ?? ''} className={input} />
-                <button type="submit" className="text-sm bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded px-3 py-1 hover:bg-gray-200 dark:hover:bg-gray-600">Notiz speichern</button>
+                <button type="submit" className="inline-flex items-center justify-center gap-1.5 rounded-lg font-medium transition disabled:opacity-60 whitespace-nowrap px-3.5 py-2 text-sm bg-white text-gray-800 hover:bg-gray-50 border border-gray-300 dark:bg-gray-800 dark:text-gray-100 dark:border-gray-600 dark:hover:bg-gray-700">Notiz speichern</button>
                 <p className="text-xs text-gray-600 dark:text-gray-400">Nur für Veranstalter*innen sichtbar – nie in Mails oder auf der Seite der Kund*in.</p>
               </ActionForm>
             </div>
@@ -213,7 +208,7 @@ export default async function BookingPage({ params, searchParams }: {
           <div className="space-y-4">
             {waiting && (
               <div className={card}>
-                <h2 className="font-bold">Warteliste</h2>
+                <h2 className="font-semibold">Warteliste</h2>
                 <p className="text-sm text-gray-700 dark:text-gray-300">
                   {booking.emailVerifiedAt
                     ? 'Wird ein passender Tisch frei, bekommt der am längsten wartende passende Eintrag automatisch ein Angebot. Du kannst auch direkt einen Tisch zuweisen – am Nachrück-Verfahren vorbei.'
@@ -225,7 +220,7 @@ export default async function BookingPage({ params, searchParams }: {
                     <p className="text-sm">Plätze für {booking.partySize} {booking.partySize === 1 ? 'Person' : 'Personen'} wählen – auch verstreute:</p>
                     <SeatPicker layout={event.layout} backgroundUrl={backgroundUrl} title={`Plan von ${event.title}`} seats={seatData.seats} groups={seatData.groups} max={null} />
                     {mailable && <Checkbox name="notify" label="Bestätigungsmail mit Kalendereintrag und Verwaltungslink schicken" />}
-                    <button type="submit" className="text-sm bg-blue-600 text-white font-bold rounded px-3 py-1 hover:bg-blue-700">Plätze zuweisen und bestätigen</button>
+                    <button type="submit" className="inline-flex items-center justify-center gap-1.5 rounded-lg font-medium transition disabled:opacity-60 whitespace-nowrap px-3.5 py-2 text-sm bg-blue-600 text-white hover:bg-blue-700 border border-blue-600">Plätze zuweisen und bestätigen</button>
                   </ActionForm>
                 ) : tables.length === 0 ? <p className="text-sm text-gray-600 dark:text-gray-400">Gerade ist kein Tisch frei.</p> : (
                   <ActionForm action={assignWaitlistAdmin}>
@@ -239,7 +234,7 @@ export default async function BookingPage({ params, searchParams }: {
                       </select>
                     </div>
                     {mailable && <Checkbox name="notify" label="Bestätigungsmail mit Kalendereintrag und Verwaltungslink schicken" />}
-                    <button type="submit" className="text-sm bg-blue-600 text-white font-bold rounded px-3 py-1 hover:bg-blue-700">Tisch zuweisen und bestätigen</button>
+                    <button type="submit" className="inline-flex items-center justify-center gap-1.5 rounded-lg font-medium transition disabled:opacity-60 whitespace-nowrap px-3.5 py-2 text-sm bg-blue-600 text-white hover:bg-blue-700 border border-blue-600">Tisch zuweisen und bestätigen</button>
                   </ActionForm>
                 )}
               </div>
@@ -247,29 +242,29 @@ export default async function BookingPage({ params, searchParams }: {
 
             {offered && (
               <div className={card}>
-                <h2 className="font-bold">Angebot aus der Warteliste</h2>
+                <h2 className="font-semibold">Angebot aus der Warteliste</h2>
                 <p className="text-sm text-gray-700 dark:text-gray-300">{booking.placeLabel}: der Gruppe angeboten. Nimmt sie nicht rechtzeitig an, geht das Angebot an den nächsten passenden Eintrag.</p>
                 <ActionForm action={confirmBookingAdmin}>
                   {hidden}
                   {mailable && <Checkbox name="notify" label="Bestätigungsmail mit Kalendereintrag schicken" />}
-                  <button type="submit" className="text-sm bg-blue-600 text-white font-bold rounded px-3 py-1 hover:bg-blue-700">Für die Gruppe annehmen</button>
+                  <button type="submit" className="inline-flex items-center justify-center gap-1.5 rounded-lg font-medium transition disabled:opacity-60 whitespace-nowrap px-3.5 py-2 text-sm bg-blue-600 text-white hover:bg-blue-700 border border-blue-600">Für die Gruppe annehmen</button>
                 </ActionForm>
               </div>
             )}
 
             {status === 'PENDING' && (
               <div className={card}>
-                <h2 className="font-bold">Unbestätigt</h2>
+                <h2 className="font-semibold">Unbestätigt</h2>
                 <ActionForm action={confirmBookingAdmin}>
                   {hidden}
                   {mailable && <Checkbox name="notify" label="Bestätigungsmail mit Kalendereintrag und Verwaltungslink schicken" />}
-                  <button type="submit" className="text-sm bg-blue-600 text-white font-bold rounded px-3 py-1 hover:bg-blue-700">Manuell bestätigen</button>
+                  <button type="submit" className="inline-flex items-center justify-center gap-1.5 rounded-lg font-medium transition disabled:opacity-60 whitespace-nowrap px-3.5 py-2 text-sm bg-blue-600 text-white hover:bg-blue-700 border border-blue-600">Manuell bestätigen</button>
                 </ActionForm>
                 {mailable && (
                   <ActionForm action={resendVerificationAdmin}>
                     {hidden}
                     <Checkbox name="renew" label={`Frist neu beginnen (${event.pendingTtlMinutes} Minuten ab jetzt)`} />
-                    <button type="submit" className="text-sm bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded px-3 py-1 hover:bg-gray-200 dark:hover:bg-gray-600">Bestätigungsmail erneut senden</button>
+                    <button type="submit" className="inline-flex items-center justify-center gap-1.5 rounded-lg font-medium transition disabled:opacity-60 whitespace-nowrap px-3.5 py-2 text-sm bg-white text-gray-800 hover:bg-gray-50 border border-gray-300 dark:bg-gray-800 dark:text-gray-100 dark:border-gray-600 dark:hover:bg-gray-700">Bestätigungsmail erneut senden</button>
                   </ActionForm>
                 )}
                 {booking.source !== 'RSVP' && (
@@ -280,7 +275,7 @@ export default async function BookingPage({ params, searchParams }: {
                       <input id="correct-email" name="email" type="email" required maxLength={254} defaultValue={booking.email ?? ''} className={input} />
                     </div>
                     <Checkbox name="renew" label="Frist neu beginnen" />
-                    <button type="submit" className="text-sm bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded px-3 py-1 hover:bg-gray-200 dark:hover:bg-gray-600">Korrigieren und Bestätigungsmail schicken</button>
+                    <button type="submit" className="inline-flex items-center justify-center gap-1.5 rounded-lg font-medium transition disabled:opacity-60 whitespace-nowrap px-3.5 py-2 text-sm bg-white text-gray-800 hover:bg-gray-50 border border-gray-300 dark:bg-gray-800 dark:text-gray-100 dark:border-gray-600 dark:hover:bg-gray-700">Korrigieren und Bestätigungsmail schicken</button>
                     <p className="text-xs text-gray-600 dark:text-gray-400">Neuer Link und Code gehen an die neue Adresse. Die alte Adresse bekommt nichts – bei einem Tippfehler gehört sie vermutlich jemand anderem.</p>
                   </ActionForm>
                 )}
@@ -289,24 +284,24 @@ export default async function BookingPage({ params, searchParams }: {
 
             {link && (
               <div className={card}>
-                <h2 className="font-bold">Verwaltungslink</h2>
+                <h2 className="font-semibold">Verwaltungslink</h2>
                 <CopyableField label="Persönlicher Link der Kund*in (nicht weitergeben)" value={link} />
                 <ActionForm action={renewManageLinkAdmin} confirm="Neuen Link erzeugen? Der bisherige Link – auch in Kalendereinträgen – funktioniert danach nicht mehr.">
                   {hidden}
                   {mailable && <Checkbox name="notify" label="Neuen Link per Mail schicken" />}
-                  <button type="submit" className="text-sm bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded px-3 py-1 hover:bg-gray-200 dark:hover:bg-gray-600">Link neu erzeugen</button>
+                  <button type="submit" className="inline-flex items-center justify-center gap-1.5 rounded-lg font-medium transition disabled:opacity-60 whitespace-nowrap px-3.5 py-2 text-sm bg-white text-gray-800 hover:bg-gray-50 border border-gray-300 dark:bg-gray-800 dark:text-gray-100 dark:border-gray-600 dark:hover:bg-gray-700">Link neu erzeugen</button>
                   <p className="text-xs text-gray-600 dark:text-gray-400">Zum Beispiel, wenn der Link in falsche Hände geraten ist.</p>
                 </ActionForm>
               </div>
             )}
 
             <div className={card}>
-              <h2 className="font-bold">Stornieren oder löschen</h2>
+              <h2 className="font-semibold">Stornieren oder löschen</h2>
               {cancellable && (
                 <ActionForm action={cancelBookingAdmin} confirm={waiting || offered ? 'Eintrag beenden? Die Gruppe steht dann nicht mehr auf der Warteliste.' : 'Buchung stornieren? Der Tisch wird sofort wieder frei.'}>
                   {hidden}
                   {status === 'CONFIRMED' && mailable && <Checkbox name="notify" label="Kund*in per Mail benachrichtigen (Kalendereintrag wird entfernt)" />}
-                  <button type="submit" className="text-sm text-red-700 dark:text-red-300 border border-red-300 dark:border-red-700 rounded px-3 py-1 hover:bg-red-50 dark:hover:bg-red-950/50">{waiting || offered ? 'Eintrag beenden' : 'Buchung stornieren'}</button>
+                  <button type="submit" className="inline-flex items-center justify-center gap-1.5 rounded-lg font-medium transition disabled:opacity-60 whitespace-nowrap px-3.5 py-2 text-sm bg-white text-red-700 hover:bg-red-50 border border-red-300 dark:bg-gray-800 dark:text-red-300 dark:border-red-800 dark:hover:bg-red-950">{waiting || offered ? 'Eintrag beenden' : 'Buchung stornieren'}</button>
                 </ActionForm>
               )}
               <ActionForm action={deleteBookingAdmin} confirm="Buchung endgültig löschen? Alle Daten dazu – auch Verlauf und Mailprotokoll – werden gelöscht.">
@@ -318,9 +313,9 @@ export default async function BookingPage({ params, searchParams }: {
             </div>
 
             <div className={card}>
-              <h2 className="font-bold">Verlauf</h2>
+              <h2 className="font-semibold">Verlauf</h2>
               {auditLog.length === 0 ? <p className="text-sm text-gray-600 dark:text-gray-400">Keine Einträge.</p> : (
-                <ul className="text-sm divide-y" data-testid="audit-log">
+                <ul className="text-sm divide-y divide-gray-100 dark:divide-gray-700" data-testid="audit-log">
                   {auditLog.map(entry => {
                     const details = auditDetails(entry, auditContext)
                     return (
@@ -335,9 +330,9 @@ export default async function BookingPage({ params, searchParams }: {
             </div>
 
             <div className={card}>
-              <h2 className="font-bold">Mails</h2>
+              <h2 className="font-semibold">Mails</h2>
               {mailLog.length === 0 ? <p className="text-sm text-gray-600 dark:text-gray-400">Keine Mails.</p> : (
-                <ul className="text-sm divide-y" data-testid="mail-log">
+                <ul className="text-sm divide-y divide-gray-100 dark:divide-gray-700" data-testid="mail-log">
                   {mailLog.map(mail => (
                     <li key={mail.id} className="py-1">
                       <span className="text-gray-600 dark:text-gray-400">{formatShort(mail.createdAt, tz)}:</span> {MAIL_TYPE_LABELS[mail.type] ?? mail.type} an {mail.recipient} –{' '}
@@ -350,7 +345,6 @@ export default async function BookingPage({ params, searchParams }: {
             </div>
           </div>
         </div>
-      </div>
-    </main>
+    </div>
   )
 }

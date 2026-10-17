@@ -46,7 +46,7 @@ export default function RsvpSyncPanel({ eventId, assigned, changedSince }: { eve
             if (items.length === 0) return null
             return (
               <fieldset key={kind} className="space-y-1">
-                <legend className="text-sm font-bold">{KIND_LABELS[kind]} ({items.length})</legend>
+                <legend className="text-sm font-semibold">{KIND_LABELS[kind]} ({items.length})</legend>
                 {items.map(item => (
                   <label key={item.key} className="flex items-start gap-2 text-sm">
                     <input type="checkbox" name="item" value={item.key} defaultChecked={kind !== 'removed' || !assigned} className="mt-1" />
@@ -57,13 +57,13 @@ export default function RsvpSyncPanel({ eventId, assigned, changedSince }: { eve
             )
           })}
           {preview.items.length > 0 && (
-            <button type="submit" disabled={pending} className="bg-blue-600 text-white font-bold py-2 px-3 rounded hover:bg-blue-700 text-sm disabled:opacity-50">Ausgewählte übernehmen</button>
+            <button type="submit" disabled={pending} className="inline-flex items-center justify-center gap-1.5 rounded-lg font-medium transition disabled:opacity-60 whitespace-nowrap px-3.5 py-2 text-sm bg-blue-600 text-white hover:bg-blue-700 border border-blue-600">Ausgewählte übernehmen</button>
           )}
         </form>
       ) : (
         <form action={dispatch}>
           <input type="hidden" name="eventId" value={eventId} />
-          <button type="submit" disabled={pending} className="bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded px-3 py-2 text-sm hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50">Mit rsvp-app abgleichen</button>
+          <button type="submit" disabled={pending} className="inline-flex items-center justify-center gap-1.5 rounded-lg font-medium transition disabled:opacity-60 whitespace-nowrap px-3.5 py-2 text-sm bg-white text-gray-800 hover:bg-gray-50 border border-gray-300 dark:bg-gray-800 dark:text-gray-100 dark:border-gray-600 dark:hover:bg-gray-700">Mit rsvp-app abgleichen</button>
         </form>
       )}
       <p className="text-xs text-gray-600 dark:text-gray-400">

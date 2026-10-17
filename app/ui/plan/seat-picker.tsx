@@ -101,10 +101,10 @@ export default function SeatPicker({ layout, backgroundUrl, title, seats, groups
       {selected.map(key => <input key={key} type="hidden" name="unitKey" value={key} />)}
       <div className="flex flex-wrap items-end gap-2">
         <div>
-          <label htmlFor={`${id}-n`} className="block text-sm font-medium mb-1">Wie viele Plätze nebeneinander?</label>
-          <input id={`${id}-n`} type="number" inputMode="numeric" min={1} max={max ?? undefined} value={wanted} onChange={e => setWanted(e.currentTarget.value)} className="w-24 border border-gray-300 dark:border-gray-600 p-2 rounded" />
+          <label htmlFor={`${id}-n`} className="block text-sm font-medium text-gray-800 dark:text-gray-200 mb-1">Wie viele Plätze nebeneinander?</label>
+          <input id={`${id}-n`} type="number" inputMode="numeric" min={1} max={max ?? undefined} value={wanted} onChange={e => setWanted(e.currentTarget.value)} className="w-24 rounded-lg border border-gray-300 bg-white p-2 text-base sm:text-sm text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100 dark:focus:ring-blue-900" />
         </div>
-        <button type="button" onClick={suggest} className="bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded px-3 py-2 text-sm hover:bg-gray-200 dark:hover:bg-gray-600">Plätze vorschlagen</button>
+        <button type="button" onClick={suggest} className="inline-flex items-center justify-center gap-1.5 rounded-lg font-medium transition disabled:opacity-60 whitespace-nowrap px-3.5 py-2 text-sm bg-white text-gray-800 hover:bg-gray-50 border border-gray-300 dark:bg-gray-800 dark:text-gray-100 dark:border-gray-600 dark:hover:bg-gray-700">Plätze vorschlagen</button>
         {selected.length > 0 && <button type="button" onClick={() => update([])} className="text-sm text-blue-700 dark:text-blue-300 hover:underline pb-2">Auswahl leeren</button>}
       </div>
       <p className="text-sm text-gray-700 dark:text-gray-300" role="status" aria-live="polite" data-testid="seat-selection">
@@ -125,7 +125,7 @@ export default function SeatPicker({ layout, backgroundUrl, title, seats, groups
           const free = keys.filter(key => byKey.get(key)!.state === 'free').length
           return (
             <details
-              key={group.label} open={openGroups.has(group.label)} className="border border-gray-200 dark:border-gray-700 rounded"
+              key={group.label} open={openGroups.has(group.label)} className="rounded-lg border border-gray-200 dark:border-gray-700"
               onToggle={e => {
                 const isOpen = e.currentTarget.open
                 setOpenGroups(current => {
@@ -137,8 +137,8 @@ export default function SeatPicker({ layout, backgroundUrl, title, seats, groups
                 })
               }}
             >
-              <summary className="cursor-pointer px-2 py-1 text-sm">{group.label} <span className="text-gray-600 dark:text-gray-400">· {free} von {keys.length} frei</span></summary>
-              <div className="flex flex-wrap gap-x-4 gap-y-1 px-2 py-2 text-sm">
+              <summary className="cursor-pointer px-3 py-2 text-sm">{group.label} <span className="text-gray-600 dark:text-gray-400">· {free} von {keys.length} frei</span></summary>
+              <div className="flex flex-wrap gap-x-4 gap-y-2 px-3 py-2 text-sm">
                 {keys.map(key => {
                   const seat = byKey.get(key)!
                   const chosen = selected.includes(key)

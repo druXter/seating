@@ -1,6 +1,7 @@
 // app/ui/background-card.tsx
 import { MAX_BACKGROUND_BYTES } from '../lib/image-type'
 import Notice from './notice'
+import { buttonClass, SettingsSection } from './kit'
 
 const MESSAGES: Record<string, string> = {
   uploaded: 'Hintergrundbild gespeichert.',
@@ -18,20 +19,20 @@ export function BackgroundNotice({ outcome }: { outcome?: string }) {
 }
 
 /**
- * Upload/Entfernen eines Hintergrundbilds (Vorlagen und Events). Der Upload geht als normales
- * Formular an einen Route Handler (kein Server-Action-Limit von 1 MB), das Entfernen über eine
- * Server Action mit verstecktem id-Feld.
+ * Upload/Entfernen eines Hintergrundbilds (Vorlagen und Events) als einklappbarer Abschnitt. Der Upload geht als
+ * normales Formular an einen Route Handler (kein Server-Action-Limit von 1 MB), das Entfernen über eine Server Action
+ * mit verstecktem id-Feld.
  */
-export default function BackgroundCard({ uploadUrl, hasBackground, removeAction, idField, id }: {
+export default function BackgroundCard({ uploadUrl, hasBackground, removeAction, idField, id, open = false }: {
   uploadUrl: string
   hasBackground: boolean
   removeAction: (formData: FormData) => Promise<void>
   idField: string
   id: string
+  open?: boolean
 }) {
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 space-y-3">
-      <h2 className="font-bold">Hintergrundbild</h2>
+    <SettingsSection id="background" title="Hintergrundbild" summary={hasBackground ? 'vorhanden' : 'keins'} open={open}>
       <p className="text-xs text-gray-600 dark:text-gray-400">
         Ein Grundriss als Unterlage (PNG, JPEG oder WebP, höchstens {MAX_BACKGROUND_BYTES / 1024 / 1024} MB). Lage, Breite
         und Deckkraft stellst du im Editor ein, wenn nichts ausgewählt ist. Speichere vorher Änderungen im Editor –
@@ -40,16 +41,16 @@ export default function BackgroundCard({ uploadUrl, hasBackground, removeAction,
       <form action={uploadUrl} method="post" encType="multipart/form-data" className="space-y-2">
         <label htmlFor="background-file" className="block text-sm font-medium">Bilddatei</label>
         <input id="background-file" name="file" type="file" accept="image/png,image/jpeg,image/webp" required className="w-full text-sm" />
-        <button type="submit" className="bg-blue-600 text-white font-bold py-2 px-4 rounded hover:bg-blue-700">
+        <button type="submit" className={buttonClass('primary')}>
           {hasBackground ? 'Bild ersetzen' : 'Bild hochladen'}
         </button>
       </form>
       {hasBackground && (
         <form action={removeAction}>
           <input type="hidden" name={idField} value={id} />
-          <button type="submit" className="text-sm text-red-700 dark:text-red-300 hover:underline">Hintergrundbild entfernen</button>
+          <button type="submit" className={buttonClass('danger', 'sm')}>Hintergrundbild entfernen</button>
         </form>
       )}
-    </div>
+    </SettingsSection>
   )
 }

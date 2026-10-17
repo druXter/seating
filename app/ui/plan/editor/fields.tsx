@@ -10,7 +10,7 @@ import { useId, type KeyboardEvent } from 'react'
  * Rückgängig), setzt der Aufrufer das Feld über `key` neu auf.
  */
 
-const inputClass = 'w-full border border-gray-300 dark:border-gray-600 rounded px-2 py-1 text-sm'
+const inputClass = 'w-full rounded-md border border-gray-300 bg-white px-2 py-1 text-base sm:text-sm dark:border-gray-600 dark:bg-gray-900'
 
 function commitOnEnter(event: KeyboardEvent<HTMLInputElement>) {
   if (event.key === 'Enter') event.currentTarget.blur()

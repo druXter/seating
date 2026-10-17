@@ -45,16 +45,7 @@ export default async function MailPage({ params, searchParams }: { params: Promi
   const queuedCount = Number.parseInt(queued ?? '', 10)
 
   return (
-    <main className="bg-gray-50 dark:bg-gray-900 py-6 px-4">
-      <div className="max-w-3xl mx-auto space-y-4 text-gray-900 dark:text-gray-100">
-        <div className="space-y-1">
-          <p className="text-sm">
-            <Link href={`/admin/events/${event.id}`} className="text-blue-700 dark:text-blue-300 hover:underline">{event.title}</Link>
-            {' › '}
-            <Link href={`/admin/events/${event.id}/bookings`} className="text-blue-700 dark:text-blue-300 hover:underline">Buchungen</Link>
-          </p>
-          <h1 className="text-2xl font-bold">Rundmail</h1>
-        </div>
+    <div className="max-w-3xl space-y-4">
 
         {Number.isInteger(queuedCount) && queuedCount > 0 && (
           <Notice tone="success">
@@ -63,7 +54,7 @@ export default async function MailPage({ params, searchParams }: { params: Promi
         )}
         {!isMailConfigured() && <Notice tone="warning">Es ist kein Mailserver eingerichtet (SMTP_HOST) – Rundmails lassen sich nicht verschicken.</Notice>}
 
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-4">
           <BroadcastForm
             eventId={event.id}
             event={{ title: event.title, location: event.location, startsAt: event.startsAt, endsAt: event.endsAt, timezone: event.timezone, mode: event.mode }}
@@ -73,12 +64,12 @@ export default async function MailPage({ params, searchParams }: { params: Promi
         </div>
 
         {broadcasts.length > 0 && (
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 space-y-2">
+          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-4 space-y-2">
             <div className="flex items-baseline justify-between gap-2">
-              <h2 className="font-bold">Bisherige Rundmails</h2>
+              <h2 className="font-semibold">Bisherige Rundmails</h2>
               <Link href={`/admin/events/${event.id}/mail`} className="text-sm text-blue-700 dark:text-blue-300 hover:underline">Stand aktualisieren</Link>
             </div>
-            <ul className="text-sm divide-y" data-testid="broadcasts">
+            <ul className="text-sm divide-y divide-gray-100 dark:divide-gray-700" data-testid="broadcasts">
               {broadcasts.map(broadcast => {
                 const tally = new Map<string, number>()
                 for (const mail of broadcast.mails) tally.set(mail.status, (tally.get(mail.status) ?? 0) + 1)
@@ -95,7 +86,6 @@ export default async function MailPage({ params, searchParams }: { params: Promi
             </ul>
           </div>
         )}
-      </div>
-    </main>
+    </div>
   )
 }

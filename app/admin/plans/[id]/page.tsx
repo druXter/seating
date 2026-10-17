@@ -1,11 +1,11 @@
 // app/admin/plans/[id]/page.tsx
-import Link from 'next/link'
 import { requireUser } from '../../../lib/auth'
 import { loadPlanOr404 } from '../../../lib/floorplan/store'
 import { summarize } from '../../../lib/floorplan/units'
 import { duplicatePlan, removeBackground, savePlanLayout, updatePlanSettings } from '../actions'
 import PlanSvg from '../../../ui/plan/plan-svg'
 import PlanEditor from '../../../ui/plan/editor/plan-editor'
+import { Badge, buttonClass, Card, inputClass, labelClass, Main, PageHeader, SettingsSection } from '../../../ui/kit'
 import Notice from '../../../ui/notice'
 import BackgroundCard, { BackgroundNotice } from '../../../ui/background-card'
 
@@ -26,16 +26,23 @@ export default async function PlanPage({
   const backgroundUrl = plan.hasBackground ? `/admin/plans/${plan.id}/background?v=${plan.version}` : null
 
   return (
-    <main className="bg-gray-50 dark:bg-gray-900 py-6 px-4">
-      <div className="max-w-6xl mx-auto space-y-4 text-gray-900 dark:text-gray-100">
-        <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h1 className="text-2xl font-bold">{plan.name}</h1>
-          <p className="text-sm text-gray-600 dark:text-gray-400">
-            {plan.layout.width / 100} × {plan.layout.height / 100} m · {summary.tables} Tische · {summary.seats} Plätze
-            {' · '}<Link href="/admin/plans" className="text-blue-700 dark:text-blue-300 hover:underline">Alle Raumpläne</Link>
-          </p>
-        </div>
-
+    <Main width="full">
+      <PageHeader
+        back={{ href: '/admin/plans', label: 'Alle Raumpläne' }}
+        title={plan.name}
+        subtitle={<>
+          {plan.layout.width / 100} × {plan.layout.height / 100} m · {summary.tables} Tische · {summary.seats} Plätze
+          {plan.shared && <> · <Badge tone="teal">gemeinsame Vorlage</Badge></>}
+        </>}
+        actions={<>
+          <form action={duplicatePlan}>
+            <input type="hidden" name="planId" value={plan.id} />
+            <button type="submit" className={buttonClass('secondary', 'sm')}>Plan duplizieren</button>
+          </form>
+          <a href={`/admin/plans/${plan.id}/export`} className={buttonClass('secondary', 'sm')}>Als Datei exportieren</a>
+        </>}
+      />
+      <div className="space-y-4">
         {imported === '1' && <Notice tone="success">Raumplan importiert.</Notice>}
         {settings === '1' && <Notice tone="success">Einstellungen gespeichert.</Notice>}
         {error === 'name' && <Notice tone="error">Der Name darf nicht leer sein.</Notice>}
@@ -53,46 +60,37 @@ export default async function PlanPage({
             backgroundUrl={backgroundUrl} save={savePlanLayout.bind(null, plan.id)}
           />
         ) : (
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-2">
-            <PlanSvg layout={plan.layout} backgroundUrl={backgroundUrl} title={`Raumplan ${plan.name}`} className="w-full h-auto max-h-[75vh]" />
-          </div>
+          <Card padded={false} className="overflow-hidden">
+            <PlanSvg layout={plan.layout} backgroundUrl={backgroundUrl} title={`Raumplan ${plan.name}`} className="block w-full h-auto max-h-[75vh]" />
+          </Card>
         )}
 
-        <div className="grid gap-4 md:grid-cols-2">
-          {plan.access === 'edit' && (
-            <form action={updatePlanSettings} className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 space-y-3">
-              <h2 className="font-bold">Einstellungen</h2>
-              <input type="hidden" name="planId" value={plan.id} />
-              <div>
-                <label htmlFor="plan-name" className="block text-sm font-medium mb-1">Name</label>
-                <input id="plan-name" name="name" defaultValue={plan.name} required maxLength={100} className="w-full border border-gray-300 dark:border-gray-600 p-2 rounded" />
-              </div>
-              <label className="flex items-start gap-2 text-sm">
-                <input type="checkbox" name="shared" defaultChecked={plan.shared} className="mt-1" />
-                <span>
-                  Als gemeinsame Vorlage anbieten
-                  <span className="block text-xs text-gray-600 dark:text-gray-400">Andere Konten (außer Moderator*innen) können den Plan ansehen und duplizieren, aber nicht ändern.</span>
-                </span>
-              </label>
-              <button type="submit" className="bg-blue-600 text-white font-bold py-2 px-4 rounded hover:bg-blue-700">Einstellungen speichern</button>
-            </form>
-          )}
-          {plan.access === 'edit' && (
+        {plan.access === 'edit' && (
+          <div className="grid gap-3 md:grid-cols-2 md:items-start">
+            <SettingsSection id="settings" title="Name und Freigabe" summary={plan.shared ? 'gemeinsame Vorlage' : 'privat'} open={settings !== undefined || error !== undefined}>
+              <form action={updatePlanSettings} className="space-y-3">
+                <input type="hidden" name="planId" value={plan.id} />
+                <div>
+                  <label htmlFor="plan-name" className={labelClass}>Name</label>
+                  <input id="plan-name" name="name" defaultValue={plan.name} required maxLength={100} className={inputClass} />
+                </div>
+                <label className="flex items-start gap-2 text-sm">
+                  <input type="checkbox" name="shared" defaultChecked={plan.shared} className="mt-1" />
+                  <span>
+                    Als gemeinsame Vorlage anbieten
+                    <span className="block text-xs text-gray-600 dark:text-gray-400">Andere Konten (außer Moderator*innen) können den Plan ansehen und duplizieren, aber nicht ändern.</span>
+                  </span>
+                </label>
+                <button type="submit" className={buttonClass('primary')}>Einstellungen speichern</button>
+              </form>
+            </SettingsSection>
             <BackgroundCard
               uploadUrl={`/admin/plans/${plan.id}/background`} hasBackground={plan.hasBackground}
-              removeAction={removeBackground} idField="planId" id={plan.id}
+              removeAction={removeBackground} idField="planId" id={plan.id} open={background !== undefined}
             />
-          )}
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 space-y-2 text-sm">
-            <h2 className="font-bold">Aktionen</h2>
-            <form action={duplicatePlan}>
-              <input type="hidden" name="planId" value={plan.id} />
-              <button type="submit" className="text-blue-700 dark:text-blue-300 hover:underline">Plan duplizieren</button>
-            </form>
-            <a href={`/admin/plans/${plan.id}/export`} className="block text-blue-700 dark:text-blue-300 hover:underline">Als Datei exportieren</a>
           </div>
-        </div>
+        )}
       </div>
-    </main>
+    </Main>
   )
 }

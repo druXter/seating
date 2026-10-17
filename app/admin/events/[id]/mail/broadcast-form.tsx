@@ -6,8 +6,8 @@ import { sendBroadcast, sendBroadcastTest, type BookingFormState } from '../../b
 import { BROADCAST_LIMITS, broadcastBlocks, renderText, type DetailsEvent } from '../../../../lib/mail-blocks'
 import Notice from '../../../../ui/notice'
 
-const input = 'w-full border border-gray-300 dark:border-gray-600 p-2 rounded'
-const labelClass = 'block text-sm font-medium mb-1'
+const input = 'w-full rounded-lg border border-gray-300 bg-white p-2 text-base sm:text-sm text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100 dark:focus:ring-blue-900'
+const labelClass = 'block text-sm font-medium text-gray-800 dark:text-gray-200 mb-1'
 
 export type BroadcastRecipient = { status: 'CONFIRMED' | 'PENDING'; tableKeys: string[] }
 
@@ -97,17 +97,17 @@ export default function BroadcastForm({ eventId, event, recipients, tables }: {
 
         <div>
           <p className={labelClass}>Vorschau (Klartext)</p>
-          <pre className="text-xs bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded p-3 whitespace-pre-wrap font-sans" data-testid="broadcast-preview">{`Betreff: ${subject || '(Betreff)'}\n\n${preview}`}</pre>
+          <pre className="text-xs bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-3 whitespace-pre-wrap font-sans" data-testid="broadcast-preview">{`Betreff: ${subject || '(Betreff)'}\n\n${preview}`}</pre>
         </div>
 
-        <button type="submit" formAction={test} className="text-sm bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded px-3 py-2 hover:bg-gray-200 dark:hover:bg-gray-600">
+        <button type="submit" formAction={test} className="inline-flex items-center justify-center gap-1.5 rounded-lg font-medium transition disabled:opacity-60 whitespace-nowrap px-3.5 py-2 text-sm bg-white text-gray-800 hover:bg-gray-50 border border-gray-300 dark:bg-gray-800 dark:text-gray-100 dark:border-gray-600 dark:hover:bg-gray-700">
           Testmail an mich schicken
         </button>
         <label className="flex items-start gap-2 text-sm">
           <input type="checkbox" name="confirmSend" className="mt-1" />
           <span>Ja, an {count} Empfänger*in{count === 1 ? '' : 'nen'} verschicken</span>
         </label>
-        <button type="submit" className="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded hover:bg-blue-700 disabled:opacity-50" disabled={count === 0}>
+        <button type="submit" className="w-full inline-flex items-center justify-center gap-1.5 rounded-lg font-medium transition disabled:opacity-60 whitespace-nowrap px-3.5 py-2 text-sm bg-blue-600 text-white hover:bg-blue-700 border border-blue-600" disabled={count === 0}>
           Rundmail verschicken
         </button>
       </fieldset>

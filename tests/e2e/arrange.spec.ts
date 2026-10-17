@@ -2,8 +2,7 @@ import { expect, test, type Locator, type Page } from '@playwright/test'
 import { manageToken } from '../../app/lib/booking-tokens'
 import {
   captureAction, cookieOf, createAccount, createBooking, createEventRecord, login, prisma, tablesLayout, uniqueEmail, uniqueIp, BASE_URL,
-  type CapturedAction
-} from './helpers'
+  type CapturedAction, openSettings } from './helpers'
 import { mailsTo, waitForMail } from './mail-server'
 
 // Phase 6: Sitzordnung (Modus ASSIGNED) mit Gästeliste (von Hand, CSV) und Drag & Drop, dazu Verschieben
@@ -86,7 +85,7 @@ test('Sitzordnung einrichten: Modus wählen, Gruppe anlegen, Gästeliste per CSV
   const event = await createEventRecord(owner.id, { layout: seatingLayout() })
   await login(page, owner.email)
 
-  await page.goto(`/admin/events/${event.id}`)
+  await openSettings(page, event.id, 'event')
   await page.getByLabel('Art der Buchung').selectOption('ASSIGNED')
   await page.getByRole('button', { name: 'Einstellungen speichern' }).click()
   await expect(page.getByText('Einstellungen gespeichert.')).toBeVisible()

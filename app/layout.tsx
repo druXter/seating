@@ -1,9 +1,9 @@
 // app/layout.tsx
 import type { Metadata, Viewport } from "next";
-import Link from "next/link";
 import { Suspense } from "react";
 import AccountNav from "./ui/account-nav";
 import PwaRegister from "./ui/pwa-register";
+import FooterLink from "./ui/footer-link";
 import { APP_NAME } from "./lib/app";
 import "./globals.css";
 
@@ -27,17 +27,17 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="de">
-      <body className="antialiased min-h-screen flex flex-col dark:bg-gray-900 dark:text-gray-100">
+    <html lang="de" suppressHydrationWarning>
+      <body className="antialiased min-h-screen flex flex-col bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-gray-100">
         {/* Der Konto-Status liest Cookies (dynamisch) - in Suspense, damit er den Rest der Seite nicht aufhält. */}
-        <Suspense fallback={<div className="h-12" />}>
+        <Suspense fallback={null}>
           <AccountNav />
         </Suspense>
         <div className="grow">{children}</div>
         <footer className="print:hidden text-center text-xs text-gray-500 dark:text-gray-400 py-4">
-          <Link href="/impressum" className="hover:underline">Impressum</Link>
+          <FooterLink href="/impressum">Impressum</FooterLink>
           {" · "}
-          <Link href="/datenschutz" className="hover:underline">Datenschutz</Link>
+          <FooterLink href="/datenschutz">Datenschutz</FooterLink>
         </footer>
         <PwaRegister />
       </body>

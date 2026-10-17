@@ -15,8 +15,8 @@ import { seatPickerData } from '../../../../../lib/events/places'
 
 export const dynamic = 'force-dynamic'
 
-const input = 'w-full border border-gray-300 dark:border-gray-600 p-2 rounded'
-const labelClass = 'block text-sm font-medium mb-1'
+const input = 'w-full rounded-lg border border-gray-300 bg-white p-2 text-base sm:text-sm text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100 dark:focus:ring-blue-900'
+const labelClass = 'block text-sm font-medium text-gray-800 dark:text-gray-200 mb-1'
 
 /**
  * Buchung von Hand anlegen (source ADMIN), z.B. eine telefonische Reservierung. Ohne E-Mail-Adresse
@@ -41,21 +41,16 @@ export default async function NewBookingPage({ params, searchParams }: { params:
   const nothingFree = seatData ? !seatData.seats.some(s => s.state === 'free') : tables.length === 0
 
   return (
-    <main className="bg-gray-50 dark:bg-gray-900 py-6 px-4">
-      <div className="max-w-2xl mx-auto space-y-4 text-gray-900 dark:text-gray-100">
+    <div className="max-w-2xl space-y-4">
         <div className="space-y-1">
-          <p className="text-sm">
-            <Link href={`/admin/events/${event.id}`} className="text-blue-700 dark:text-blue-300 hover:underline">{event.title}</Link>
-            {' › '}
-            <Link href={`/admin/events/${event.id}/bookings`} className="text-blue-700 dark:text-blue-300 hover:underline">Buchungen</Link>
-          </p>
-          <h1 className="text-2xl font-bold">Buchung anlegen</h1>
+          <Link href={`/admin/events/${event.id}/bookings`} className="text-sm text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200">← Alle Buchungen</Link>
+          <h2 className="text-xl font-semibold">Buchung anlegen</h2>
         </div>
 
         {nothingFree ? (
           <Notice tone="warning">{seatMode ? 'Gerade ist kein Platz frei.' : 'Gerade ist kein Tisch frei.'}</Notice>
         ) : (
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-4 sm:p-5">
             <ActionForm action={createBookingAdmin}>
               <input type="hidden" name="eventId" value={event.id} />
               {seatData ? (
@@ -122,7 +117,6 @@ export default async function NewBookingPage({ params, searchParams }: { params:
             </ActionForm>
           </div>
         )}
-      </div>
-    </main>
+    </div>
   )
 }

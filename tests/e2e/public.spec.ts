@@ -158,9 +158,9 @@ test('Eventseite zeigt Buchenden keinen Anmelde-Link, andere Seiten schon', asyn
   const owner = await createAccount('CREATOR')
   const event = await createEventRecord(owner.id, { status: 'OPEN' })
   await page.goto(`/${event.slug}`)
-  await expect(page.getByRole('navigation', { name: 'Konto' }).getByRole('link', { name: 'Anmelden' })).toHaveCount(0)
+  await expect(page.getByRole('banner').getByRole('link', { name: 'Anmelden' })).toHaveCount(0)
   await page.goto('/impressum')
-  await expect(page.getByRole('navigation', { name: 'Konto' }).getByRole('link', { name: 'Anmelden' })).toBeVisible()
+  await expect(page.getByRole('banner').getByRole('link', { name: 'Anmelden' })).toBeVisible()
 })
 
 test('unbekannte und ungültige Adressen ergeben 404', async ({ page }) => {

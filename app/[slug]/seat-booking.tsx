@@ -1,7 +1,7 @@
 // app/[slug]/seat-booking.tsx
 'use client'
 
-import { useActionState, useState } from 'react'
+import { useActionState, useEffect, useRef, useState } from 'react'
 import type { Layout } from '../lib/floorplan/schema'
 import type { SeatGroup } from '../lib/events/seat-rules'
 import SeatPicker, { type PickerSeat } from '../ui/plan/seat-picker'
@@ -35,6 +35,17 @@ export default function SeatBooking({ layout, backgroundUrl, title, seats, group
   const [selected, setSelected] = useState<string[]>([])
   const [missing, setMissing] = useState<number | null>(null)
   const [waitlistOpen, setWaitlistOpen] = useState(false)
+  // Handy: Die Angaben stehen unter Plan und Platzliste. Solange sie nicht im Bild sind, führt eine Leiste unten hin.
+  const panelRef = useRef<HTMLDivElement>(null)
+  const [panelVisible, setPanelVisible] = useState(false)
+  const hasSelection = selected.length > 0
+  useEffect(() => {
+    const panel = panelRef.current
+    if (!panel || typeof IntersectionObserver === 'undefined') return
+    const observer = new IntersectionObserver(([entry]) => setPanelVisible(entry.isIntersecting))
+    observer.observe(panel)
+    return () => observer.disconnect()
+  }, [hasSelection])
 
   if (!booking.open) {
     const visuals = new Map<string, UnitVisual>(seats.map(s => [s.key, { state: s.state === 'taken' ? 'confirmed' : s.state }]))
@@ -76,8 +87,8 @@ export default function SeatBooking({ layout, backgroundUrl, title, seats, group
           onNoSuggestion={setMissing}
         />
         {selected.length > 0 && (
-          <div className="border-2 border-blue-200 dark:border-blue-800 rounded-lg p-4 space-y-3">
-            <h2 className="font-bold text-lg">{selected.length} {selected.length === 1 ? 'Platz' : 'Plätze'} reservieren</h2>
+          <div ref={panelRef} className="rounded-xl border-2 border-blue-200 bg-blue-50/40 p-4 dark:border-blue-800 dark:bg-blue-950/30 space-y-3 scroll-mt-20">
+            <h2 className="font-semibold text-lg">{selected.length} {selected.length === 1 ? 'Platz' : 'Plätze'} reservieren</h2>
             {reserveState?.step === 'form' && reserveState.errors.length > 0 && (
               <Notice tone="error"><ul className="list-disc list-inside">{reserveState.errors.map((e, i) => <li key={i}>{e}</li>)}</ul></Notice>
             )}
@@ -88,19 +99,27 @@ export default function SeatBooking({ layout, backgroundUrl, title, seats, group
             </p>
           </div>
         )}
+        {selected.length > 0 && !panelVisible && (
+          <div className="fixed inset-x-0 bottom-0 z-30 border-t border-gray-200 bg-white/95 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur sm:hidden dark:border-gray-700 dark:bg-gray-900/95">
+            <button type="button" onClick={() => panelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+              className="w-full rounded-lg border border-blue-600 bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white">
+              {selected.length} {selected.length === 1 ? 'Platz' : 'Plätze'} gewählt – weiter zu deinen Angaben
+            </button>
+          </div>
+        )}
       </form>
 
       {canWait && !waitlistOpen && (
         <div className="flex flex-wrap items-center gap-3 text-sm">
           <span>Trag dich für {missing} Plätze nebeneinander auf die Warteliste ein – werden sie frei, bekommst du ein Angebot per Mail.</span>
-          <button type="button" onClick={() => setWaitlistOpen(true)} className="bg-blue-600 text-white font-bold py-1.5 px-3 rounded hover:bg-blue-700">Auf die Warteliste</button>
+          <button type="button" onClick={() => setWaitlistOpen(true)} className="inline-flex items-center justify-center gap-1.5 rounded-lg font-medium transition disabled:opacity-60 whitespace-nowrap px-3.5 py-2 text-sm bg-blue-600 text-white hover:bg-blue-700 border border-blue-600">Auf die Warteliste</button>
         </div>
       )}
       {missing !== null && !canWait && booking.waitlist && missing > largestGroup && (
         <p className="text-sm text-gray-700 dark:text-gray-300">So viele Plätze liegen nirgends nebeneinander.</p>
       )}
       {canWait && waitlistOpen && missing !== null && (
-        <div className="border-2 border-blue-200 dark:border-blue-800 rounded-lg p-4">
+        <div className="rounded-xl border-2 border-blue-200 bg-blue-50/40 p-4 dark:border-blue-800 dark:bg-blue-950/30">
           <WaitlistForm
             eventId={booking.eventId} partySize={missing} requirePhone={booking.requirePhone} action={joinWaitlist} pending={joining}
             errors={waitlistState?.step === 'form' ? waitlistState.errors : []} onClose={() => setWaitlistOpen(false)}

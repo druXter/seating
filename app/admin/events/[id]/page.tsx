@@ -1,58 +1,58 @@
 // app/admin/events/[id]/page.tsx
 import Link from 'next/link'
+import type { EventStatus } from '@prisma/client'
 import { prisma } from '../../../lib/prisma'
 import { requireUser } from '../../../lib/auth'
 import { baseUrl } from '../../../lib/base-url'
-import { loadPlan } from '../../../lib/floorplan/store'
 import { loadEventOr404, loadUnitStates } from '../../../lib/events/store'
-import { countStates } from '../../../lib/events/occupancy'
 import { activeWhere } from '../../../lib/events/booking-tx'
-import { seatingCounts } from '../../../lib/events/assign'
-import { rsvpConfigured, seatingLinkFor } from '../../../lib/rsvp/config'
-import { formatRange, utcToZonedInput } from '../../../lib/timezone'
-import { deleteEvent, removeEventBackground, shareEvent, unshareEvent } from '../actions'
-import { EventSettingsForm, ResyncForm } from '../event-forms'
+import { eventSummary } from '../../../lib/events/summary'
+import { STATUS_HINTS, STATUS_LABELS } from '../../../lib/events/settings'
+import { setEventStatus } from '../actions'
 import PlanSvg, { type UnitVisual } from '../../../ui/plan/plan-svg'
-import BackgroundCard, { BackgroundNotice } from '../../../ui/background-card'
 import CopyableField from '../../../ui/copyable-field'
-import ConfirmForm from '../../../ui/confirm-form'
 import StatusBadge from '../../../ui/status-badge'
 import Notice from '../../../ui/notice'
+import { ButtonLink, buttonClass, Card, Stat } from '../../../ui/kit'
 
 export const dynamic = 'force-dynamic'
 
-type Search = {
-  created?: string; settings?: string; shared?: string; unshared?: string; shareError?: string; resynced?: string; background?: string
+type Search = { created?: string; status?: string }
+
+/** Statuswechsel als Knöpfe: der naheliegende zuerst (blau), die übrigen daneben. */
+const TRANSITIONS: Record<EventStatus, { to: EventStatus; label: string }[]> = {
+  DRAFT: [{ to: 'OPEN', label: 'Veröffentlichen' }, { to: 'ARCHIVED', label: 'Archivieren' }],
+  OPEN: [{ to: 'CLOSED', label: 'Buchung schließen' }, { to: 'DRAFT', label: 'Zurück zum Entwurf' }, { to: 'ARCHIVED', label: 'Archivieren' }],
+  CLOSED: [{ to: 'OPEN', label: 'Buchung wieder öffnen' }, { to: 'ARCHIVED', label: 'Archivieren' }, { to: 'DRAFT', label: 'Zurück zum Entwurf' }],
+  ARCHIVED: [{ to: 'OPEN', label: 'Wieder veröffentlichen' }, { to: 'DRAFT', label: 'Zurück zum Entwurf' }]
 }
 
+/**
+ * Übersicht eines Events (docs/KONZEPT-OBERFLAECHE.md): Kennzahlen, Status mit Knöpfen, Link für Gäste, Plan mit
+ * Belegung (Klick auf einen Tisch führt zur Buchung bzw. zum Anlegen) und die häufigsten Wege.
+ */
 export default async function EventPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<Search> }) {
   const { id } = await params
   const user = await requireUser(`/admin/events/${id}`)
   const event = await loadEventOr404(id, user)
   const search = await searchParams
   const now = new Date()
+  const base = `/admin/events/${event.id}`
 
-  const { units, states } = await loadUnitStates(event.id, now)
-  // Modus SEAT und ASSIGNED zählen Plätze, TABLE Tische.
   const assigned = event.mode === 'ASSIGNED'
   const unitKind = event.mode === 'TABLE' ? 'TABLE' : 'SEAT'
-  const counts = countStates(units, states, unitKind)
-  const bookableTables = units.filter(u => u.kind === unitKind && u.bookable).length
-
-  // Aktive Buchungen (bestätigt oder noch gültig reserviert) - für die Links im Plan und die Warnung beim Löschen.
-  const [bookings, shares, sourcePlan, seating] = await Promise.all([
+  const [{ units, states }, summary, bookings] = await Promise.all([
+    loadUnitStates(event.id, now),
+    eventSummary(event, now),
+    // Aktive Buchungen (bestätigt oder noch gültig reserviert) - für die Links im Plan.
     prisma.booking.findMany({
       where: { eventId: event.id, ...activeWhere(now) },
       select: { id: true, name: true, allocations: { select: { unit: { select: { key: true } } } } }
-    }),
-    event.level === 'owner'
-      ? prisma.eventAccess.findMany({ where: { eventId: event.id }, include: { user: { select: { email: true } } }, orderBy: { createdAt: 'asc' } })
-      : Promise.resolve([]),
-    event.sourcePlanId ? loadPlan(event.sourcePlanId, user) : Promise.resolve(null),
-    assigned ? seatingCounts(event.id) : Promise.resolve(null)
+    })
   ])
+  const counts = summary.counts
+  const bookableUnits = units.filter(u => u.kind === unitKind && u.bookable).length
 
-  const activeBookings = bookings.length
   // Klick auf einen Tisch: belegt -> zur Buchung, frei -> Buchung anlegen (Konzept Abschnitt 8).
   const bookingByUnit = new Map(bookings.flatMap(b => b.allocations.map(a => [a.unit.key, b] as const)))
   const tableLabels = new Map(units.map(u => [u.key, u.label]))
@@ -61,194 +61,111 @@ export default async function EventPage({ params, searchParams }: { params: Prom
     const booking = bookingByUnit.get(key)
     const label = tableLabels.get(key) ?? key
     // Sitzordnung: Personen setzt man in der Sitzordnung, der Plan hier zeigt nur die Belegung.
-    if (assigned) return [key, { state: state === 'unavailable' ? 'free' : state, href: tableKinds.get(key) === 'SEAT' ? `/admin/events/${event.id}/arrange` : undefined, linkLabel: `${label}: zur Sitzordnung` }]
-    if (booking) return [key, { state, href: `/admin/events/${event.id}/bookings/${booking.id}`, linkLabel: `${label}: Buchung von ${booking.name}` }]
+    if (assigned) return [key, { state: state === 'unavailable' ? 'free' : state, href: tableKinds.get(key) === 'SEAT' ? `${base}/arrange` : undefined, linkLabel: `${label}: zur Sitzordnung` }]
+    if (booking) return [key, { state, href: `${base}/bookings/${booking.id}`, linkLabel: `${label}: Buchung von ${booking.name}` }]
     if (tableKinds.get(key) !== unitKind) return [key, { state }]
-    if (state === 'free' || state === 'unavailable') return [key, { state, href: `/admin/events/${event.id}/bookings/new?table=${key}`, linkLabel: `${label}: Buchung anlegen` }]
+    if (state === 'free' || state === 'unavailable') return [key, { state, href: `${base}/bookings/new?table=${key}`, linkLabel: `${label}: Buchung anlegen` }]
     return [key, { state }]
   }))
   const publicUrl = `${baseUrl()}/${event.slug}`
-  const backgroundUrl = event.backgroundFile ? `/admin/events/${event.id}/background?v=${event.layoutVersion}-${event.backgroundFile.slice(0, 8)}` : null
-  const tz = event.timezone
+  const backgroundUrl = event.backgroundFile ? `${base}/background?v=${event.layoutVersion}-${event.backgroundFile.slice(0, 8)}` : null
+  const hidden = event.status === 'DRAFT' || event.status === 'ARCHIVED'
+  const statusChanged = search.status && search.status in STATUS_LABELS ? STATUS_LABELS[search.status as EventStatus] : null
+  const unitWord = unitKind === 'SEAT' ? 'Plätze' : 'Tische'
 
   return (
-    <main className="bg-gray-50 dark:bg-gray-900 py-6 px-4">
-      <div className="max-w-5xl mx-auto space-y-4 text-gray-900 dark:text-gray-100">
-        <div className="space-y-1">
-          <p className="text-sm"><Link href="/admin/events" className="text-blue-700 dark:text-blue-300 hover:underline">Alle Events</Link></p>
-          <h1 className="text-2xl font-bold">{event.title} <StatusBadge status={event.status} /></h1>
-          <p className="text-sm text-gray-600 dark:text-gray-400">{formatRange(event.startsAt, event.endsAt, tz)}{event.location && ` · ${event.location}`}</p>
+    <div className="space-y-6">
+      {search.created === '1' && <Notice tone="success">Event angelegt. Es ist noch ein Entwurf – veröffentliche es unten unter „Status“, wenn alles passt.</Notice>}
+      {statusChanged && <Notice tone="success">Status: {statusChanged}.</Notice>}
+      {event.rsvpChangedAt && assigned && (
+        <Notice tone="info">rsvp-app hat Änderungen an der Gästeliste gemeldet – bitte unter <Link href={`${base}/arrange`} className="underline">Sitzordnung</Link> abgleichen.</Notice>
+      )}
+      {!assigned && bookableUnits === 0 && (
+        <Notice tone="warning">{unitKind === 'SEAT' ? 'Der Plan enthält keine buchbaren Plätze – füge im Raumplan Reihen, Stühle oder Tische mit Plätzen hinzu.' : 'Der Plan enthält keine buchbaren Tische – für eine Tischbuchung füge im Raumplan Tische hinzu.'}</Notice>
+      )}
+
+      {summary.kind === 'assigned' ? (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <Stat label="Mit Platz" value={`${summary.seated}/${summary.persons}`} progress={{ value: summary.seated, max: summary.persons }} hint={summary.persons === 1 ? 'Person' : 'Personen'} />
+          <Stat label="Gruppen" value={summary.parties} />
+          <Stat label="Plätze frei" value={counts.free + counts.unavailable} />
+          <Stat label="Plätze besetzt" value={counts.confirmed} />
         </div>
-
-        {search.created === '1' && <Notice tone="success">Event angelegt. Es ist noch ein Entwurf – veröffentliche es unten unter „Status“, wenn alles passt.</Notice>}
-        {search.settings === '1' && <Notice tone="success">Einstellungen gespeichert.</Notice>}
-        {search.resynced === '1' && <Notice tone="success">Plan aus der Vorlage übernommen.</Notice>}
-        {search.shared === '1' && <Notice tone="success">Freigabe hinzugefügt.</Notice>}
-        {search.unshared === '1' && <Notice tone="success">Freigabe entfernt.</Notice>}
-        {search.shareError === 'notfound' && <Notice tone="error">Zu dieser Adresse gibt es kein Konto. Lade die Person zuerst unter „Konten“ ein.</Notice>}
-        {search.shareError === 'owner' && <Notice tone="error">Diesem Konto gehört das Event bereits.</Notice>}
-        <BackgroundNotice outcome={search.background} />
-
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 space-y-2">
-          <CopyableField label="Öffentlicher Link" value={publicUrl} />
-          <p className="text-sm">
-            <a href={`/${event.slug}`} className="text-blue-700 dark:text-blue-300 hover:underline">
-              {event.status === 'DRAFT' || event.status === 'ARCHIVED' ? 'Vorschau ansehen' : 'Öffentliche Seite ansehen'}
-            </a>
-            {(event.status === 'DRAFT' || event.status === 'ARCHIVED') && (
-              <span className="text-gray-600 dark:text-gray-400"> – öffentlich noch nicht sichtbar, nur Konten mit Zugriff sehen die Vorschau.</span>
-            )}
-          </p>
+      ) : (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <Stat label={`${unitWord} belegt`} value={`${counts.confirmed + counts.held}/${summary.bookable}`} progress={{ value: counts.confirmed + counts.held, max: summary.bookable }}
+            hint={counts.held > 0 ? `davon ${counts.held} unbestätigt` : undefined} />
+          <Stat label={`${unitWord} frei`} value={counts.free} hint={counts.unavailable > 0 ? `${counts.unavailable} nicht buchbar` : undefined} />
+          <Stat label="Buchungen" value={summary.bookings} hint={`${summary.guests} ${summary.guests === 1 ? 'Person' : 'Personen'}`} />
+          <Stat label="Warteliste" value={event.waitlistEnabled || summary.waitlist > 0 ? summary.waitlist : 'aus'} />
         </div>
+      )}
 
-        {(event.mode === 'TABLE' || event.mode === 'SEAT') && bookableTables === 0 && (
-          <Notice tone="warning">{unitKind === 'SEAT' ? 'Der Plan enthält keine buchbaren Plätze – füge im Plan Reihen, Stühle oder Tische mit Plätzen hinzu.' : 'Der Plan enthält keine buchbaren Tische – für eine Tischbuchung füge im Plan Tische hinzu.'}</Notice>
-        )}
-
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 space-y-3">
-          <div className="flex flex-wrap items-baseline justify-between gap-2">
-            <h2 className="font-bold">Plan und Belegung</h2>
-            <Link href={`/admin/events/${event.id}/plan`} className="text-sm text-blue-700 dark:text-blue-300 hover:underline">Plan bearbeiten</Link>
+      <div className="grid gap-4 md:grid-cols-2">
+        <Card className="space-y-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="font-semibold">Status</h2>
+            <StatusBadge status={event.status} />
           </div>
-          <p className="text-sm text-gray-700 dark:text-gray-300" data-testid="table-counts">
-            {seating
-              ? `Plätze: ${counts.free + counts.unavailable} frei · ${counts.confirmed} besetzt — ${seating.seated} von ${seating.persons} Personen haben einen Platz`
-              : <>
-                {unitKind === 'SEAT' ? 'Plätze' : 'Tische'}: {counts.free} frei · {counts.held} reserviert (unbestätigt) · {counts.confirmed} belegt
-                {counts.unavailable > 0 && ` · ${counts.unavailable} nicht buchbar`}
-              </>}
-          </p>
-          <PlanSvg layout={event.layout} backgroundUrl={backgroundUrl} units={visuals} title={`Plan von ${event.title} mit Belegung`} className="w-full h-auto max-h-[60vh]" />
-          <p className="text-xs text-gray-600 dark:text-gray-400">
-            Kopie der Vorlage {event.sourcePlanId ? (sourcePlan ? `„${sourcePlan.name}“` : '(für dich nicht sichtbar)') : '(inzwischen gelöscht)'}.
-            Änderungen an der Vorlage wirken sich nicht auf dieses Event aus.
-          </p>
-          {sourcePlan && <ResyncForm eventId={event.id} layoutVersion={event.layoutVersion} planName={sourcePlan.name} />}
-        </div>
+          <p className="text-sm text-gray-600 dark:text-gray-400">{STATUS_HINTS[event.status]}.</p>
+          <div className="flex flex-wrap gap-2">
+            {TRANSITIONS[event.status].map((transition, index) => (
+              <form key={transition.to} action={setEventStatus}>
+                <input type="hidden" name="eventId" value={event.id} />
+                <input type="hidden" name="status" value={transition.to} />
+                <button type="submit" className={buttonClass(index === 0 ? 'primary' : 'secondary')}>{transition.label}</button>
+              </form>
+            ))}
+          </div>
+        </Card>
 
-        {seating ? (
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 space-y-2">
-            <h2 className="font-bold">Gäste ({seating.parties} {seating.parties === 1 ? 'Gruppe' : 'Gruppen'}, {seating.persons} {seating.persons === 1 ? 'Person' : 'Personen'})</h2>
-            <p className="text-sm space-x-4">
-              <Link href={`/admin/events/${event.id}/arrange`} className="text-blue-700 dark:text-blue-300 hover:underline">Sitzordnung</Link>
-              <Link href={`/admin/events/${event.id}/bookings`} className="text-blue-700 dark:text-blue-300 hover:underline">Gruppen verwalten</Link>
-              <Link href={`/admin/events/${event.id}/print`} className="text-blue-700 dark:text-blue-300 hover:underline">Druckansicht</Link>
+        <Card className="space-y-3">
+          <h2 className="font-semibold">Für Gäste</h2>
+          <CopyableField label="Öffentlicher Link" value={publicUrl} />
+          {hidden && <p className="text-xs text-gray-600 dark:text-gray-400">Öffentlich noch nicht sichtbar – nur Konten mit Zugriff sehen die Vorschau.</p>}
+          {event.access === 'RSVP' && (
+            <p className="text-sm text-gray-700 dark:text-gray-300" data-testid="access-rsvp">
+              Zugang: nur mit Zusage aus rsvp-app – Gäste wählen ihre {event.mode === 'SEAT' ? 'Plätze' : 'Tische'} über „Sitzplatz wählen“ in rsvp-app.
+              Absagen dort stornieren die Buchung hier automatisch.
             </p>
+          )}
+          {assigned && (
             <p className="text-xs text-gray-600 dark:text-gray-400">
               Keine Online-Buchung: Ihr legt die Gäste an (von Hand, per CSV{event.rsvpEventId ? ' oder per Abgleich mit rsvp-app' : ''}) und setzt sie in der
-              Sitzordnung auf Plätze. Gäste bekommen keine Mails.
+              Sitzordnung auf Plätze. Die öffentliche Seite zeigt nur den Plan, nie Namen.
             </p>
-            {event.rsvpChangedAt && <Notice tone="info">rsvp-app hat Änderungen an der Gästeliste gemeldet – bitte in der Sitzordnung abgleichen.</Notice>}
-          </div>
-        ) : (
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 space-y-2">
-            <h2 className="font-bold">Buchungen ({activeBookings} aktiv)</h2>
-            <p className="text-sm space-x-4">
-              <Link href={`/admin/events/${event.id}/bookings`} className="text-blue-700 dark:text-blue-300 hover:underline">Buchungen verwalten</Link>
-              <Link href={`/admin/events/${event.id}/bookings/new`} className="text-blue-700 dark:text-blue-300 hover:underline">Buchung anlegen</Link>
-              <Link href={`/admin/events/${event.id}/arrange`} className="text-blue-700 dark:text-blue-300 hover:underline">Im Plan verschieben</Link>
-              <Link href={`/admin/events/${event.id}/mail`} className="text-blue-700 dark:text-blue-300 hover:underline">Rundmail</Link>
-              <Link href={`/admin/events/${event.id}/print`} className="text-blue-700 dark:text-blue-300 hover:underline">Druckansicht</Link>
-            </p>
-            <p className="text-xs text-gray-600 dark:text-gray-400">Im Plan führt ein Klick auf einen belegten Tisch zur Buchung, auf einen freien zum Anlegen einer Buchung. Verschieben per Ziehen: „Im Plan verschieben“.</p>
-            {event.access === 'RSVP' && (
-              <p className="text-sm text-gray-700 dark:text-gray-300" data-testid="access-rsvp">
-                Zugang: nur mit Zusage aus rsvp-app – Gäste wählen ihre {event.mode === 'SEAT' ? 'Plätze' : 'Tische'} über „Sitzplatz wählen“ in rsvp-app.
-                Absagen dort stornieren die Buchung hier automatisch.
-              </p>
-            )}
-          </div>
-        )}
+          )}
+        </Card>
+      </div>
 
-        <div className="grid gap-4 md:grid-cols-2 items-start">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 space-y-3">
-            <h2 className="font-bold">Einstellungen</h2>
-            <EventSettingsForm
-              eventId={event.id}
-              baseUrl={baseUrl()}
-              rsvp={{ available: rsvpConfigured(), seatingLink: seatingLinkFor(event.id) }}
-              values={{
-                title: event.title,
-                slug: event.slug,
-                description: event.description,
-                location: event.location,
-                startsAt: utcToZonedInput(event.startsAt, tz),
-                endsAt: utcToZonedInput(event.endsAt, tz),
-                mode: event.mode,
-                access: event.access,
-                rsvpEventId: event.rsvpEventId ?? '',
-                bookingOpensAt: event.bookingOpensAt ? utcToZonedInput(event.bookingOpensAt, tz) : '',
-                bookingClosesAt: event.bookingClosesAt ? utcToZonedInput(event.bookingClosesAt, tz) : '',
-                minFillPercent: event.minFillRatio === null ? '' : String(Math.round(event.minFillRatio * 100)),
-                status: event.status,
-                pendingTtlMinutes: event.pendingTtlMinutes,
-                selfEditHoursBefore: event.selfEditHoursBefore,
-                oneBookingPerEmail: event.oneBookingPerEmail,
-                requirePhone: event.requirePhone,
-                waitlistEnabled: event.waitlistEnabled,
-                offerTtlHours: event.offerTtlHours,
-                maxSeatsPerBooking: event.maxSeatsPerBooking,
-                replyTo: event.replyTo ?? '',
-                mailNote: event.mailNote,
-                guestSeatingVisible: event.guestSeatingVisible
-              }}
-            />
-          </div>
-
-          <div className="space-y-4">
-            <BackgroundCard
-              uploadUrl={`/admin/events/${event.id}/background`} hasBackground={event.backgroundFile !== null}
-              removeAction={removeEventBackground} idField="eventId" id={event.id}
-            />
-
-            {event.level === 'owner' && (
-              <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 space-y-3">
-                <h2 className="font-bold">Freigaben</h2>
-                <p className="text-xs text-gray-600 dark:text-gray-400">
-                  Freigegebene Konten können das Event bearbeiten (Einstellungen, Plan, Buchungen) – aber nicht löschen
-                  und nicht weiter freigeben.
-                </p>
-                {shares.length > 0 && (
-                  <ul className="text-sm divide-y">
-                    {shares.map(share => (
-                      <li key={share.id} className="py-1 flex items-center justify-between gap-2">
-                        <span>{share.user.email}</span>
-                        <form action={unshareEvent}>
-                          <input type="hidden" name="accessId" value={share.id} />
-                          <button type="submit" className="text-xs text-red-700 dark:text-red-300 hover:underline">Entfernen</button>
-                        </form>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-                <form action={shareEvent} className="flex gap-2">
-                  <input type="hidden" name="eventId" value={event.id} />
-                  <label htmlFor="share-email" className="sr-only">E-Mail-Adresse des Kontos</label>
-                  <input id="share-email" name="email" type="email" required placeholder="E-Mail-Adresse des Kontos" className="grow border border-gray-300 dark:border-gray-600 p-2 rounded text-sm" />
-                  <button type="submit" className="bg-blue-600 text-white font-bold py-2 px-3 rounded hover:bg-blue-700 text-sm">Freigeben</button>
-                </form>
-              </div>
-            )}
-
-            {event.level === 'owner' && (
-              <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 space-y-2">
-                <h2 className="font-bold">Event löschen</h2>
-                <p className="text-xs text-gray-600 dark:text-gray-400">
-                  Löscht das Event mit Plan, Buchungen und Freigaben endgültig.
-                  {activeBookings > 0 && ` Es hat ${activeBookings} aktive Buchung${activeBookings === 1 ? '' : 'en'} – die Buchenden werden nicht benachrichtigt. Wer Bescheid bekommen soll: vorher eine Rundmail schicken oder die Buchungen einzeln mit Mail stornieren.`}
-                </p>
-                <ConfirmForm
-                  action={deleteEvent}
-                  message={`Event „${event.title}“ endgültig löschen?${activeBookings > 0 ? ` ${activeBookings} aktive Buchung(en) gehen dabei verloren, ohne dass die Buchenden benachrichtigt werden.` : ''}`}
-                >
-                  <input type="hidden" name="eventId" value={event.id} />
-                  <button type="submit" className="text-sm text-red-700 dark:text-red-300 hover:underline">Event löschen</button>
-                </ConfirmForm>
-              </div>
-            )}
+      <Card className="space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="font-semibold">Plan und Belegung</h2>
+          <div className="flex flex-wrap gap-2">
+            {assigned
+              ? <ButtonLink href={`${base}/arrange`} variant="primary" size="sm">Gäste setzen</ButtonLink>
+              : <ButtonLink href={`${base}/bookings/new`} variant="primary" size="sm">Buchung anlegen</ButtonLink>}
+            <ButtonLink href={`${base}/print`} size="sm">Druckansicht</ButtonLink>
+            <ButtonLink href={`${base}/print?view=cards`} size="sm">{event.mode === 'SEAT' ? 'Platzkarten' : 'Tischkarten'}</ButtonLink>
           </div>
         </div>
-      </div>
-    </main>
+        <p className="text-sm text-gray-700 dark:text-gray-300" data-testid="table-counts">
+          {assigned
+            ? `Plätze: ${counts.free + counts.unavailable} frei · ${counts.confirmed} besetzt`
+            : <>
+              {unitWord}: {counts.free} frei · {counts.held} reserviert (unbestätigt) · {counts.confirmed} belegt
+              {counts.unavailable > 0 && ` · ${counts.unavailable} nicht buchbar`}
+            </>}
+        </p>
+        <div className="overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700">
+          <PlanSvg layout={event.layout} backgroundUrl={backgroundUrl} units={visuals} title={`Plan von ${event.title} mit Belegung`} className="block w-full h-auto max-h-[60vh]" />
+        </div>
+        <p className="text-xs text-gray-600 dark:text-gray-400">
+          {assigned
+            ? 'Ein Klick auf einen Platz öffnet die Sitzordnung.'
+            : 'Ein Klick auf einen belegten Tisch bzw. Platz öffnet die Buchung, auf einen freien das Anlegen einer Buchung.'}
+        </p>
+      </Card>
+    </div>
   )
 }

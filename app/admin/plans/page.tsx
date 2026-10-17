@@ -7,6 +7,7 @@ import { canCreatePlans, planAccess } from '../../lib/permissions'
 import { parseLayout } from '../../lib/floorplan/schema'
 import { summarize } from '../../lib/floorplan/units'
 import { deletePlan, duplicatePlan } from './actions'
+import { Badge, ButtonLink, buttonClass, EmptyState, Main, PageHeader } from '../../ui/kit'
 import Notice from '../../ui/notice'
 import ConfirmForm from '../../ui/confirm-form'
 
@@ -35,54 +36,50 @@ export default async function PlansPage({ searchParams }: { searchParams: Promis
   })
 
   return (
-    <main className="bg-gray-50 dark:bg-gray-900 py-8 px-4">
-      <div className="max-w-4xl mx-auto space-y-6 text-gray-900 dark:text-gray-100">
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <h1 className="text-2xl font-bold">Raumpläne</h1>
-            <Link href="/admin/plans/new" className="bg-blue-600 text-white font-bold py-2 px-4 rounded hover:bg-blue-700">
-              Neuer Raumplan
-            </Link>
-          </div>
-          <p className="text-sm text-gray-600 dark:text-gray-400">
-            Raumpläne sind Vorlagen. Beim Anlegen eines Events wird der Plan kopiert – spätere Änderungen hier
-            verändern keine laufenden Events.
-          </p>
-          {deleted === '1' && <Notice tone="success">Raumplan gelöscht.</Notice>}
-
-          {rows.length === 0 ? (
-            <p className="text-sm text-gray-600 dark:text-gray-400">Noch keine Raumpläne vorhanden.</p>
-          ) : (
-            <ul className="divide-y text-sm">
-              {rows.map(plan => (
-                <li key={plan.id} className="py-3 flex flex-wrap items-center gap-x-4 gap-y-2">
-                  <div className="grow min-w-0">
-                    <Link href={`/admin/plans/${plan.id}`} className="font-medium text-blue-700 dark:text-blue-300 hover:underline">{plan.name}</Link>
-                    {plan.shared && <span className="ml-2 text-xs bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 rounded px-1.5 py-0.5">gemeinsame Vorlage</span>}
-                    <div className="text-xs text-gray-600 dark:text-gray-400">
-                      {plan.size}
-                      {plan.summary && ` · ${plan.summary.tables} Tische · ${plan.summary.seats} Plätze`}
-                      {plan.ownerId !== user.id && ` · von ${plan.owner?.email ?? 'gelöschtem Konto'}`}
-                    </div>
-                  </div>
+    <Main>
+      <PageHeader
+        title="Raumpläne"
+        subtitle="Raumpläne sind Vorlagen. Beim Anlegen eines Events wird der Plan kopiert – spätere Änderungen hier verändern keine laufenden Events."
+        actions={<ButtonLink href="/admin/plans/new" variant="primary">Neuer Raumplan</ButtonLink>}
+      />
+      <div className="space-y-4">
+        {deleted === '1' && <Notice tone="success">Raumplan gelöscht.</Notice>}
+        {rows.length === 0 ? (
+          <EmptyState>Noch keine Raumpläne. Lege oben den ersten an oder importiere eine Datei.</EmptyState>
+        ) : (
+          <ul className="space-y-3">
+            {rows.map(plan => (
+              <li key={plan.id} className="flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition hover:border-blue-300 hover:shadow sm:flex-row sm:items-center dark:border-gray-700 dark:bg-gray-800 dark:hover:border-blue-700">
+                <Link href={`/admin/plans/${plan.id}`} className="group min-w-0 flex-1">
+                  <span className="flex flex-wrap items-center gap-2">
+                    <span className="font-semibold group-hover:text-blue-700 dark:group-hover:text-blue-300">{plan.name}</span>
+                    {plan.shared && <Badge tone="teal">gemeinsame Vorlage</Badge>}
+                  </span>
+                  <span className="mt-0.5 block text-sm text-gray-500 dark:text-gray-400">
+                    {plan.size}
+                    {plan.summary && ` · ${plan.summary.tables} Tische · ${plan.summary.seats} Plätze`}
+                    {plan.ownerId !== user.id && ` · von ${plan.owner?.email ?? 'gelöschtem Konto'}`}
+                  </span>
+                </Link>
+                <div className="flex flex-wrap gap-2">
                   <form action={duplicatePlan}>
                     <input type="hidden" name="planId" value={plan.id} />
-                    <button type="submit" className="text-xs text-blue-700 dark:text-blue-300 hover:underline">Duplizieren</button>
+                    <button type="submit" className={buttonClass('secondary', 'sm')}>Duplizieren</button>
                   </form>
                   {/* Bewusst <a>: Datei-Download über einen Route Handler, nicht vorab laden. */}
-                  <a href={`/admin/plans/${plan.id}/export`} className="text-xs text-blue-700 dark:text-blue-300 hover:underline">Exportieren</a>
+                  <a href={`/admin/plans/${plan.id}/export`} className={buttonClass('secondary', 'sm')}>Exportieren</a>
                   {plan.access === 'edit' && (
                     <ConfirmForm action={deletePlan} message={`Raumplan "${plan.name}" endgültig löschen?`}>
                       <input type="hidden" name="planId" value={plan.id} />
-                      <button type="submit" className="text-xs text-red-700 dark:text-red-300 hover:underline">Löschen</button>
+                      <button type="submit" className={buttonClass('danger', 'sm')}>Löschen</button>
                     </ConfirmForm>
                   )}
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
-    </main>
+    </Main>
   )
 }

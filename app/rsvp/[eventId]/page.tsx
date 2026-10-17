@@ -40,8 +40,8 @@ export default async function RsvpEntryPage({ params, searchParams }: { params: 
     const seating = await loadGuestSeating(event, link)
     return (
       <Shell>
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow space-y-2">
-          <h1 className="text-2xl font-bold">{event.title}</h1>
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-6 space-y-2">
+          <h1 className="text-2xl font-semibold">{event.title}</h1>
           <p className="text-gray-700 dark:text-gray-300">{formatRange(event.startsAt, event.endsAt, event.timezone)}{event.location && ` · ${event.location}`}</p>
         </div>
         {seating ? (
@@ -67,7 +67,7 @@ export default async function RsvpEntryPage({ params, searchParams }: { params: 
   if (!event || !link || !layout?.ok) {
     return (
       <Shell>
-        <h1 className="text-2xl font-bold">Sitzplatz wählen</h1>
+        <h1 className="text-2xl font-semibold">Sitzplatz wählen</h1>
         <Notice tone="warning">
           Dieser Link ist ungültig oder abgelaufen. Öffne die Platzwahl bitte erneut über „Sitzplatz wählen“ bei deiner Zusage in rsvp-app.
         </Notice>
@@ -102,8 +102,8 @@ export default async function RsvpEntryPage({ params, searchParams }: { params: 
 
   return (
     <Shell>
-      <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow space-y-2">
-        <h1 className="text-2xl font-bold">{event.title}: Sitzplatz wählen</h1>
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-6 space-y-2">
+        <h1 className="text-2xl font-semibold">{event.title}: Sitzplatz wählen</h1>
         <p className="text-gray-700 dark:text-gray-300">{formatRange(event.startsAt, event.endsAt, event.timezone)}{event.location && ` · ${event.location}`}</p>
         <p className="text-sm text-gray-700 dark:text-gray-300">
           Hallo {link.name}, du hast in rsvp-app für <strong>{partySize} {partySize === 1 ? 'Person' : 'Personen'}</strong> zugesagt
@@ -113,14 +113,14 @@ export default async function RsvpEntryPage({ params, searchParams }: { params: 
         </p>
       </div>
       {!open && <Notice tone="info">{window.open ? 'Die Platzwahl ist gerade nicht möglich. Bitte versuch es später noch einmal.' : window.message}</Notice>}
-      <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-lg shadow">{body}</div>
+      <div className="bg-white dark:bg-gray-800 p-3 sm:p-6 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">{body}</div>
     </Shell>
   )
 }
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
-    <main className="bg-gray-50 dark:bg-gray-900 py-6 px-4">
+    <main className="py-6 px-4">
       <div className="max-w-4xl mx-auto space-y-4 text-gray-900 dark:text-gray-100">{children}</div>
     </main>
   )

@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 import { createMessage } from '../../app/lib/rsvp/token'
-import { BASE_URL, createAccount, createEventRecord, login, prisma, tablesLayout, uniqueIp } from './helpers'
+import { BASE_URL, createAccount, createEventRecord, login, prisma, tablesLayout, uniqueIp, openSettings } from './helpers'
 import { TEST_RSVP_SECRET } from './rsvp-server'
 
 // Sitzordnung mit Namen für Gäste (Event.guestSeatingVisible, Idee L10 der Suite): nur Modus ASSIGNED, nur
@@ -87,7 +87,7 @@ test('aus, Entwurf, ungültiger Link oder öffentliche Seite: keine Namen', asyn
 test('Schalter in den Einstellungen speichern', async ({ page }) => {
   const { owner, event } = await weddingEvent({ visible: false })
   await login(page, owner.email)
-  await page.goto(`/admin/events/${event.id}`)
+  await openSettings(page, event.id, 'rsvp')
   await page.getByLabel(/Sitzordnung mit Namen für Gäste mit Zusage zeigen/).check()
   await page.getByRole('button', { name: 'Einstellungen speichern' }).click()
   await expect.poll(async () => (await prisma.event.findUniqueOrThrow({ where: { id: event.id } })).guestSeatingVisible).toBe(true)

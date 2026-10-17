@@ -1,4 +1,5 @@
 // app/admin/plans/new/page.tsx
+import { Card, Main, PageHeader } from '../../../ui/kit'
 import { redirect } from 'next/navigation'
 import { requireUser } from '../../../lib/auth'
 import { canCreatePlans } from '../../../lib/permissions'
@@ -11,17 +12,18 @@ export default async function NewPlanPage() {
   if (!canCreatePlans(user)) redirect('/admin')
 
   return (
-    <main className="bg-gray-50 dark:bg-gray-900 py-8 px-4">
-      <div className="max-w-3xl mx-auto grid gap-6 md:grid-cols-2 text-gray-900 dark:text-gray-100">
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow space-y-4">
-          <h1 className="text-xl font-bold">Neuer Raumplan</h1>
+    <Main>
+      <PageHeader back={{ href: '/admin/plans', label: 'Alle Raumpläne' }} title="Neuer Raumplan" />
+      <div className="grid gap-4 md:grid-cols-2 md:items-start">
+        <Card className="space-y-4">
+          <h2 className="font-semibold">Leer anlegen</h2>
           <CreatePlanForm />
-        </div>
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow space-y-4">
-          <h2 className="text-xl font-bold">Importieren</h2>
+        </Card>
+        <Card className="space-y-4">
+          <h2 className="font-semibold">Importieren</h2>
           <ImportPlanForm />
-        </div>
+        </Card>
       </div>
-    </main>
+    </Main>
   )
 }

@@ -110,6 +110,18 @@ export async function submitForm(
 }
 
 /** Hinweisbox der Seite (ohne den unsichtbaren Route-Announcer von Next.js, der ebenfalls role="alert" hat). */
+/** Einklappbaren Abschnitt (SettingsSection, data-testid="section-<id>") öffnen, falls er zu ist. */
+export async function openSection(page: Page, id: string) {
+  const section = page.getByTestId(`section-${id}`)
+  if (!(await section.evaluate(el => (el as HTMLDetailsElement).open))) await section.locator('summary').click()
+}
+
+/** Einstellungen eines Events aufrufen und die genannten Abschnitte öffnen (event, buchung, warteliste, mails, rsvp, freigaben). */
+export async function openSettings(page: Page, eventId: string, ...sections: string[]) {
+  await page.goto(`/admin/events/${eventId}/settings`)
+  for (const id of sections) await openSection(page, id)
+}
+
 export function pageAlert(page: Page) {
   return page.getByRole('main').getByRole('alert')
 }

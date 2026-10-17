@@ -46,10 +46,10 @@ export default async function UsersPage({
     : []
 
   return (
-    <main className="bg-gray-50 dark:bg-gray-900 py-8 px-4">
+    <main className="py-8 px-4">
       <div className="max-w-3xl mx-auto space-y-6 text-gray-900 dark:text-gray-100">
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow space-y-4">
-          <h1 className="text-2xl font-bold">{isAdmin ? 'Verwaltungskonten' : 'Moderator*in anlegen'}</h1>
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-6 space-y-4">
+          <h1 className="text-2xl font-semibold">{isAdmin ? 'Verwaltungskonten' : 'Moderator*in anlegen'}</h1>
 
           {created === 'mailed' && <Notice tone="success">Konto angelegt. Die Einladung wurde per E-Mail verschickt.</Notice>}
           {created === 'link' && (
@@ -63,17 +63,17 @@ export default async function UsersPage({
 
           <form action={createUser} className="grid gap-3 sm:grid-cols-2">
             <div>
-              <label htmlFor="email" className="block text-sm font-medium mb-1">E-Mail</label>
-              <input id="email" type="email" name="email" required maxLength={254} className="w-full border border-gray-300 dark:border-gray-600 p-2 rounded" />
+              <label htmlFor="email" className="block text-sm font-medium text-gray-800 dark:text-gray-200 mb-1">E-Mail</label>
+              <input id="email" type="email" name="email" required maxLength={254} className="w-full rounded-lg border border-gray-300 bg-white p-2 text-base sm:text-sm text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100 dark:focus:ring-blue-900" />
             </div>
             <div>
-              <label htmlFor="name" className="block text-sm font-medium mb-1">Name (optional)</label>
-              <input id="name" type="text" name="name" maxLength={100} className="w-full border border-gray-300 dark:border-gray-600 p-2 rounded" />
+              <label htmlFor="name" className="block text-sm font-medium text-gray-800 dark:text-gray-200 mb-1">Name (optional)</label>
+              <input id="name" type="text" name="name" maxLength={100} className="w-full rounded-lg border border-gray-300 bg-white p-2 text-base sm:text-sm text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100 dark:focus:ring-blue-900" />
             </div>
             {isAdmin && (
               <div>
-                <label htmlFor="role" className="block text-sm font-medium mb-1">Rolle</label>
-                <select id="role" name="role" defaultValue="CREATOR" className="w-full border border-gray-300 dark:border-gray-600 p-2 rounded bg-white dark:bg-gray-800">
+                <label htmlFor="role" className="block text-sm font-medium text-gray-800 dark:text-gray-200 mb-1">Rolle</label>
+                <select id="role" name="role" defaultValue="CREATOR" className="w-full rounded-lg border border-gray-300 bg-white p-2 text-base sm:text-sm text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100 dark:focus:ring-blue-900">
                   <option value="CREATOR">Creator (legt eigene Events und Raumpläne an)</option>
                   <option value="MODERATOR">Moderator*in (nur freigegebene Events)</option>
                   <option value="ADMIN">Administrator*in</option>
@@ -91,9 +91,9 @@ export default async function UsersPage({
         </div>
 
         {isAdmin && (
-          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
-            <h2 className="font-bold mb-3">Alle Konten ({users.length})</h2>
-            <ul className="divide-y text-sm">
+          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-6">
+            <h2 className="font-semibold mb-3">Alle Konten ({users.length})</h2>
+            <ul className="divide-y divide-gray-100 text-sm dark:divide-gray-700">
               {users.map(u => {
                 const pending = !u.passwordHash && u.identities.length === 0
                 const via = u.identities.map(i => issuerLabel(i.issuer)).join(', ')
@@ -116,24 +116,24 @@ export default async function UsersPage({
                       <>
                         <form action={updateUserRole} className="flex items-center gap-1">
                           <input type="hidden" name="userId" value={u.id} />
-                          <select name="role" defaultValue={u.role} aria-label={`Rolle von ${u.email}`} className="border border-gray-300 dark:border-gray-600 rounded p-1 text-xs bg-white dark:bg-gray-800">
+                          <select name="role" defaultValue={u.role} aria-label={`Rolle von ${u.email}`} className="rounded-lg border border-gray-300 bg-white p-1.5 text-sm dark:border-gray-600 dark:bg-gray-800">
                             <option value="CREATOR">Creator</option>
                             <option value="MODERATOR">Moderator*in</option>
                             <option value="ADMIN">Administrator*in</option>
                           </select>
-                          <button type="submit" className="text-xs text-blue-700 dark:text-blue-300 hover:underline">Ändern</button>
+                          <button type="submit" className="inline-flex items-center justify-center gap-1.5 rounded-lg font-medium transition disabled:opacity-60 whitespace-nowrap px-2.5 py-1 text-xs bg-white text-gray-800 hover:bg-gray-50 border border-gray-300 dark:bg-gray-800 dark:text-gray-100 dark:border-gray-600 dark:hover:bg-gray-700">Ändern</button>
                         </form>
 
                         {pending && (
                           <form action={resendInvite}>
                             <input type="hidden" name="userId" value={u.id} />
-                            <button type="submit" className="text-xs text-blue-700 dark:text-blue-300 hover:underline">Einladung erneuern</button>
+                            <button type="submit" className="inline-flex items-center justify-center gap-1.5 rounded-lg font-medium transition disabled:opacity-60 whitespace-nowrap px-2.5 py-1 text-xs bg-white text-gray-800 hover:bg-gray-50 border border-gray-300 dark:bg-gray-800 dark:text-gray-100 dark:border-gray-600 dark:hover:bg-gray-700">Einladung erneuern</button>
                           </form>
                         )}
 
                         <ConfirmForm action={deleteUser} message={`Konto ${u.email} löschen? Seine Raumpläne gehen an dich über.`}>
                           <input type="hidden" name="userId" value={u.id} />
-                          <button type="submit" className="text-xs text-red-700 dark:text-red-300 hover:underline">Löschen</button>
+                          <button type="submit" className="inline-flex items-center justify-center gap-1.5 rounded-lg font-medium transition disabled:opacity-60 whitespace-nowrap px-2.5 py-1 text-xs bg-white text-red-700 hover:bg-red-50 border border-red-300 dark:bg-gray-800 dark:text-red-300 dark:border-red-800 dark:hover:bg-red-950">Löschen</button>
                         </ConfirmForm>
                       </>
                     )}

@@ -1,8 +1,7 @@
 import { readFile, writeFile } from 'node:fs/promises'
 import { expect, test, type Page } from '@playwright/test'
 import {
-  createAccount, createPlanRecord, locationOf, login, pageAlert, prisma, readForm, submitForm, testLayout
-} from './helpers'
+  createAccount, createPlanRecord, locationOf, login, pageAlert, prisma, readForm, submitForm, testLayout, openSection } from './helpers'
 
 // Raumplan-Vorlagen (Phase 1): Anlegen, Import/Export, Freigabe als Vorlage, Berechtigungen.
 // Jeder Angriffsfall mit Positivkontrolle durch ein berechtigtes Konto.
@@ -26,6 +25,7 @@ test('leeren Plan anlegen, umbenennen, als Vorlage anbieten', async ({ page }) =
   const plan = await prisma.floorPlan.findFirstOrThrow({ where: { ownerId: user.id } })
   expect(plan.layout).toMatchObject({ schemaVersion: 1, width: 2500, height: 1850, elements: [] })
 
+  await openSection(page, 'settings')
   await page.getByLabel('Name', { exact: true }).fill('Großer Festsaal')
   await page.getByLabel('Als gemeinsame Vorlage anbieten').check()
   await page.getByRole('button', { name: 'Einstellungen speichern' }).click()
@@ -173,6 +173,7 @@ test('Admin sieht und bearbeitet alle Pläne; gelöschtes Konto übergibt seine 
   const plan = await createPlanRecord(creator.id, { name: 'Vom Creator' })
   const admin = await loggedIn(page, 'ADMIN')
   await page.goto(`/admin/plans/${plan.id}`)
+  await openSection(page, 'settings')
   await expect(page.getByLabel('Als gemeinsame Vorlage anbieten')).toBeVisible()
 
   await page.goto('/admin/users')

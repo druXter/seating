@@ -2,8 +2,7 @@ import { expect, test, type Page } from '@playwright/test'
 import { createMessage } from '../../app/lib/rsvp/token'
 import { manageToken } from '../../app/lib/booking-tokens'
 import {
-  BASE_URL, captureAction, cookieOf, createAccount, createEventRecord, login, prisma, tablesLayout, uniqueEmail, uniqueIp, withField
-} from './helpers'
+  BASE_URL, captureAction, cookieOf, createAccount, createEventRecord, login, prisma, tablesLayout, uniqueEmail, uniqueIp, withField, openSettings, openSection } from './helpers'
 import { waitForMail } from './mail-server'
 import { TEST_RSVP_SECRET, placementsOf, setGuestList, waitForPlacements, type TestGuest } from './rsvp-server'
 
@@ -64,7 +63,7 @@ test('Einstellungen: Zugang „nur mit Zusage“ braucht die rsvp-Event-ID, zeig
   const owner = await createAccount('CREATOR')
   const event = await createEventRecord(owner.id, { status: 'OPEN', layout: tablesLayout([4]) })
   await login(page, owner.email)
-  await page.goto(`/admin/events/${event.id}`)
+  await openSettings(page, event.id, 'rsvp')
 
   await page.getByLabel(/Wer darf buchen/).selectOption('RSVP')
   await page.getByRole('button', { name: 'Einstellungen speichern' }).click()
@@ -83,7 +82,9 @@ test('Einstellungen: Zugang „nur mit Zusage“ braucht die rsvp-Event-ID, zeig
   await expect(page.getByText('Einstellungen gespeichert.')).toBeVisible()
   expect(await prisma.event.findUniqueOrThrow({ where: { id: event.id } })).toMatchObject({ access: 'RSVP', rsvpEventId })
   await expect(page.getByLabel(/Sitzplatz-Link/)).toHaveValue(`${SEATING_ORIGIN}/rsvp/${event.id}`)
+  await page.getByRole('link', { name: 'Übersicht' }).click()
   await expect(page.getByTestId('access-rsvp')).toBeVisible()
+  await openSettings(page, event.id, 'rsvp')
 
   const visitor = await page.context().browser()!.newPage()
   await visitor.goto(`${BASE_URL}/${event.slug}`)
@@ -341,6 +342,7 @@ test('Sitzordnung: Gästeliste mit rsvp-app abgleichen - neu, geändert, abgesag
   await prisma.booking.create({ data: { eventId: event.id, status: 'CONFIRMED', source: 'ADMIN', name: 'Trauzeugin', partySize: 1, attendees: { create: [{ eventId: event.id, name: 'Trauzeugin', position: 0 }] } } })
   await login(page, owner.email)
   await page.goto(`/admin/events/${event.id}/arrange`)
+  await openSection(page, 'rsvp-sync')
 
   const panel = page.getByTestId('rsvp-sync')
   await panel.getByRole('button', { name: 'Mit rsvp-app abgleichen' }).click()

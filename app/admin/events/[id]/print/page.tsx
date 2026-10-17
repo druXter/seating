@@ -1,5 +1,5 @@
 // app/admin/events/[id]/print/page.tsx
-import Link from 'next/link'
+import { Segmented } from '../../../../ui/kit'
 import { prisma } from '../../../../lib/prisma'
 import { requireUser } from '../../../../lib/auth'
 import { loadEventOr404 } from '../../../../lib/events/store'
@@ -40,22 +40,20 @@ export default async function PrintPage({ params, searchParams }: { params: Prom
   const seatMode = event.mode === 'SEAT'
 
   return (
-    <main className="bg-white dark:bg-gray-800 py-6 px-4 print:p-0">
-      <div className="max-w-4xl mx-auto space-y-4 text-gray-900 dark:text-gray-100">
+    <div className="space-y-4">
         <div className="print:hidden flex flex-wrap items-center justify-between gap-2">
-          <p className="text-sm space-x-4">
-            <Link href={`/admin/events/${event.id}/bookings`} className="text-blue-700 dark:text-blue-300 hover:underline">Zurück zu den Buchungen</Link>
-            {cards
-              ? <Link href={`/admin/events/${event.id}/print`} className="text-blue-700 dark:text-blue-300 hover:underline">{seatMode ? 'Platzliste' : 'Tischliste'}</Link>
-              : <Link href={`/admin/events/${event.id}/print?view=cards`} className="text-blue-700 dark:text-blue-300 hover:underline">{seatMode ? 'Platzkarten' : 'Tischkarten'}</Link>}
-          </p>
+          <Segmented label="Druckart" items={[
+            { href: `/admin/events/${event.id}/print`, label: seatMode ? 'Platzliste' : 'Tischliste', active: !cards },
+            { href: `/admin/events/${event.id}/print?view=cards`, label: seatMode ? 'Platzkarten' : 'Tischkarten', active: cards }
+          ]} />
           <PrintButton />
         </div>
+        <div className="space-y-4 rounded-xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6 dark:border-gray-700 dark:bg-gray-800 print:rounded-none print:border-0 print:p-0 print:shadow-none">
 
         {cards ? (
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid gap-4 sm:grid-cols-2 print:grid-cols-2">
             {rows.map(row => (
-              <div key={row.id} className="border-2 border-gray-800 rounded p-6 text-center break-inside-avoid" data-testid="table-card">
+              <div key={row.id} className="border-2 border-gray-800 dark:border-gray-300 rounded-lg p-6 text-center break-inside-avoid" data-testid="table-card">
                 <p className="text-sm text-gray-600 dark:text-gray-400">{event.title}</p>
                 <p className={`${seatMode ? 'text-xl' : 'text-3xl'} font-bold my-3`}>{row.label}</p>
                 <p className="text-xl">{row.name}</p>
@@ -67,7 +65,7 @@ export default async function PrintPage({ params, searchParams }: { params: Prom
         ) : (
           <>
             <div>
-              <h1 className="text-2xl font-bold">{event.title} – {seatMode ? 'Platzliste' : 'Tischliste'}</h1>
+              <h1 className="text-2xl font-semibold">{event.title} – {seatMode ? 'Platzliste' : 'Tischliste'}</h1>
               <p className="text-sm text-gray-600 dark:text-gray-400">{formatRange(event.startsAt, event.endsAt, event.timezone)}{event.location && ` · ${event.location}`} · {seatMode ? `${rows.length} Buchungen` : `${rows.length} Tische`}, {guests} Personen</p>
             </div>
             <table className="w-full text-sm border-collapse">
@@ -94,7 +92,7 @@ export default async function PrintPage({ params, searchParams }: { params: Prom
             </table>
           </>
         )}
-      </div>
-    </main>
+        </div>
+    </div>
   )
 }

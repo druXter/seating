@@ -26,6 +26,11 @@ Tische und Einzelplätze lassen sich online buchen (Modus `TABLE` bzw. `SEAT`, Z
 aus rsvp-app), Veranstalter\*innen verwalten die Buchungen im Verwaltungsbereich. Für eine Sitzordnung (Modus `ASSIGNED`) legen sie die Gäste selbst an und
 setzen sie auf Plätze.
 
+**Oberfläche:** aufgebaut wie rsvp-app, Abstimmungstool, Schichten und Zeitplan – Kopfzeile mit Konto-Menü, Übersicht
+der Events als Karten mit Belegung, pro Event eine Seite mit Reitern (Übersicht, Buchungen bzw. Gäste, Im Plan
+verschieben bzw. Sitzordnung, Rundmail, Raumplan, Einstellungen) und Einstellungen in einklappbaren Abschnitten; fürs
+Handy gebaut (siehe [docs/KONZEPT-OBERFLAECHE.md](docs/KONZEPT-OBERFLAECHE.md)).
+
 **Darkmode:** folgt der Systemeinstellung des Geräts (wie rsvp-app). Der Raumplan bleibt bewusst hell, damit Belegung
 und Schraffuren eindeutig bleiben; Druckansichten (Tischliste, Tischkarten) sind immer hell.
 
@@ -134,7 +139,12 @@ Unter `/admin/plans` legen Creator und Admins wiederverwendbare Raumpläne an (M
 
 ## Events
 
-Unter `/admin/events` legen Creator und Admins Events an, Moderator\*innen sehen dort die ihnen freigegebenen.
+Unter `/admin` (auch `/admin/events`) legen Creator und Admins Events an, Moderator\*innen sehen dort die ihnen
+freigegebenen – als Karten mit Zeitraum, Status, Art der Buchung und Belegung, getrennt nach *Aktuell* und eingeklappt
+*Vergangen* (archiviert oder vorbei). Pro Event gibt es die Reiter **Übersicht** (Kennzahlen, Status mit Knöpfen, Link
+für Gäste, Plan mit Belegung), **Buchungen** bzw. **Gäste**, **Im Plan verschieben** bzw. **Sitzordnung**, **Rundmail**
+(nicht bei einer Sitzordnung), **Raumplan** (Editor, Vorlage, Hintergrundbild) und **Einstellungen** (Event, Buchung,
+Warteliste, Mails, Zugang und rsvp-app; für Besitzer\*in und Admins dazu Freigaben und Löschen).
 
 * **Anlegen** aus einem Raumplan (eigene oder gemeinsame Vorlage): Titel, Adresse (Vorschlag aus dem Titel), Beginn,
   Ende, Ort, Beschreibung. Plan **und** Hintergrundbild werden kopiert. Neue Events sind ein Entwurf.
@@ -142,12 +152,13 @@ Unter `/admin/events` legen Creator und Admins Events an, Moderator\*innen sehen
   `OPEN` oder `RSVP` (nur über eine Zusage aus rsvp-app, siehe unten), oder „Sitzordnung durch Veranstalter\*innen“
   (`ASSIGNED`, Hochzeit) mit Zugang `NONE`. Der Modus lässt sich nur wechseln, solange es keine aktiven Buchungen, Gruppen oder
   Wartelisten-Einträge gibt.
-* **Status:** Entwurf und Archiviert sind öffentlich nicht sichtbar (404), Konten mit Zugriff sehen eine Vorschau.
+* **Status** (Knöpfe in der Übersicht: Veröffentlichen, Buchung schließen bzw. wieder öffnen, Archivieren, Zurück zum
+  Entwurf): Entwurf und Archiviert sind öffentlich nicht sichtbar (404), Konten mit Zugriff sehen eine Vorschau.
   Veröffentlicht und Geschlossen sind sichtbar, Geschlossen ohne Buchungsmöglichkeit.
 * **Einstellungen:** Adresse (Slug; reservierte Namen und vergebene Adressen werden abgelehnt), Zeiten in der Zeitzone
   des Events (vorerst immer Europe/Berlin, gespeichert in UTC), Buchungszeitraum, **Mindestbelegung** eines Tisches
   in % (50 = ein 8er-Tisch ab 4 Personen).
-* **Plan des Events** ist eine eigene Kopie und im selben Editor bearbeitbar. Sobald Tische belegt sind, lehnt der
+* **Plan des Events** (Reiter „Raumplan“) ist eine eigene Kopie und im selben Editor bearbeitbar. Sobald Tische belegt sind, lehnt der
   Server ab, sie zu löschen, unter die belegte Personenzahl zu verkleinern oder auf „nicht buchbar“ zu setzen;
   Umbenennen und Verschieben geht immer. Zusätzlich verhindert die Datenbank das Löschen belegter Einheiten.
   „Plan aus Vorlage neu übernehmen“ holt den aktuellen Stand der Vorlage mit denselben Prüfungen.
@@ -169,7 +180,8 @@ Unter `/admin/events` legen Creator und Admins Events an, Moderator\*innen sehen
 `https://plaetze.deine-domain.de/<adresse>` zeigt Titel, Zeit, Ort, Beschreibung und den Plan mit Belegung:
 
 * Zoom und Verschieben (Maus: ziehen, Strg + Mausrad; Handy: zwei Finger – ein Finger scrollt weiter die Seite),
-  Knöpfe für +, − und „Ganzer Plan“.
+  Knöpfe für +, − und „Ganzer Plan“ (groß genug für den Finger). Eingabefelder haben auf dem Handy 16 px, damit iOS
+  beim Antippen nicht hineinzoomt.
 * „Wie viele Personen seid ihr?“ hebt passende freie Tische hervor und blendet die anderen ab (inkl.
   Mindestbelegung); die Auswertung passiert nur im Browser.
 * Zustand nie nur über Farbe: belegt ist schraffiert, dazu Text am Tisch, Legende und eine **Tischliste** als
@@ -190,7 +202,8 @@ Unter `/admin/events` legen Creator und Admins Events an, Moderator\*innen sehen
 ### Einzelplätze (Modus `SEAT`)
 
 * **Plätze wählen:** im Plan antippen (an/ab) oder – gleichwertig, auch per Tastatur und Screenreader – in der Liste
-  ankreuzen (nach Reihe bzw. Tisch gruppiert). „Plätze vorschlagen“ sucht N Plätze nebeneinander: in einer Reihe ohne
+  ankreuzen (nach Reihe bzw. Tisch gruppiert). Auf dem Handy führt eine Leiste am unteren Rand („N Plätze gewählt –
+  weiter zu deinen Angaben“) zum Formular unter Plan und Liste. „Plätze vorschlagen“ sucht N Plätze nebeneinander: in einer Reihe ohne
   Gang oder Lücke dazwischen, an einem Tisch beliebige Plätze desselben Tisches; gewählt wird der erste Treffer.
   Buchbar sind Plätze aus Reihenblöcken, einzelne Stühle und Plätze an Tischen.
 * **Obergrenze** pro Buchung: „Plätze pro Buchung höchstens“ (Standard 10, 1–50). Die Personenzahl ist die Zahl der
@@ -232,6 +245,8 @@ Seite: `/admin/events/<id>/arrange` („Sitzordnung“).
   Zurück in die Liste gezogen, verliert die Person ihren Platz. Nicht buchbare Plätze sind erlaubt.
 * **Ohne Ziehen:** Person oder Gruppe antippen und dann den Platz antippen (am Handy scrollt ein Finger weiter die
   Seite), oder – auch per Tastatur und Screenreader – in der Liste wählen und den Platz aus einer Auswahlliste nehmen.
+  Auf dem Handy hängt das Auswahlfeld, solange jemand gewählt ist, unten am Bildschirm – das Ziel lässt sich so wählen,
+  ohne von der Liste zum Plan zu scrollen (gilt genauso für „Buchungen im Plan verschieben“).
 * **Markierungen:** „2 von 4 mit Platz“, Personen ohne Platz farbig, „getrennt: Tisch 1, Tisch 3“, wenn eine Gruppe
   auf mehrere Tische bzw. Reihen verteilt ist. Im Plan stehen die Initialen auf den Plätzen, der volle Name im
   Tooltip; an Tischen „3 von 8“.
@@ -423,10 +438,11 @@ die App startet im Verwaltungsbereich. Buchende brauchen das nicht, jeder Event-
 Besitzer\*in, Admins und Konten mit Freigabe (auch Moderator\*innen) verwalten die Buchungen eines Events. Jede Aktion
 prüft auf dem Server Konto, Zugriff auf das Event und dass die Buchung zu genau diesem Event gehört.
 
-* **Plan auf der Event-Seite:** Klick auf einen belegten Tisch öffnet die Buchung, auf einen freien „Buchung anlegen“
+* **Plan in der Übersicht des Events:** Klick auf einen belegten Tisch öffnet die Buchung, auf einen freien „Buchung anlegen“
   mit vorausgewähltem Tisch. Verschieben per Ziehen: siehe „Buchungen im Plan verschieben“.
 * **Liste** (`/admin/events/<id>/bookings`): Suche (Name, E-Mail, Telefon, Tisch), Filter nach Status (aktiv,
-  bestätigt, unbestätigt, storniert, verfallen, alle), Zähler; von dort CSV-Export, Druckansicht, Tischkarten, Rundmail.
+  bestätigt, unbestätigt, storniert, verfallen, alle), Zähler; von dort CSV-Export, Druckansicht und Tischkarten. Jede
+  Buchung als Zeile, die auf dem Handy untereinander umbricht (E-Mail und Telefon direkt antippbar).
 * **Buchung** (`…/bookings/<buchung>`):
   * Name, Telefon, Anmerkung, Personenzahl und Tisch ändern. Zur Wahl stehen der aktuelle und alle freien Tische,
     auch nicht buchbare. Die Mindestbelegung gilt für Veranstalter\*innen nicht, die Zahl der Plätze schon (wer

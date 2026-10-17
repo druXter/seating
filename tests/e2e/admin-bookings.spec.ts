@@ -45,7 +45,7 @@ test('Liste: Filter, Suche, Links im Plan, CSV mit Formel-Schutz; fremde Konten 
   await expect(page.locator(`a[href="/admin/events/${event.id}/bookings/new?table=t3"]`)).toHaveCount(1)
 
   await page.goto(`/admin/events/${event.id}/bookings`)
-  const table = page.getByRole('table')
+  const table = page.getByTestId('booking-list')
   await expect(table).toContainText('Lieselotte Beispiel')
   await expect(table).toContainText('Paula Wartend')
   await expect(table).not.toContainText('Vera Verfallen')
@@ -58,7 +58,7 @@ test('Liste: Filter, Suche, Links im Plan, CSV mit Formel-Schutz; fremde Konten 
   await expect(table).not.toContainText('Lieselotte')
 
   await page.goto(`/admin/events/${event.id}/bookings?status=all&q=LIESE`)
-  await expect(page.getByRole('table').getByRole('row')).toHaveCount(2)
+  await expect(page.getByTestId('booking-list').getByRole('listitem')).toHaveCount(1)
   await page.getByRole('link', { name: 'Lieselotte Beispiel' }).click()
   await expect(page).toHaveURL(new RegExp(`${detailUrl(event.id, liese.id)}$`))
 

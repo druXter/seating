@@ -60,9 +60,9 @@ export default async function ManagePage({ params, searchParams }: {
   }
 
   return (
-    <main className="bg-gray-50 dark:bg-gray-900 py-8 px-4">
+    <main className="py-8 px-4">
       <div className="max-w-2xl mx-auto space-y-4 text-gray-900 dark:text-gray-100">
-        <h1 className="text-2xl font-bold">{waiting || (fromWaitlist && booking.status !== 'CONFIRMED') ? 'Dein Eintrag auf der Warteliste' : 'Deine Buchung'}</h1>
+        <h1 className="text-2xl font-semibold">{waiting || (fromWaitlist && booking.status !== 'CONFIRMED') ? 'Dein Eintrag auf der Warteliste' : 'Deine Buchung'}</h1>
         {search.waitlisted === '1' && <Notice tone="success">Du stehst jetzt auf der Warteliste. Wird ein passender Tisch frei, bekommst du ein Angebot per Mail.</Notice>}
         {search.accepted === '1' && <Notice tone="success">Angebot angenommen – deine Buchung ist bestätigt. Die Bestätigungsmail mit Kalendereintrag ist unterwegs.</Notice>}
         {search.declined === '1' && <Notice tone="success">Du hast das Angebot abgelehnt, dein Eintrag ist beendet. Der Tisch geht an die nächste Gruppe.</Notice>}
@@ -87,7 +87,7 @@ export default async function ManagePage({ params, searchParams }: {
         {booking.status === 'EXPIRED' && <Notice tone="warning">Das Angebot ist verfallen, dein Eintrag ist beendet. Du kannst dich auf der Seite der Veranstaltung erneut eintragen.</Notice>}
         {booking.status === 'OFFERED' && !offerOpen && <Notice tone="warning">Das Angebot ist abgelaufen, der Tisch geht an die nächste Gruppe.</Notice>}
 
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow space-y-3">
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-6 space-y-3">
           <dl className="text-sm grid grid-cols-[auto_1fr] gap-x-4 gap-y-1">
             <dt className="text-gray-600 dark:text-gray-400">Veranstaltung</dt><dd><Link href={`/${event.slug}`} className="text-blue-700 dark:text-blue-300 hover:underline">{event.title}</Link></dd>
             <dt className="text-gray-600 dark:text-gray-400">Wann</dt><dd>{formatRange(event.startsAt, event.endsAt, event.timezone)}</dd>
@@ -104,7 +104,7 @@ export default async function ManagePage({ params, searchParams }: {
         </div>
 
         {waiting && (
-          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow space-y-3">
+          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-6 space-y-3">
             <p className="text-sm text-gray-700 dark:text-gray-300">
               Wird ein passender Tisch frei, bekommst du ein Angebot per Mail. Es gilt {event.offerTtlHours} {event.offerTtlHours === 1 ? 'Stunde' : 'Stunden'}
               {' '}(höchstens bis Buchungsschluss). Die Reihenfolge richtet sich nach dem Zeitpunkt der Anmeldung – Gruppen, für die ein frei
@@ -115,8 +115,8 @@ export default async function ManagePage({ params, searchParams }: {
         )}
 
         {offerOpen && (
-          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow space-y-3 border-2 border-green-300 dark:border-green-700">
-            <h2 className="font-bold">{event.mode === 'SEAT' ? 'Plätze sind für euch frei' : 'Ein Tisch ist für euch frei'}</h2>
+          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-6 space-y-3 border-2 border-green-300 dark:border-green-700">
+            <h2 className="font-semibold">{event.mode === 'SEAT' ? 'Plätze sind für euch frei' : 'Ein Tisch ist für euch frei'}</h2>
             <p className="text-sm text-gray-700 dark:text-gray-300">
               {booking.placeLabel}: für euch reserviert bis <strong>{formatDateTime(booking.expiresAt!, event.timezone)}</strong>.
               Nimmst du das Angebot bis dahin nicht an, geht es an die nächste Gruppe.
@@ -128,8 +128,8 @@ export default async function ManagePage({ params, searchParams }: {
 
         {editable ? (
           <>
-            <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow space-y-3">
-              <h2 className="font-bold">Buchung ändern</h2>
+            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-6 space-y-3">
+              <h2 className="font-semibold">Buchung ändern</h2>
               <p className="text-sm text-gray-600 dark:text-gray-400">Möglich bis {formatDateTime(selfEditDeadline(event), event.timezone)}.</p>
               <ChangeForm values={{
                 bookingId: booking.id, token, name: booking.name, phone: booking.phone ?? '', note: booking.note ?? '',
@@ -140,8 +140,8 @@ export default async function ManagePage({ params, searchParams }: {
                 } : undefined
               }} />
             </div>
-            <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow space-y-2">
-              <h2 className="font-bold">Stornieren</h2>
+            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-6 space-y-2">
+              <h2 className="font-semibold">Stornieren</h2>
               <CancelForm bookingId={booking.id} token={token} />
             </div>
           </>

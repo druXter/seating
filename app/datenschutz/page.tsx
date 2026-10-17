@@ -26,12 +26,12 @@ export default function DatenschutzPage() {
   const smtpHost = process.env.SMTP_HOST || '[E-Mail-Server noch nicht konfiguriert]'
 
   return (
-    <main className="bg-gray-50 dark:bg-gray-900 py-8 px-4">
-      <div className="max-w-3xl mx-auto bg-white dark:bg-gray-800 p-8 rounded-lg shadow text-gray-800 dark:text-gray-200 space-y-6">
-        <h1 className="text-3xl font-bold border-b pb-4">Datenschutzerklärung</h1>
+    <main className="py-8 px-4">
+      <div className="max-w-3xl mx-auto bg-white dark:bg-gray-800 p-6 sm:p-8 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm text-gray-800 dark:text-gray-200 space-y-6">
+        <h1 className="text-2xl font-semibold border-b border-gray-200 dark:border-gray-700 pb-4">Datenschutzerklärung</h1>
 
         <div>
-          <h2 className="font-bold text-lg">1. Verantwortlicher</h2>
+          <h2 className="font-semibold text-lg">1. Verantwortlicher</h2>
           <p className="mt-2">
             Verantwortlicher im Sinne der Datenschutz-Grundverordnung (DSGVO) für die Datenverarbeitung auf dieser
             Website ist:
@@ -49,7 +49,7 @@ export default function DatenschutzPage() {
         </div>
 
         <div>
-          <h2 className="font-bold text-lg">2. Worum es geht</h2>
+          <h2 className="font-semibold text-lg">2. Worum es geht</h2>
           <p className="mt-2">
             Mit dieser Anwendung verwalten Veranstalter*innen Raumpläne und Sitzplätze für Veranstaltungen. Ein Konto
             brauchen nur Personen, die Veranstaltungen anlegen oder verwalten. Wir verarbeiten nur, was dafür nötig ist
@@ -59,7 +59,7 @@ export default function DatenschutzPage() {
         </div>
 
         <div>
-          <h2 className="font-bold text-lg">3. Konto (für Veranstalter*innen)</h2>
+          <h2 className="font-semibold text-lg">3. Konto (für Veranstalter*innen)</h2>
           <p className="mt-2">Für ein Konto speichern wir:</p>
           <ul className="list-disc list-inside mt-2 space-y-1 text-sm">
             <li>E-Mail-Adresse, optional einen Namen, deine Rolle, den Zeitpunkt der Anlage und der letzten Anmeldung,</li>
@@ -77,7 +77,7 @@ export default function DatenschutzPage() {
         </div>
 
         <div>
-          <h2 className="font-bold text-lg">3a. Anmeldung mit dem Konto eines anderen Tools (optional)</h2>
+          <h2 className="font-semibold text-lg">3a. Anmeldung mit dem Konto eines anderen Tools (optional)</h2>
           <p className="mt-2">
             Ist dies vom Betreiber eingerichtet, kannst du dich hier mit einem Konto eines verbundenen Tools anmelden
             (z.B. rsvp-app), und umgekehrt kann man sich dort mit einem Konto von hier anmelden. Das geschieht{' '}
@@ -100,7 +100,7 @@ export default function DatenschutzPage() {
         </div>
 
         <div>
-          <h2 className="font-bold text-lg">4. Raumpläne, Veranstaltungen und hochgeladene Bilder</h2>
+          <h2 className="font-semibold text-lg">4. Raumpläne, Veranstaltungen und hochgeladene Bilder</h2>
           <p className="mt-2">
             Veranstalter*innen können Raumpläne anlegen und optional ein Bild (z.B. einen Grundriss) als Hintergrund
             hochladen. Gespeichert werden der Plan, sein Name, das Konto, dem er gehört, und das Bild als Datei auf unserem
@@ -126,7 +126,7 @@ export default function DatenschutzPage() {
         </div>
 
         <div>
-          <h2 className="font-bold text-lg">5. Buchen eines Tisches (ohne Konto)</h2>
+          <h2 className="font-semibold text-lg">5. Buchen eines Tisches (ohne Konto)</h2>
           <p className="mt-2">
             Wenn du einen Tisch buchst, speichern wir deinen <strong>Namen</strong>, deine{' '}
             <strong>E-Mail-Adresse</strong>, die <strong>Personenzahl</strong>, den gewählten Tisch bzw. die gewählten Plätze, eine optionale
@@ -165,7 +165,7 @@ export default function DatenschutzPage() {
         </div>
 
         <div>
-          <h2 className="font-bold text-lg">5a. Warteliste</h2>
+          <h2 className="font-semibold text-lg">5a. Warteliste</h2>
           <p className="mt-2">
             Ist für deine Gruppe gerade kein passender Tisch frei, kannst du dich auf die Warteliste setzen. Wir speichern
             dieselben Angaben wie bei einer Buchung (ohne Tisch) und den Zeitpunkt deines Eintrags, der die Reihenfolge
@@ -182,7 +182,7 @@ export default function DatenschutzPage() {
         </div>
 
         <div>
-          <h2 className="font-bold text-lg">5b. Sitzordnung (Gästeliste der Veranstalter*innen)</h2>
+          <h2 className="font-semibold text-lg">5b. Sitzordnung (Gästeliste der Veranstalter*innen)</h2>
           <p className="mt-2">
             Bei manchen Veranstaltungen (z. B. einer Hochzeit) bucht man nicht selbst, sondern die Veranstalter*innen legen
             fest, wer wo sitzt. Dafür tragen sie ihre Gäste ein – von Hand oder aus einer eigenen Liste (CSV-Datei). Wir
@@ -204,7 +204,7 @@ export default function DatenschutzPage() {
         </div>
 
         <div>
-          <h2 className="font-bold text-lg">5c. Sitzplatz über deine Zusage in rsvp-app</h2>
+          <h2 className="font-semibold text-lg">5c. Sitzplatz über deine Zusage in rsvp-app</h2>
           <p className="mt-2">
             Manche Veranstaltungen sind mit einem Termin in rsvp-app verknüpft, dem Anmeldetool der Veranstalter*innen. Wählst
             du dort bei deiner Zusage „Sitzplatz wählen“, übergibt rsvp-app uns über einen kurz gültigen, signierten Link
@@ -225,7 +225,7 @@ export default function DatenschutzPage() {
         </div>
 
         <div>
-          <h2 className="font-bold text-lg">6. Schutz vor Missbrauch (Drosselung)</h2>
+          <h2 className="font-semibold text-lg">6. Schutz vor Missbrauch (Drosselung)</h2>
           <p className="mt-2">
             Um das Erraten von Passwörtern und das massenhafte Auslösen von Mails zu verhindern, zählen wir
             fehlgeschlagene Anmeldeversuche, Passwort-Reset-Anfragen, Reservierungen, Code-Eingaben und angeforderte
@@ -238,7 +238,7 @@ export default function DatenschutzPage() {
         </div>
 
         <div>
-          <h2 className="font-bold text-lg">7. E-Mails</h2>
+          <h2 className="font-semibold text-lg">7. E-Mails</h2>
           <p className="mt-2">
             Wir verschicken E-Mails nur für Kontofunktionen (Einladung zu einem neuen Konto, auf Wunsch angeforderter
             Passwort-Reset) und für deine Buchung: die Bitte um Bestätigung (mit Link und Code), die Bestätigung mit
@@ -252,7 +252,7 @@ export default function DatenschutzPage() {
         </div>
 
         <div>
-          <h2 className="font-bold text-lg">8. Cookies</h2>
+          <h2 className="font-semibold text-lg">8. Cookies</h2>
           <p className="mt-2">
             Wir setzen ausschließlich technisch notwendige Cookies ein (Art. 6 Abs. 1 lit. b/f DSGVO, § 25 Abs. 2 Nr. 2
             TDDDG) - eine Einwilligung ist dafür nicht erforderlich. Es gibt keine Tracking-, Analyse- oder
@@ -273,7 +273,7 @@ export default function DatenschutzPage() {
         </div>
 
         <div>
-          <h2 className="font-bold text-lg">9. Empfänger und Auftragsverarbeiter</h2>
+          <h2 className="font-semibold text-lg">9. Empfänger und Auftragsverarbeiter</h2>
           <p className="mt-2">
             <strong>E-Mail-Versand:</strong> Einladungs-, Passwort-Reset- und Buchungsmails versenden wir über den
             E-Mail-Server <code>{smtpHost}</code>. Mit dem Betreiber dieses Servers besteht, soweit es sich um einen
@@ -297,7 +297,7 @@ export default function DatenschutzPage() {
         </div>
 
         <div>
-          <h2 className="font-bold text-lg">10. Speicherdauer</h2>
+          <h2 className="font-semibold text-lg">10. Speicherdauer</h2>
           <p className="mt-2">
             Ein Konto wird automatisch gelöscht, wenn du dich <strong>2 Jahre</strong> lang nicht mehr angemeldet
             hast und dir keine Raumpläne und Veranstaltungen mehr gehören - inklusive Sitzungen, Verknüpfungen zu anderen
@@ -324,7 +324,7 @@ export default function DatenschutzPage() {
         </div>
 
         <div>
-          <h2 className="font-bold text-lg">11. Deine Rechte</h2>
+          <h2 className="font-semibold text-lg">11. Deine Rechte</h2>
           <p className="mt-2">
             Du hast das Recht auf Auskunft (Art. 15 DSGVO), Berichtigung (Art. 16 DSGVO), Löschung (Art. 17 DSGVO),
             Einschränkung der Verarbeitung (Art. 18 DSGVO), Datenübertragbarkeit (Art. 20 DSGVO) und Widerspruch (Art.
@@ -338,7 +338,7 @@ export default function DatenschutzPage() {
         </div>
 
         <div>
-          <h2 className="font-bold text-lg">12. Datensicherheit</h2>
+          <h2 className="font-semibold text-lg">12. Datensicherheit</h2>
           <p className="mt-2">
             Die Übertragung erfolgt verschlüsselt (TLS/HTTPS). Anmelde-Cookies sind <code>httpOnly</code> gesetzt und
             damit per JavaScript nicht auslesbar. Passwörter, Sitzungs-Tokens und Einmal-Links werden nur als Hash

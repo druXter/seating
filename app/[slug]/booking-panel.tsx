@@ -14,8 +14,8 @@ import SubmitButton from '../ui/submit-button'
  * Seite neu, geht es über den Link in der Mail weiter.
  */
 
-const input = 'w-full border border-gray-300 dark:border-gray-600 p-2 rounded'
-const labelClass = 'block text-sm font-medium mb-1'
+const input = 'w-full rounded-lg border border-gray-300 bg-white p-2 text-base sm:text-sm text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100 dark:focus:ring-blue-900'
+const labelClass = 'block text-sm font-medium text-gray-800 dark:text-gray-200 mb-1'
 
 export function ReserveForm({ eventId, table, partySize, requirePhone, action, pending, errors, onClose }: {
   eventId: string
@@ -31,7 +31,7 @@ export function ReserveForm({ eventId, table, partySize, requirePhone, action, p
   return (
     <form action={action} className="space-y-3" aria-labelledby={`${id}-heading`}>
       <div className="flex items-baseline justify-between gap-2">
-        <h2 id={`${id}-heading`} className="font-bold text-lg">{table.label} buchen <span className="text-sm font-normal text-gray-600 dark:text-gray-400">({table.capacity} Plätze)</span></h2>
+        <h2 id={`${id}-heading`} className="font-semibold text-lg">{table.label} buchen <span className="text-sm font-normal text-gray-600 dark:text-gray-400">({table.capacity} Plätze)</span></h2>
         <button type="button" onClick={onClose} className="text-sm text-blue-700 dark:text-blue-300 hover:underline">Anderen Tisch wählen</button>
       </div>
       {errors.length > 0 && (
@@ -110,9 +110,9 @@ export function PendingPanel({ bookingId, children, resendHint }: { bookingId: s
         <input type="hidden" name="bookingId" value={bookingId} />
         <div>
           <label htmlFor={`${id}-code`} className={labelClass}>Code aus der Mail</label>
-          <input id={`${id}-code`} name="code" required inputMode="numeric" autoComplete="one-time-code" pattern="[0-9 ]{6,7}" maxLength={7} className="w-36 border border-gray-300 dark:border-gray-600 p-2 rounded tracking-widest" />
+          <input id={`${id}-code`} name="code" required inputMode="numeric" autoComplete="one-time-code" pattern="[0-9 ]{6,7}" maxLength={7} className="w-36 tracking-widest rounded-lg border border-gray-300 bg-white p-2 text-base sm:text-sm text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100 dark:focus:ring-blue-900" />
         </div>
-        <button type="submit" disabled={codePending} className="bg-blue-600 text-white font-bold py-2 px-4 rounded hover:bg-blue-700 disabled:opacity-50">Bestätigen</button>
+        <button type="submit" disabled={codePending} className="inline-flex items-center justify-center gap-1.5 rounded-lg font-medium transition disabled:opacity-60 whitespace-nowrap px-3.5 py-2 text-sm bg-blue-600 text-white hover:bg-blue-700 border border-blue-600">Bestätigen</button>
       </form>
       {codeState?.kind === 'error' && <Notice tone="error">{codeState.message}</Notice>}
       <form action={resend} className="text-sm">
@@ -140,7 +140,7 @@ export function WaitlistForm({ eventId, partySize, requirePhone, action, pending
   return (
     <form action={action} className="space-y-3" aria-labelledby={`${id}-heading`}>
       <div className="flex items-baseline justify-between gap-2">
-        <h2 id={`${id}-heading`} className="font-bold text-lg">Auf die Warteliste</h2>
+        <h2 id={`${id}-heading`} className="font-semibold text-lg">Auf die Warteliste</h2>
         <button type="button" onClick={onClose} className="text-sm text-blue-700 dark:text-blue-300 hover:underline">Abbrechen</button>
       </div>
       <p className="text-sm text-gray-700 dark:text-gray-300">

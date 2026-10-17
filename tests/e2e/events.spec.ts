@@ -2,8 +2,7 @@ import { expect, test, type Page, type Request } from '@playwright/test'
 import { TEST_CRON_SECRET } from '../../playwright.config'
 import {
   BASE_URL, cookieOf, createAccount, createBooking, createEventRecord, createPlanRecord, locationOf, login, pageAlert, prisma,
-  readForm, submitForm, testLayout, uniqueSlug
-} from './helpers'
+  readForm, submitForm, testLayout, uniqueSlug, openSettings, openSection } from './helpers'
 
 // Events (Phase 2): Anlegen mit Plan-Snapshot, Einstellungen, Plan des Events mit Schutz belegter
 // Einheiten, Freigaben, Löschen. Jeder Angriffsfall mit Positivkontrolle durch ein berechtigtes Konto.
@@ -78,17 +77,21 @@ test('Adresse: reserviert, ungültig und doppelt werden serverseitig abgelehnt',
 
 test('Einstellungen speichern und veröffentlichen', async ({ page, browser }) => {
   const user = await loggedIn(page)
-  const event = await createEventRecord(user.id, { slug: uniqueSlug('einstellungen') })
+  const event = await createEventRecord(user.id, { slug: uniqueSlug('settings') })
   const anonymous = await browser.newPage()
   expect((await anonymous.goto(`/${event.slug}`))?.status()).toBe(404)
 
+  // Status über die Knöpfe der Übersicht, die übrigen Felder in den Abschnitten der Einstellungen.
   await page.goto(`/admin/events/${event.id}`)
-  await page.getByLabel('Status').selectOption('OPEN')
+  await page.getByRole('button', { name: 'Veröffentlichen' }).click()
+  await expect(page.getByText('Status: Veröffentlicht.')).toBeVisible()
+  await openSettings(page, event.id, 'event', 'booking')
   await page.getByLabel('Titel').fill('Sommerfest')
   await page.getByLabel('Mindestbelegung eines Tisches in % (optional)').fill('50')
   await page.getByLabel('Buchung ab (optional)').fill('2026-11-01T10:00')
   await page.getByRole('button', { name: 'Einstellungen speichern' }).click()
   await expect(page.getByText('Einstellungen gespeichert.')).toBeVisible()
+  await expect(page).toHaveURL(/\/settings\?saved=1$/)
 
   const saved = await storedEvent(event.id)
   expect(saved).toMatchObject({ status: 'OPEN', title: 'Sommerfest', minFillRatio: 0.5, slug: event.slug })
@@ -182,7 +185,8 @@ test('Plan aus Vorlage neu übernehmen - abgelehnt, wenn die Vorlage nicht zur B
   const layout = testLayout()
   await prisma.floorPlan.update({ where: { id: plan.id }, data: { layout: { ...layout, elements: layout.elements.filter(e => e.id !== 't1') } } })
   const booking = await createBooking(event.id, ['t1'])
-  await page.goto(`/admin/events/${event.id}`)
+  await page.goto(`/admin/events/${event.id}/plan`)
+  await openSection(page, 'template')
   await page.getByRole('button', { name: 'Plan aus Vorlage neu übernehmen' }).click()
   await expect(pageAlert(page)).toContainText('Tisch 1 ist belegt')
   expect((await storedEvent(event.id)).layout.elements).toHaveLength(3)
@@ -190,6 +194,7 @@ test('Plan aus Vorlage neu übernehmen - abgelehnt, wenn die Vorlage nicht zur B
   // Positivkontrolle: ohne die Belegung wird übernommen.
   await prisma.booking.delete({ where: { id: booking.id } })
   await page.reload()
+  await openSection(page, 'template')
   await page.getByRole('button', { name: 'Plan aus Vorlage neu übernehmen' }).click()
   await expect(page.getByText('Plan aus der Vorlage übernommen.')).toBeVisible()
   expect((await storedEvent(event.id)).layout.elements.map(e => e.id)).toEqual(['blk2', 'o3'])
@@ -204,8 +209,8 @@ test('Freigabe: Moderator*in erst mit Freigabe, dann bearbeiten - aber nie lösc
   await login(modPage, moderator.email)
 
   // Formulare als Besitzer*in lesen (frischer Seitenaufruf, siehe readForm).
-  await page.goto(`/admin/events/${event.id}`)
-  const settings = await readForm(page, 'form:has(select[name="status"])')
+  await openSettings(page, event.id, 'shares')
+  const settings = await readForm(page, 'form:has(input[name="pendingTtlMinutes"])')
   const share = await readForm(page, 'form:has(input[name="email"])')
   const remove = await readForm(page, 'form:has(button:text("Event löschen"))')
 
@@ -215,13 +220,15 @@ test('Freigabe: Moderator*in erst mit Freigabe, dann bearbeiten - aber nie lösc
   await submitForm(modPage, settings, { title: 'Übernommen' })
   expect((await storedEvent(event.id)).title).toBe('Testevent')
 
-  // Freigeben über die Oberfläche.
+  // Freigeben über die Oberfläche (readForm hat die Seite neu geladen, der Abschnitt ist wieder zu).
+  await openSection(page, 'shares')
   await page.getByPlaceholder('E-Mail-Adresse des Kontos').fill(moderator.email)
   await page.getByRole('button', { name: 'Freigeben' }).click()
   await expect(page.getByText('Freigabe hinzugefügt.')).toBeVisible()
 
   await modPage.goto('/admin/events')
   await modPage.getByRole('link', { name: 'Testevent' }).click()
+  await modPage.getByRole('link', { name: 'Einstellungen' }).click()
   await expect(modPage.getByRole('button', { name: 'Einstellungen speichern' })).toBeVisible()
   await expect(modPage.getByRole('heading', { name: 'Freigaben' })).toHaveCount(0)
   await expect(modPage.getByRole('heading', { name: 'Event löschen' })).toHaveCount(0)
@@ -243,7 +250,7 @@ test('Freigabe: Moderator*in erst mit Freigabe, dann bearbeiten - aber nie lösc
   expect(await prisma.eventAccess.count({ where: { eventId: event.id, userId: third.id } })).toBe(1)
 
   // Freigabe entziehen - danach wieder kein Zugriff.
-  await page.goto(`/admin/events/${event.id}`)
+  await openSettings(page, event.id, 'shares')
   await page.getByRole('listitem').filter({ hasText: moderator.email }).getByRole('button', { name: 'Entfernen' }).click()
   await expect(page.getByText('Freigabe entfernt.')).toBeVisible()
   expect((await modPage.goto(`/admin/events/${event.id}`))?.status()).toBe(404)
@@ -256,8 +263,9 @@ test('Freigabe: Moderator*in erst mit Freigabe, dann bearbeiten - aber nie lösc
 test('Fremdes Konto: Seite 404, nachgespielte Aktionen wirkungslos, Admin darf alles', async ({ page, browser }) => {
   const owner = await loggedIn(page)
   const event = await createEventRecord(owner.id)
+  // Statuswechsel aus der Übersicht (eigene Action, setEventStatus).
   await page.goto(`/admin/events/${event.id}`)
-  const settings = await readForm(page, 'form:has(select[name="status"])')
+  const settings = await readForm(page, 'form:has(input[name="status"][value="OPEN"])')
 
   const stranger = await browser.newPage()
   await login(stranger, (await createAccount('CREATOR')).email)
@@ -286,7 +294,7 @@ test('Löschen entfernt Buchungen, Belegungen und Freigaben mit', async ({ page 
   await prisma.eventAccess.create({ data: { eventId: event.id, userId: (await createAccount('MODERATOR')).id } })
   page.on('dialog', dialog => dialog.accept())
 
-  await page.goto(`/admin/events/${event.id}`)
+  await page.goto(`/admin/events/${event.id}/settings`)
   await expect(page.getByText('Es hat 1 aktive Buchung')).toBeVisible()
   await page.getByRole('button', { name: 'Event löschen' }).click()
   await expect(page.getByText('Event gelöscht.')).toBeVisible()

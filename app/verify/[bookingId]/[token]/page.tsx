@@ -25,9 +25,9 @@ export default async function VerifyPage({ params }: { params: Promise<{ booking
   const valid = booking && (booking.status === 'PENDING' || (waitlist && !booking.emailVerifiedAt)) && booking.expiresAt && booking.expiresAt > now
 
   return (
-    <main className="bg-gray-50 dark:bg-gray-900 flex items-center justify-center px-4 py-16">
-      <div className="max-w-md w-full bg-white dark:bg-gray-800 p-8 rounded-lg shadow space-y-4 text-gray-900 dark:text-gray-100">
-        <h1 className="text-2xl font-bold">{waitlist ? 'Eintrag auf der Warteliste bestätigen' : 'Buchung bestätigen'}</h1>
+    <main className="flex items-center justify-center px-4 py-16">
+      <div className="max-w-md w-full bg-white dark:bg-gray-800 p-6 sm:p-8 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm space-y-4 text-gray-900 dark:text-gray-100">
+        <h1 className="text-2xl font-semibold">{waitlist ? 'Eintrag auf der Warteliste bestätigen' : 'Buchung bestätigen'}</h1>
         {!booking ? (
           <Notice tone="error">
             Dieser Link ist ungültig, wurde schon verwendet oder durch eine neuere Mail ersetzt. Hast du bereits bestätigt,

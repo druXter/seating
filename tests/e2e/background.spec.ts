@@ -2,7 +2,7 @@ import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { expect, test, type Page } from '@playwright/test'
 import { TEST_UPLOAD_DIR } from '../../playwright.config'
-import { BASE_URL, createAccount, createPlanRecord, locationOf, login, prisma, uniqueIp } from './helpers'
+import { BASE_URL, createAccount, createPlanRecord, locationOf, login, prisma, uniqueIp, openSection } from './helpers'
 
 // Hintergrundbild (Phase 1): Upload über einen Route Handler mit eigener Origin-, Anmelde- und
 // Rechteprüfung, Erkennung am Inhalt, Auslieferung nur an Berechtigte.
@@ -34,6 +34,7 @@ test('Upload über die Seite, Auslieferung mit sicheren Headern, Entfernen lösc
 
   const file = testInfo.outputPath('grundriss.png')
   await (await import('node:fs/promises')).writeFile(file, PNG)
+  await openSection(page, 'background')
   await page.getByLabel('Bilddatei').setInputFiles(file)
   await page.getByRole('button', { name: 'Bild hochladen' }).click()
   await expect(page.getByText('Hintergrundbild gespeichert.')).toBeVisible()

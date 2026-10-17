@@ -174,7 +174,7 @@ test('Admin: Moduswechsel nur ohne Buchungen, Plätze ohne Obergrenze anlegen un
   const tableEvent = await createEventRecord(owner.id, { status: 'OPEN', layout: seatLayout() })
   const blocking = await createBooking(tableEvent.id, ['t2'], { partySize: 4 })
   await login(page, owner.email)
-  await page.goto(`/admin/events/${tableEvent.id}`)
+  await page.goto(`/admin/events/${tableEvent.id}/settings`)
   const settings = await readForm(page, 'form:has(input[name="pendingTtlMinutes"])')
   expect(await (await submitForm(page, settings, { mode: 'SEAT' })).text()).toContain('lässt sich nur ohne sie wechseln')
   await prisma.booking.delete({ where: { id: blocking.id } })

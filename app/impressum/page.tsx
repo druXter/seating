@@ -16,12 +16,12 @@ export default function ImpressumPage() {
   const phone = process.env.IMPRESSUM_PHONE || '[Deine Telefonnummer - Optional]'
 
   return (
-    <main className="min-h-screen bg-gray-50 dark:bg-gray-900 py-12 px-4">
-      <div className="max-w-3xl mx-auto bg-white dark:bg-gray-800 p-8 rounded-lg shadow text-gray-800 dark:text-gray-200 space-y-6">
-        <h1 className="text-3xl font-bold border-b pb-4">Impressum</h1>
+    <main className="py-12 px-4">
+      <div className="max-w-3xl mx-auto bg-white dark:bg-gray-800 p-6 sm:p-8 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm text-gray-800 dark:text-gray-200 space-y-6">
+        <h1 className="text-2xl font-semibold border-b border-gray-200 dark:border-gray-700 pb-4">Impressum</h1>
 
         <div>
-          <h2 className="font-bold text-lg">Angaben gemäß § 5 DDG</h2>
+          <h2 className="font-semibold text-lg">Angaben gemäß § 5 DDG</h2>
           <p className="mt-2">
             {name}<br />
             {street}<br />
@@ -30,7 +30,7 @@ export default function ImpressumPage() {
         </div>
 
         <div>
-          <h2 className="font-bold text-lg">Kontakt</h2>
+          <h2 className="font-semibold text-lg">Kontakt</h2>
           <p className="mt-2">
             E-Mail: {email}<br />
             Telefon: {phone}
