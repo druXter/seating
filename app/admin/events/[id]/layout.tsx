@@ -3,8 +3,7 @@ import { requireUser } from '../../../lib/auth'
 import { loadEventOr404 } from '../../../lib/events/store'
 import { MODE_SHORT } from '../../../lib/events/settings'
 import { formatRange } from '../../../lib/timezone'
-import { Badge, ButtonLink, PageHeader } from '../../../ui/kit'
-import NavLink from '../../../ui/nav-link'
+import { Badge, ButtonLink, PageHeader, Tabs } from '../../../ui/kit'
 import StatusBadge from '../../../ui/status-badge'
 import EventFrame from './event-frame'
 
@@ -46,9 +45,7 @@ export default async function EventLayout({ children, params }: { children: Reac
           }
           actions={<ButtonLink href={`/${event.slug}`} external size="sm">{hidden ? 'Vorschau ↗' : 'Öffentliche Seite ↗'}</ButtonLink>}
         />
-        <nav className="-mx-4 mb-6 flex overflow-x-auto border-b border-gray-200 px-4 dark:border-gray-700" aria-label="Bereiche des Events">
-          {tabs.map(tab => <NavLink key={tab.href} href={tab.href} exact={tab.exact} variant="tab">{tab.label}</NavLink>)}
-        </nav>
+        <Tabs label="Bereiche des Events" items={tabs} />
       </div>
       {children}
     </EventFrame>

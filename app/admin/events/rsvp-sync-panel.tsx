@@ -1,10 +1,10 @@
 // app/admin/events/rsvp-sync-panel.tsx
 'use client'
 
+import { Notice } from '../../ui/kit'
 import { useActionState } from 'react'
 import { reportPlacementsAction, rsvpSyncAction, type SyncState } from './rsvp-actions'
 import type { SyncKind } from '../../lib/rsvp/rules'
-import Notice from '../../ui/notice'
 
 const KIND_LABELS: Record<SyncKind, string> = { new: 'Neue Zusagen', changed: 'Geändert', removed: 'Nicht mehr zugesagt' }
 

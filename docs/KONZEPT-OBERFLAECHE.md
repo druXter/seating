@@ -38,9 +38,9 @@ Reiter Einstellungen wie bisher (sie dürfen alles außer löschen und freigeben
 
 ## Gestaltung
 
-* Bausteine in `app/ui/kit.tsx`, dieselben wie in den anderen Tools (Card, Badge, Stat, ProgressBar,
-  ButtonLink/buttonClass, SettingsSection, PageHeader, Main, EmptyState, Segmented, inputClass). Hinweise über
-  `app/ui/notice.tsx` mit denselben Farben; `status-badge.tsx` und `booking-status-badge.tsx` nutzen den Badge aus dem Kit.
+* Bausteine aus `suite-kit/ui` (seit suite-kit v0.3.0 gemeinsam für alle Tools, Regeln in `docs/DESIGN.md` dort),
+  re-exportiert in `app/ui/kit.tsx`; Kopf- und Fußzeile sind `AppHeader`/`AppFooter`, die Reiter `Tabs`, Grundregeln
+  kommen aus `suite-kit/theme.css`. `status-badge.tsx` und `booking-status-badge.tsx` nutzen den Badge aus dem Kit.
 * Ruhig: weiß/grau, Blau nur für Hauptaktionen und den aktiven Reiter, keine Emojis an Knöpfen. Farbe trägt Bedeutung:
   Event grün veröffentlicht, amber geschlossen, grau Entwurf/archiviert; Buchung grün bestätigt, amber unbestätigt bzw.
   Angebot, blau Warteliste, grau storniert/verfallen; türkis freigegeben, pink rsvp-app, lila interne Notiz.

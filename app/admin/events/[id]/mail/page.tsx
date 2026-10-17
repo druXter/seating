@@ -1,4 +1,5 @@
 // app/admin/events/[id]/mail/page.tsx
+import { Notice } from '../../../../ui/kit'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { prisma } from '../../../../lib/prisma'
@@ -8,7 +9,6 @@ import { activeWhere } from '../../../../lib/events/booking-tx'
 import { MAIL_STATUS_LABELS, byLabel, effectiveStatus } from '../../../../lib/events/admin-rules'
 import { isMailConfigured } from '../../../../lib/mail'
 import { formatShort } from '../../../../lib/timezone'
-import Notice from '../../../../ui/notice'
 import BroadcastForm, { type BroadcastRecipient } from './broadcast-form'
 
 export const dynamic = 'force-dynamic'

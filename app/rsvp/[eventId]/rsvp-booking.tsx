@@ -1,6 +1,7 @@
 // app/rsvp/[eventId]/rsvp-booking.tsx
 'use client'
 
+import { Notice, SubmitButton } from '../../ui/kit'
 import { useActionState, useState } from 'react'
 import Link from 'next/link'
 import type { Layout } from '../../lib/floorplan/schema'
@@ -9,8 +10,6 @@ import type { SeatGroup } from '../../lib/events/seat-rules'
 import SeatPicker, { type PickerSeat } from '../../ui/plan/seat-picker'
 import PlanViewer from '../../ui/plan/plan-viewer'
 import type { UnitVisual } from '../../ui/plan/plan-svg'
-import Notice from '../../ui/notice'
-import SubmitButton from '../../ui/submit-button'
 import { bookViaRsvpAction } from '../actions'
 
 type RsvpTable = { key: string; label: string; capacity: number; state: PublicUnitState; fits: boolean }

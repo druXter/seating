@@ -12,9 +12,8 @@ import {
 import { actorText, auditDetails, auditText } from '../../../../lib/events/audit-text'
 import { formatDeadline, formatShort } from '../../../../lib/timezone'
 import BookingStatusBadge from '../../../../ui/booking-status-badge'
-import Notice from '../../../../ui/notice'
 import RsvpSyncPanel from '../../rsvp-sync-panel'
-import { ButtonLink, buttonClass, Card, EmptyState, inputClass, labelClass, SettingsSection } from '../../../../ui/kit'
+import { ButtonLink, buttonClass, Card, EmptyState, inputClass, labelClass, SettingsSection, Notice } from '../../../../ui/kit'
 
 export const dynamic = 'force-dynamic'
 

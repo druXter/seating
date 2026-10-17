@@ -1,4 +1,5 @@
 // app/admin/events/[id]/bookings/[bookingId]/page.tsx
+import { CopyableField, Notice, SubmitButton } from '../../../../../ui/kit'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { prisma } from '../../../../../lib/prisma'
@@ -17,9 +18,6 @@ import {
 } from '../../../booking-actions'
 import ActionForm from '../../../../../ui/action-form'
 import BookingStatusBadge from '../../../../../ui/booking-status-badge'
-import CopyableField from '../../../../../ui/copyable-field'
-import Notice from '../../../../../ui/notice'
-import SubmitButton from '../../../../../ui/submit-button'
 import SeatPicker from '../../../../../ui/plan/seat-picker'
 import { seatPickerData } from '../../../../../lib/events/places'
 import PartyView from './party-view'

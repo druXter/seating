@@ -1,14 +1,13 @@
 // app/[slug]/seat-booking.tsx
 'use client'
 
+import { Notice, SubmitButton } from '../ui/kit'
 import { useActionState, useEffect, useRef, useState } from 'react'
 import type { Layout } from '../lib/floorplan/schema'
 import type { SeatGroup } from '../lib/events/seat-rules'
 import SeatPicker, { type PickerSeat } from '../ui/plan/seat-picker'
 import PlanViewer from '../ui/plan/plan-viewer'
 import type { UnitVisual } from '../ui/plan/plan-svg'
-import Notice from '../ui/notice'
-import SubmitButton from '../ui/submit-button'
 import { joinWaitlistAction, reserveAction } from './booking-actions'
 import { PendingPanel, SeatContactFields, WaitlistForm } from './booking-panel'
 import type { BookingOptions } from './event-plan'

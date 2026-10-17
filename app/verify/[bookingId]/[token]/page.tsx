@@ -1,10 +1,10 @@
 // app/verify/[bookingId]/[token]/page.tsx
+import { Notice } from '../../../ui/kit'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { formatDateTime, formatRange } from '../../../lib/timezone'
 import { bookingForVerifyLink } from '../../../lib/events/booking'
 import { placeLabelOf } from '../../../lib/events/places'
-import Notice from '../../../ui/notice'
 import ConfirmButton from './confirm-button'
 
 export const dynamic = 'force-dynamic'

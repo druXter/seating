@@ -1,4 +1,5 @@
 // app/b/[bookingId]/[token]/page.tsx
+import { Notice } from '../../../ui/kit'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
@@ -9,7 +10,6 @@ import { loadManagedBooking } from '../../../lib/events/booking'
 import { loadUnitStates } from '../../../lib/events/store'
 import { seatPickerData } from '../../../lib/events/places'
 import { parseLayout } from '../../../lib/floorplan/schema'
-import Notice from '../../../ui/notice'
 import { acceptOfferAction, declineOfferAction, leaveWaitlistAction } from '../../actions'
 import { CancelForm, ChangeForm, ManageButtonForm } from './manage-forms'
 

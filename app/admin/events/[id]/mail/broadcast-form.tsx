@@ -1,10 +1,10 @@
 // app/admin/events/[id]/mail/broadcast-form.tsx
 'use client'
 
+import { Notice } from '../../../../ui/kit'
 import { useActionState, useState } from 'react'
 import { sendBroadcast, sendBroadcastTest, type BookingFormState } from '../../booking-actions'
 import { BROADCAST_LIMITS, broadcastBlocks, renderText, type DetailsEvent } from '../../../../lib/mail-blocks'
-import Notice from '../../../../ui/notice'
 
 const input = 'w-full rounded-lg border border-gray-300 bg-white p-2 text-base sm:text-sm text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100 dark:focus:ring-blue-900'
 const labelClass = 'block text-sm font-medium text-gray-800 dark:text-gray-200 mb-1'

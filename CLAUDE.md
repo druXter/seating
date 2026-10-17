@@ -46,7 +46,8 @@ löschen, sonst schreibt `next dev` seinen Block direkt in diese Datei.
   `normalizeEmail`, wie im Abstimmungstool; dort gibt es keine Validierungs-Bibliothek). Vor Phase 1 (Import von
   Raumplänen als JSON) neu entscheiden, ob eine Schema-Bibliothek sich lohnt.
 * `'use server'`-Dateien exportieren nur async-Funktionen.
-* **Oberfläche:** Bausteine aus `app/ui/kit.tsx` (dieselben wie in rsvp-app, Abstimmungstool, Schichten, Zeitplan),
+* **Oberfläche:** Bausteine aus `suite-kit/ui`, re-exportiert in `app/ui/kit.tsx` (Regeln in `../suite-kit/docs/DESIGN.md`;
+  Gestaltung ändert man dort, nicht hier, verteilt mit `scripts/update-apps.mjs` in suite-kit),
   Aufbau nach [docs/KONZEPT-OBERFLAECHE.md](docs/KONZEPT-OBERFLAECHE.md): Seiten eines Events liegen im Rahmen
   `app/admin/events/[id]/layout.tsx` (Kopf und Reiter), haben kein eigenes `<main>` und keinen Zurück-Link zum Event.
 * **Darkmode:** wie in rsvp-app nach der Systemeinstellung, aber nur am Bildschirm (Druckansichten bleiben hell; `@custom-variant dark` in `app/globals.css`). Neue Oberflächen bekommen zu jeder hellen Farbklasse ihr `dark:`-Gegenstück nach demselben Schema: `bg-white` → `dark:bg-gray-800`, `bg-gray-50` → `dark:bg-gray-900`, `text-gray-900` → `dark:text-gray-100`, `text-gray-600` → `dark:text-gray-400`, `border-gray-300` → `dark:border-gray-600`, helle Farbflächen `bg-X-50` → `dark:bg-X-950/50`, Farbtext `text-X-700` → `dark:text-X-300`; kräftige Knopffarben bleiben.

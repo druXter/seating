@@ -6,13 +6,10 @@ import type { BookingAccess, EventMode } from '@prisma/client'
 import { createEvent, resyncEventFromTemplate, updateEventSettings, type FormState } from './actions'
 import { suggestSlug, SLUG_MAX_LENGTH } from '../../lib/slugs'
 import { ACCESS_LABELS, AVAILABLE_MODES, EVENT_LIMITS, MODE_HINTS, MODE_LABELS } from '../../lib/events/settings'
-import CopyableField from '../../ui/copyable-field'
 import { PENDING_TTL_RANGE, SELF_EDIT_HOURS_MAX } from '../../lib/events/booking-rules'
 import { OFFER_TTL_RANGE } from '../../lib/events/waitlist-rules'
 import { MAX_SEATS_RANGE } from '../../lib/events/seat-rules'
-import SubmitButton from '../../ui/submit-button'
-import Notice from '../../ui/notice'
-import { buttonClass, hintClass, inputClass, labelClass, SettingsSection } from '../../ui/kit'
+import { buttonClass, hintClass, inputClass, labelClass, SettingsSection, CopyableField, SubmitButton, Notice } from '../../ui/kit'
 
 function Errors({ state }: { state: FormState }) {
   if (!state || state.errors.length === 0) return null

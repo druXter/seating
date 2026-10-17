@@ -1,8 +1,8 @@
 // app/ui/action-form.tsx
 'use client'
 
+import { Notice } from './kit'
 import { useActionState } from 'react'
-import Notice from './notice'
 
 export type ActionFormState = { errors: string[]; message?: string } | null
 

@@ -1,4 +1,5 @@
 // app/admin/events/[id]/bookings/[bookingId]/party-view.tsx
+import { Notice, SubmitButton } from '../../../../../ui/kit'
 import Link from 'next/link'
 import { prisma } from '../../../../../lib/prisma'
 import type { LoadedEvent } from '../../../../../lib/events/store'
@@ -13,8 +14,6 @@ import { cancelBookingAdmin, deleteBookingAdmin, saveAdminNote } from '../../../
 import { updatePartyAction } from '../../../arrange-actions'
 import ActionForm from '../../../../../ui/action-form'
 import BookingStatusBadge from '../../../../../ui/booking-status-badge'
-import Notice from '../../../../../ui/notice'
-import SubmitButton from '../../../../../ui/submit-button'
 
 const DONE: Record<string, string> = {
   party: 'Gruppe gespeichert.',

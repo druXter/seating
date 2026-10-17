@@ -1,12 +1,11 @@
 // app/[slug]/booking-panel.tsx
 'use client'
 
+import { Notice, SubmitButton } from '../ui/kit'
 import { useActionState, useId } from 'react'
 import Link from 'next/link'
 import { confirmCodeAction, resendAction } from './booking-actions'
 import { BOOKING_LIMITS } from '../lib/events/booking-rules'
-import Notice from '../ui/notice'
-import SubmitButton from '../ui/submit-button'
 
 /**
  * Buchungsformular für einen gewählten Tisch und - nach dem Reservieren - die Bestätigung per Code.

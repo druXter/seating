@@ -1,7 +1,7 @@
 // app/page.tsx
+import { InstallHint } from './ui/kit'
 import Link from 'next/link'
 import { APP_NAME } from './lib/app'
-import InstallHint from './ui/install-hint'
 
 /**
  * Startseite. Buchende kommen über den Link zu ihrem Event (/<slug>) und sehen

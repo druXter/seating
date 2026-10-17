@@ -8,9 +8,7 @@ import { rsvpConfigured, seatingLinkFor } from '../../../../lib/rsvp/config'
 import { utcToZonedInput } from '../../../../lib/timezone'
 import { deleteEvent, shareEvent, unshareEvent } from '../../actions'
 import { EventSettingsForm } from '../../event-forms'
-import ConfirmForm from '../../../../ui/confirm-form'
-import { buttonClass, Card, inputClass, SettingsSection } from '../../../../ui/kit'
-import Notice from '../../../../ui/notice'
+import { buttonClass, Card, inputClass, SettingsSection, ConfirmForm, Notice } from '../../../../ui/kit'
 
 export const dynamic = 'force-dynamic'
 

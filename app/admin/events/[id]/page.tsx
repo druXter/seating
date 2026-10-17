@@ -10,10 +10,8 @@ import { eventSummary } from '../../../lib/events/summary'
 import { STATUS_HINTS, STATUS_LABELS } from '../../../lib/events/settings'
 import { setEventStatus } from '../actions'
 import PlanSvg, { type UnitVisual } from '../../../ui/plan/plan-svg'
-import CopyableField from '../../../ui/copyable-field'
 import StatusBadge from '../../../ui/status-badge'
-import Notice from '../../../ui/notice'
-import { ButtonLink, buttonClass, Card, Stat } from '../../../ui/kit'
+import { ButtonLink, buttonClass, Card, Stat, CopyableField, Notice } from '../../../ui/kit'
 
 export const dynamic = 'force-dynamic'
 

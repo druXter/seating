@@ -1,14 +1,13 @@
 // app/b/[bookingId]/[token]/manage-forms.tsx
 'use client'
 
+import { SubmitButton, Notice } from '../../../ui/kit'
 import { useActionState } from 'react'
 import { cancelBookingAction, changeBookingAction, type ManageState } from '../../../b/actions'
 import { BOOKING_LIMITS } from '../../../lib/events/booking-rules'
-import SubmitButton from '../../../ui/submit-button'
 import SeatPicker, { type PickerSeat } from '../../../ui/plan/seat-picker'
 import type { Layout } from '../../../lib/floorplan/schema'
 import type { SeatGroup } from '../../../lib/events/seat-rules'
-import Notice from '../../../ui/notice'
 
 function Errors({ state }: { state: ManageState }) {
   if (!state || state.errors.length === 0) return null

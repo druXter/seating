@@ -1,7 +1,6 @@
 // app/ui/background-card.tsx
 import { MAX_BACKGROUND_BYTES } from '../lib/image-type'
-import Notice from './notice'
-import { buttonClass, SettingsSection } from './kit'
+import { buttonClass, SettingsSection, Notice } from './kit'
 
 const MESSAGES: Record<string, string> = {
   uploaded: 'Hintergrundbild gespeichert.',

@@ -7,9 +7,7 @@ import { canCreatePlans, planAccess } from '../../lib/permissions'
 import { parseLayout } from '../../lib/floorplan/schema'
 import { summarize } from '../../lib/floorplan/units'
 import { deletePlan, duplicatePlan } from './actions'
-import { Badge, ButtonLink, buttonClass, EmptyState, Main, PageHeader } from '../../ui/kit'
-import Notice from '../../ui/notice'
-import ConfirmForm from '../../ui/confirm-form'
+import { Badge, ButtonLink, buttonClass, EmptyState, Main, PageHeader, Notice, ConfirmForm } from '../../ui/kit'
 
 export const dynamic = 'force-dynamic'
 

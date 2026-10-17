@@ -1,13 +1,11 @@
 // app/account/page.tsx
+import { SubmitButton, Notice, ConfirmForm } from '../ui/kit'
 import { prisma } from '../lib/prisma'
 import { requireUser } from '../lib/auth'
 import { MIN_PASSWORD_LENGTH } from '../lib/password'
 import { ROLE_LABELS } from '../lib/roles'
 import { getIdps, idpLabel, issuerLabel } from '../lib/suite'
 import { changePassword, unlinkIdentity } from '../auth-actions'
-import SubmitButton from '../ui/submit-button'
-import Notice from '../ui/notice'
-import ConfirmForm from '../ui/confirm-form'
 
 export const dynamic = 'force-dynamic'
 

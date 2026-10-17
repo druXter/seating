@@ -1,4 +1,5 @@
 // app/admin/events/[id]/bookings/new/page.tsx
+import { Notice, SubmitButton } from '../../../../../ui/kit'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { requireUser } from '../../../../../lib/auth'
@@ -8,8 +9,6 @@ import { ADMIN_NOTE_MAX } from '../../../../../lib/events/admin-rules'
 import { BOOKING_LIMITS } from '../../../../../lib/events/booking-rules'
 import { createBookingAdmin } from '../../../booking-actions'
 import ActionForm from '../../../../../ui/action-form'
-import Notice from '../../../../../ui/notice'
-import SubmitButton from '../../../../../ui/submit-button'
 import SeatPicker from '../../../../../ui/plan/seat-picker'
 import { seatPickerData } from '../../../../../lib/events/places'
 

@@ -6,8 +6,7 @@ import { removeEventBackground, saveEventLayout } from '../../actions'
 import { ResyncForm } from '../../event-forms'
 import PlanEditor from '../../../../ui/plan/editor/plan-editor'
 import BackgroundCard, { BackgroundNotice } from '../../../../ui/background-card'
-import { SettingsSection } from '../../../../ui/kit'
-import Notice from '../../../../ui/notice'
+import { SettingsSection, Notice } from '../../../../ui/kit'
 
 export const dynamic = 'force-dynamic'
 

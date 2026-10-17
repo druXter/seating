@@ -1,9 +1,8 @@
 // app/admin/events/[id]/print/seating-print.tsx
-import { Segmented } from '../../../../ui/kit'
+import { Segmented, PrintButton } from '../../../../ui/kit'
 import type { LoadedEvent } from '../../../../lib/events/store'
 import { loadSeatingBoard } from '../../../../lib/events/assign'
 import { formatRange } from '../../../../lib/timezone'
-import PrintButton from '../../../../ui/print-button'
 
 /**
  * Druckansicht der Sitzordnung (Modus ASSIGNED): Liste je Tisch bzw. Reihe mit den Namen (für Einlass,

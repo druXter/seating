@@ -1,6 +1,7 @@
 // app/ui/plan/editor/plan-editor.tsx
 'use client'
 
+import { Notice } from '../../kit'
 import { useEffect, useEffectEvent, useReducer, useRef, useState, useTransition, type PointerEvent } from 'react'
 import { editorReducer, initEditor, isDirty, normalizeRotation, type SaveResult } from '../../../lib/floorplan/editor-state'
 import { STATIC_LABELS, type NewElementKind } from '../../../lib/floorplan/factory'
@@ -8,7 +9,6 @@ import { localSize, snap, toWorld, type Point } from '../../../lib/floorplan/geo
 import { EXPORT_FORMAT, STATIC_KINDS, parseLayout, type Layout, type StaticKind } from '../../../lib/floorplan/schema'
 import { summarize } from '../../../lib/floorplan/units'
 import PlanSvg from '../plan-svg'
-import Notice from '../../notice'
 import PropertiesPanel, { elementTitle } from './properties-panel'
 
 /**

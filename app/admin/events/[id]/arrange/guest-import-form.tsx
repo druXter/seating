@@ -1,9 +1,9 @@
 // app/admin/events/[id]/arrange/guest-import-form.tsx
 'use client'
 
+import { Notice } from '../../../../ui/kit'
 import { useActionState } from 'react'
 import { importGuestsAction, type ImportState } from '../../arrange-actions'
-import Notice from '../../../../ui/notice'
 
 /**
  * Gästeliste per CSV (Konzept Abschnitt 8): erst prüfen und Vorschau zeigen, dann übernehmen. Die

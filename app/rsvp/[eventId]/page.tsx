@@ -1,4 +1,5 @@
 // app/rsvp/[eventId]/page.tsx
+import { Notice } from '../../ui/kit'
 import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import { prisma } from '../../lib/prisma'
@@ -12,7 +13,6 @@ import { formatRange } from '../../lib/timezone'
 import { isPubliclyVisible } from '../../lib/events/store'
 import { activeRsvpBooking, verifySeatLink } from '../../lib/rsvp/booking'
 import { partySizeOf } from '../../lib/rsvp/rules'
-import Notice from '../../ui/notice'
 import RsvpBooking from './rsvp-booking'
 import GuestSeating from './guest-seating'
 import { loadGuestSeating } from '../../lib/rsvp/guest-seating'

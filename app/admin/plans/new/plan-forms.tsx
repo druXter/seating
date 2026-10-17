@@ -1,10 +1,9 @@
 // app/admin/plans/new/plan-forms.tsx
 'use client'
 
+import { SubmitButton, Notice } from '../../../ui/kit'
 import { useActionState } from 'react'
 import { createPlan, importPlan, type FormState } from '../actions'
-import SubmitButton from '../../../ui/submit-button'
-import Notice from '../../../ui/notice'
 
 function Errors({ state }: { state: FormState }) {
   if (!state || state.errors.length === 0) return null

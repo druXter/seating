@@ -1,8 +1,7 @@
 // app/forgot-password/page.tsx
+import { SubmitButton, Notice } from '../ui/kit'
 import Link from 'next/link'
 import { requestPasswordReset } from '../auth-actions'
-import SubmitButton from '../ui/submit-button'
-import Notice from '../ui/notice'
 
 export const dynamic = 'force-dynamic'
 

@@ -1,12 +1,11 @@
 // app/login/page.tsx
+import { SubmitButton, Notice } from '../ui/kit'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { sanitizeNextPath } from 'suite-kit'
 import { getCurrentUser } from '../lib/auth'
 import { getIdps, idpLabel, loginRedirectIdp, shouldAutoRedirect } from '../lib/suite'
 import { loginUser } from '../auth-actions'
-import SubmitButton from '../ui/submit-button'
-import Notice from '../ui/notice'
 import HardRedirect from './continue/hard-redirect'
 
 export const dynamic = 'force-dynamic'

@@ -7,10 +7,8 @@ import { canCreateEvents } from '../../lib/permissions'
 import { formatRange } from '../../lib/timezone'
 import { MODE_SHORT } from '../../lib/events/settings'
 import { eventSummary, type EventSummary } from '../../lib/events/summary'
-import { Badge, ButtonLink, EmptyState, Main, PageHeader, ProgressBar, sectionTitleClass } from '../../ui/kit'
+import { Badge, ButtonLink, EmptyState, Main, PageHeader, ProgressBar, sectionTitleClass, Notice, InstallHint } from '../../ui/kit'
 import StatusBadge from '../../ui/status-badge'
-import Notice from '../../ui/notice'
-import InstallHint from '../../ui/install-hint'
 
 type Row = {
   id: string; title: string; status: EventStatus; mode: EventMode; timezone: string; startsAt: Date; endsAt: Date

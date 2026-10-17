@@ -1,5 +1,5 @@
 // app/admin/events/[id]/print/page.tsx
-import { Segmented } from '../../../../ui/kit'
+import { Segmented, PrintButton } from '../../../../ui/kit'
 import { prisma } from '../../../../lib/prisma'
 import { requireUser } from '../../../../lib/auth'
 import { loadEventOr404 } from '../../../../lib/events/store'
@@ -7,7 +7,6 @@ import { activeWhere } from '../../../../lib/events/booking-tx'
 import { effectiveStatus } from '../../../../lib/events/admin-rules'
 import { describePlaces } from '../../../../lib/events/places'
 import { formatRange } from '../../../../lib/timezone'
-import PrintButton from '../../../../ui/print-button'
 import SeatingPrint from './seating-print'
 
 export const dynamic = 'force-dynamic'

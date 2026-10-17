@@ -1,4 +1,5 @@
 // app/[slug]/page.tsx
+import { Notice } from '../ui/kit'
 import type { Metadata } from 'next'
 import { cache } from 'react'
 import Link from 'next/link'
@@ -12,7 +13,6 @@ import { bookingWindow, selfEditDeadline } from '../lib/events/booking-rules'
 import { isPubliclyVisible, loadEventBySlug, loadEventForUser, loadUnitStates } from '../lib/events/store'
 import { publicState } from '../lib/events/occupancy'
 import { STATUS_LABELS } from '../lib/events/settings'
-import Notice from '../ui/notice'
 import EventPlan, { type PublicTable } from './event-plan'
 import SeatBooking from './seat-booking'
 import { seatPickerData } from '../lib/events/places'
