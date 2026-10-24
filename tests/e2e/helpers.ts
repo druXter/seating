@@ -4,6 +4,7 @@ import { expect, type APIResponse, type Page } from '@playwright/test'
 import { hashPassword } from '../../app/lib/password'
 import { deriveUnits } from '../../app/lib/floorplan/units'
 import type { Layout } from '../../app/lib/floorplan/schema'
+import { solvePowChallenge } from 'suite-kit/web'
 import { BASE_URL } from '../../playwright.config'
 
 export { BASE_URL }
@@ -251,9 +252,21 @@ export function withField(body: Buffer, field: string, value: string): Buffer {
   return Buffer.from(text.replace(pattern, (_m, head: string) => head + value), 'utf8')
 }
 
-/** Spielt einen mitgeschnittenen Aufruf erneut ab (optional mit geänderten Feldern und eigener IP). */
+/** Frische Lösung des Bot-Schutzes, wie sie ProofOfWork im Browser rechnet - jede gilt nur einmal. */
+export async function powSolution(page: Page): Promise<string> {
+  const challenge = await (await page.request.get('/api/suite/pow')).json()
+  const solution = await solvePowChallenge(challenge)
+  if (!solution) throw new Error('Bot-Schutz nicht lösbar')
+  return solution
+}
+
+/**
+ * Spielt einen mitgeschnittenen Aufruf erneut ab (optional mit geänderten Feldern und eigener IP). Trägt das Formular
+ * den Bot-Schutz, bekommt jeder Aufruf eine frische Lösung (außer `pow` ist in `fields` vorgegeben).
+ */
 export async function replayAction(page: Page, action: CapturedAction, fields: Record<string, string> = {}, ip = uniqueIp()) {
   let body = action.body
+  if (!('pow' in fields) && /name="(?:_?\d+_)?pow"/.test(body.toString('utf8'))) body = withField(body, 'pow', await powSolution(page))
   for (const [field, value] of Object.entries(fields)) body = withField(body, field, value)
   return page.request.post(action.url, {
     headers: { ...action.headers, origin: BASE_URL, 'x-forwarded-for': ip, cookie: await cookieOf(page) },

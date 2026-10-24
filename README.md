@@ -414,6 +414,11 @@ die App startet im Verwaltungsbereich. Buchende brauchen das nicht, jeder Event-
   Anfragen das Limit nicht umgehen. Keine dauerhafte Kontosperre. Gleiche Meldung und gleiche Rechenzeit für bekannte
   und unbekannte Adressen. „Passwort vergessen“ antwortet immer neutral und schickt höchstens 3 Mails pro Adresse und
   Stunde. Gespeichert werden nur SHA-256-Hashes von IP und E-Mail.
+* **Bot-Schutz:** Reservieren (Tische und Plätze) und Warteliste gehen nur mit gelöster Rechenaufgabe
+  (`ProofOfWork` aus `suite-kit/ui` im Formular, Prüfung mit `powError` in `app/[slug]/booking-actions.ts`, Aufgaben
+  unter `/api/suite/pow`). Der Browser rechnet im Hintergrund, meist bevor das Formular ausgefüllt ist; jede Lösung
+  gilt einmal und höchstens 10 Minuten. Kein Drittanbieter, keine Cookies, keine neuen Variablen. Ohne JavaScript
+  geht die Buchung deshalb nicht. Ergänzt die Drosselung, ersetzt sie nicht.
 * **`TRUST_PROXY_HOPS`** muss zur Proxy-Kette passen – messen, nicht raten (Anleitung in `.env.example`).
 * **Sitzungen:** zufälliger Token im Cookie `__Host-session` (HttpOnly, Secure, SameSite=Lax, ohne Domain-Attribut),
   in der Datenbank nur als SHA-256-Hash. Neue Sitzung bei jedem Login, ein Passwortwechsel beendet alle anderen
@@ -645,4 +650,4 @@ Siehe `.env.example` (mit Erklärungen). Kurzüberblick:
 | `SUITE_IDPS`, `SUITE_SIGNING_KEY`, `SUITE_SIGNING_KEY_PREVIOUS`, `SUITE_TRUSTED_APPS`, `SUITE_APP_NAME`, `SUITE_LOGIN_REDIRECT` | optional: Konto-Föderation (siehe [oben](#anmelden-mit-einem-konto-aus-einem-anderen-tool-föderation) und README von `suite-kit`) |
 | `UPLOAD_DIR` | optional: Ablage hochgeladener Bilder (Standard `data/uploads` im Arbeitsverzeichnis) |
 
-Später evtl.: `TURNSTILE_*` (Bot-Schutz für das Buchungsformular), als Idee Q6 in `suite-kit/docs/IDEEN.md`.
+Der Bot-Schutz der Buchung (Idee Q6 in `suite-kit/docs/IDEEN.md`) braucht keine Variable, siehe [Sicherheit](#sicherheit).

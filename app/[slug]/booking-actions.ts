@@ -2,6 +2,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { powError } from 'suite-kit'
 import { prisma } from '../lib/prisma'
 import { formString } from '../lib/form'
 import { clientIp, codeRules, reserve, reserveRules, resendRules } from '../lib/throttle'
@@ -15,7 +16,8 @@ import { joinWaitlist, afterBookingChange } from '../lib/events/waitlist'
 /**
  * Öffentliche Buchung (Modus TABLE, Zugang OPEN). Kein Konto - jede Aktion prüft selbst, ob das Event
  * gerade buchbar ist, und reserviert ihren Versuch in der Drosselung, BEVOR sie etwas prüft oder
- * verschickt (docs/KONZEPT.md Abschnitt 4).
+ * verschickt (docs/KONZEPT.md Abschnitt 4). Reservieren und Warteliste verlangen dazu die Lösung des Bot-Schutzes
+ * (ProofOfWork im Formular, suite-kit).
  */
 
 export type ReserveState =
@@ -53,6 +55,8 @@ export async function reserveAction(_previous: ReserveState, formData: FormData)
 
   const parsed = parseReservation(formData, event.requirePhone, event.mode)
   if (!parsed.ok) return { step: 'form', errors: parsed.errors }
+  const bot = powError(formData)
+  if (bot) return { step: 'form', errors: [bot] }
 
   const ip = await clientIp()
   if (!(await reserve(reserveRules(ip, parsed.input.email)))) return { step: 'form', errors: [BUSY] }
@@ -86,6 +90,8 @@ export async function joinWaitlistAction(_previous: WaitlistState, formData: For
 
   const parsed = parseWaitlistEntry(formData, event.requirePhone)
   if (!parsed.ok) return { step: 'form', errors: parsed.errors }
+  const bot = powError(formData)
+  if (bot) return { step: 'form', errors: [bot] }
 
   const ip = await clientIp()
   if (!(await reserve(reserveRules(ip, parsed.input.email)))) return { step: 'form', errors: [BUSY] }

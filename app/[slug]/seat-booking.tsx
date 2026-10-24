@@ -1,7 +1,7 @@
 // app/[slug]/seat-booking.tsx
 'use client'
 
-import { buttonClass, Notice, SubmitButton } from '../ui/kit'
+import { buttonClass, Notice, ProofOfWork, SubmitButton } from '../ui/kit'
 import { useActionState, useEffect, useRef, useState } from 'react'
 import type { Layout } from '../lib/floorplan/schema'
 import type { SeatGroup } from '../lib/events/seat-rules'
@@ -92,6 +92,7 @@ export default function SeatBooking({ layout, backgroundUrl, title, seats, group
               <Notice tone="error"><ul className="list-disc list-inside">{reserveState.errors.map((e, i) => <li key={i}>{e}</li>)}</ul></Notice>
             )}
             <SeatContactFields requirePhone={booking.requirePhone} />
+            <ProofOfWork />
             <SubmitButton disabled={reserving}>Plätze reservieren</SubmitButton>
             <p className="text-xs text-gray-600 dark:text-gray-400">
               Du bekommst eine Mail mit Link und Code. Erst mit deiner Bestätigung gilt die Buchung – bis dahin halten wir die Plätze kurz für dich frei.

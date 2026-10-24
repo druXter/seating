@@ -386,3 +386,34 @@ test('Tisch im Plan mit der Maus anklicken öffnet das Buchungsformular', async 
   await page.locator('[data-unit-key="t2"]').click()
   await expect(page.getByRole('heading', { name: /Tisch 2 buchen/ })).toBeVisible()
 })
+
+test('Bot-Schutz: ohne, mit falscher oder verbrauchter Lösung wird nichts reserviert; früh abgeschickt wartet das Formular', async ({ page }) => {
+  const event = await openEvent()
+  // Die Aufgabe kommt verzögert: Wer vorher abschickt, sieht den Hinweis, danach geht die Reservierung von selbst ab.
+  await page.route('**/api/suite/pow', async route => {
+    await new Promise(resolve => setTimeout(resolve, 1500))
+    await route.continue()
+  })
+  await page.setExtraHTTPHeaders({ 'x-forwarded-for': uniqueIp() })
+  await page.goto(`/${event.slug}`)
+  const email = uniqueEmail('pow')
+  await fillReservation(page, 'Tisch 1', { email })
+  const sent = captureAction(page, () => page.getByRole('button', { name: 'Tisch reservieren' }).click())
+  await expect(page.getByText('Einen Moment, Sicherheitsprüfung läuft')).toBeVisible()
+  const action = await sent
+  await expect(page.getByText('Tisch 1 ist bis')).toBeVisible()
+  expect(await bookingsOf(event.id, email)).toHaveLength(1)
+
+  // Nachgespielt: dieselbe Lösung, keine und eine ausgedachte gelten nicht.
+  const used = /name="(?:_?\d+_)?pow"\r\n\r\n([^\r]*)/.exec(action.body.toString('utf8'))![1]
+  expect(used).toMatch(/^[0-9a-f]{24}\.\d{13}:\d+:[0-9a-f]{64}$/)
+  for (const pow of [used, '', `${'0'.repeat(24)}.${Date.now() + 60_000}:1:${'0'.repeat(64)}`]) {
+    const other = uniqueEmail('bot')
+    expect(await (await replayAction(page, action, { email: other, unitKey: 't2', pow })).text()).toContain('Die Sicherheitsprüfung hat nicht geklappt')
+    expect(await bookingsOf(event.id, other)).toHaveLength(0)
+  }
+  // Positivkontrolle: mit frischer Lösung geht derselbe Aufruf durch.
+  const fresh = uniqueEmail('mensch')
+  await replayAction(page, action, { email: fresh, unitKey: 't2' })
+  expect(await bookingsOf(event.id, fresh)).toHaveLength(1)
+})

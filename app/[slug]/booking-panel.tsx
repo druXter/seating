@@ -1,7 +1,7 @@
 // app/[slug]/booking-panel.tsx
 'use client'
 
-import { buttonClass, fieldClass, inputClass, labelClass, Notice, SubmitButton } from '../ui/kit'
+import { buttonClass, fieldClass, inputClass, labelClass, Notice, ProofOfWork, SubmitButton } from '../ui/kit'
 import { useActionState, useId } from 'react'
 import Link from 'next/link'
 import { confirmCodeAction, resendAction } from './booking-actions'
@@ -70,6 +70,7 @@ export function ReserveForm({ eventId, table, partySize, requirePhone, action, p
           Meine Angaben werden nur für diese Buchung verwendet.
         </span>
       </label>
+      <ProofOfWork />
       <SubmitButton disabled={pending}>Tisch reservieren</SubmitButton>
       <p className="text-xs text-gray-600 dark:text-gray-400">
         Du bekommst eine Mail mit Link und Code. Erst mit deiner Bestätigung gilt die Buchung – bis dahin halten wir den Tisch kurz für dich frei.
@@ -182,6 +183,7 @@ export function WaitlistForm({ eventId, partySize, requirePhone, action, pending
           Meine Angaben werden nur für die Warteliste und eine spätere Buchung verwendet.
         </span>
       </label>
+      <ProofOfWork />
       <SubmitButton disabled={pending}>Auf die Warteliste setzen</SubmitButton>
     </form>
   )
