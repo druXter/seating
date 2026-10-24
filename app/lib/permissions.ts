@@ -1,5 +1,4 @@
 // app/lib/permissions.ts
-import { timingSafeEqual } from 'node:crypto'
 import type { CurrentUser } from './auth'
 
 /** Rollen wie im Abstimmungstool (siehe prisma/schema.prisma, enum Role). */
@@ -42,9 +41,3 @@ export function eventLevel(user: CurrentUser, event: { ownerId: string | null },
   return hasShare ? 'moderator' : null
 }
 
-/** Konstantzeitvergleich für Tokens - `===` würde über die Antwortzeit verraten, wie viele Zeichen stimmen. */
-export function safeEqual(a: string, b: string): boolean {
-  const ab = Buffer.from(a)
-  const bb = Buffer.from(b)
-  return ab.length === bb.length && timingSafeEqual(ab, bb)
-}

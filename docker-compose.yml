@@ -4,8 +4,11 @@ services:
     container_name: seating
     restart: unless-stopped
     ports:
-      # 3005 (rsvp-app) und 3006 (abstimmungstool) sind auf diesem Server belegt - bei Bedarf anpassen.
-      - "3007:3000"
+      # Nur auf localhost: Der Cloudflare-Tunnel (cloudflared auf dem Host) verbindet sich über 127.0.0.1. Auf allen
+      # Schnittstellen wäre das Tool über die öffentliche IPv6 des Servers am Tunnel vorbei erreichbar - dann ließe sich
+      # X-Forwarded-For frei setzen und jede IP-Drosselung umgehen (suite-kit docs/KONVENTIONEN.md, "Betrieb").
+      # Ports der Suite: 3005 rsvp-app, 3006 Abstimmungstool, 3007 Seating, 3008 Zeitplan, 3009 Schichten.
+      - "127.0.0.1:3007:3000"
     volumes:
       # SQLite-Datenbank außerhalb des Containers, damit Buchungen Updates überleben.
       # Der Container läuft als Nutzer "node" (UID 1000) - das Verzeichnis muss ihm gehören,
@@ -16,3 +19,12 @@ services:
     environment:
       - DATABASE_URL=file:/app/data/prod.db
       - TZ=Europe/Berlin
+    networks:
+      - default
+      # Uptime Kuma (eigener Container im Netz proxy_net) prüft die Erreichbarkeit intern über http://seating:3000 -
+      # der Port oben ist nur noch auf localhost offen.
+      - proxy_net
+
+networks:
+  proxy_net:
+    external: true

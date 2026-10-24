@@ -1,4 +1,5 @@
 // app/lib/mail-blocks.ts
+import { escapeHtml } from 'suite-kit/web'
 import { APP_NAME } from './app'
 import { formatRange } from './timezone'
 
@@ -8,15 +9,6 @@ import { formatRange } from './timezone'
  * (app/admin/events/[id]/mail). Alle frei wählbaren Texte werden im HTML-Teil maskiert.
  */
 
-/** Maskiert Text für die Verwendung in HTML (Mail-Inhalte enthalten u.a. frei wählbare Namen/Titel). */
-export function esc(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;')
-}
 
 export type Block =
   | { kind: 'p'; text: string }
@@ -27,15 +19,15 @@ export type Block =
 export function renderHtml(heading: string, blocks: Block[]): string {
   const body = blocks.map(block => {
     switch (block.kind) {
-      case 'p': return `<p>${esc(block.text).replace(/\n/g, '<br>')}</p>`
-      case 'small': return `<p style="font-size: 12px; color: #666;">${esc(block.text).replace(/\n/g, '<br>')}</p>`
+      case 'p': return `<p>${escapeHtml(block.text).replace(/\n/g, '<br>')}</p>`
+      case 'small': return `<p style="font-size: 12px; color: #666;">${escapeHtml(block.text).replace(/\n/g, '<br>')}</p>`
       case 'rows': return `<table style="border-collapse: collapse; margin: 16px 0;">${block.rows.map(([k, v]) =>
-        `<tr><td style="padding: 4px 12px 4px 0; color: #666; vertical-align: top;">${esc(k)}</td><td style="padding: 4px 0;">${esc(v)}</td></tr>`).join('')}</table>`
-      case 'button': return `<p style="text-align: center; margin: 30px 0;"><a href="${esc(block.href)}" style="display: inline-block; padding: 12px 24px; background-color: #2563eb; color: #fff; text-decoration: none; border-radius: 5px; font-weight: bold;">${esc(block.label)}</a></p>
-        <p style="font-size: 12px; color: #666;">Falls der Button nicht funktioniert, kopiere diesen Link in deinen Browser:<br>${esc(block.href)}</p>`
+        `<tr><td style="padding: 4px 12px 4px 0; color: #666; vertical-align: top;">${escapeHtml(k)}</td><td style="padding: 4px 0;">${escapeHtml(v)}</td></tr>`).join('')}</table>`
+      case 'button': return `<p style="text-align: center; margin: 30px 0;"><a href="${escapeHtml(block.href)}" style="display: inline-block; padding: 12px 24px; background-color: #2563eb; color: #fff; text-decoration: none; border-radius: 5px; font-weight: bold;">${escapeHtml(block.label)}</a></p>
+        <p style="font-size: 12px; color: #666;">Falls der Button nicht funktioniert, kopiere diesen Link in deinen Browser:<br>${escapeHtml(block.href)}</p>`
     }
   }).join('\n')
-  return `<div style="font-family: sans-serif; color: #333; max-width: 600px; margin: 0 auto;"><h2>${esc(heading)}</h2>${body}</div>`
+  return `<div style="font-family: sans-serif; color: #333; max-width: 600px; margin: 0 auto;"><h2>${escapeHtml(heading)}</h2>${body}</div>`
 }
 
 function renderBlocksText(blocks: Block[]): string {

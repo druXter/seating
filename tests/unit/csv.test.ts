@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { csvCell, parseCsv, toCsv } from '../../app/lib/csv'
+import { csvCell, toCsv } from 'suite-kit/web'
+import { parseCsv } from '../../app/lib/csv'
 
 describe('csvCell', () => {
   it('lässt einfache Werte unverändert, leer bei null', () => {

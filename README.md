@@ -420,7 +420,7 @@ die App startet im Verwaltungsbereich. Buchende brauchen das nicht, jeder Event-
   Sitzungen. Einladungs-/Reset-Links: einmalig, befristet, nur als Hash; das bloße Öffnen (GET) verbraucht sie nicht.
 * **Berechtigungen** prüft jede Server Action selbst, nie nur die Oberfläche. Server Actions prüfen zusätzlich den
   Origin (CSRF, Next.js-Standard).
-* **Header** (`next.config.ts`): `nosniff`, `Referrer-Policy`, `Permissions-Policy`, HSTS für alle Seiten.
+* **Header** (`next.config.ts`, Bausteine aus `suite-kit/web`): `nosniff`, `Referrer-Policy`, `Permissions-Policy`, HSTS für alle Seiten.
   Alle Seiten außer den öffentlichen Eventseiten `frame-ancestors 'none'` und `X-Frame-Options: DENY`; Login, Konto,
   Verwaltung, Reset-, Bestätigungs- und Verwaltungslinks zusätzlich `X-Robots-Tag: noindex` und `Cache-Control: no-store`; Seiten
   mit Einmal-Werten in der URL `Referrer-Policy: no-referrer`; Hintergrundbilder `sandbox`. Die Reihenfolge der
@@ -476,7 +476,9 @@ prüft auf dem Server Konto, Zugriff auf das Event und dass die Buchung zu genau
     Mails, die beim Neustart gerade verschickt wurden, gelten als gescheitert und gehen nicht doppelt raus. Wer
     inzwischen storniert hat, wird übersprungen.
 * **CSV-Export** mit denselben Filtern wie die Liste: UTF-8 mit BOM, Semikolon, Formel-Schutz gegen CSV-Injection
-  (Zellen, die mit `= + - @` beginnen, bekommen ein `'` davor).
+  (Textzellen, die mit `= + - @`, Tab oder Zeilenumbruch beginnen, bekommen ein `'` davor) - `toCsv` aus `suite-kit/web`,
+  dasselbe Format wie in allen Tools. Ebenfalls aus suite-kit statt eigener Kopien: `escapeHtml` für alle Mails
+  (auch die Rundmail-Vorschau im Browser), `readLimitedText` für den Webhook von rsvp-app, `safeEqual`.
 * **Druckansicht**: Tischliste für Einlass und Deko (mit Abhakkästchen, unbestätigte markiert) und Tischkarten.
 
 ## Automatische Löschung
@@ -610,13 +612,17 @@ docker compose up -d --build
 docker compose run --rm seating node create-user.js deine-email@domain.de ADMIN --invite
 ```
 
-* Der Container läuft **nicht als root**, sondern als Nutzer `node` (UID 1000). Das gemountete Verzeichnis `./data`
+* Der Container (`node:22-alpine`) läuft **nicht als root**, sondern als Nutzer `node` (UID 1000). Das gemountete Verzeichnis `./data`
   (SQLite-Datenbank, hochgeladene Bilder in `data/uploads`) muss ihm gehören – legt Docker es selbst an, gehört es
   root und der Start scheitert.
 * Installiert wird mit `npm ci` exakt nach `package-lock.json`. Das gemeinsame Paket `suite-kit` kommt direkt von
   GitHub, das Dockerfile installiert dafür `git`.
 * Beim Start synchronisiert `prisma db push` das Schema, dann startet `next start` auf Port 3000 im Container.
   Voreingestellt ist Host-Port 3007 (3005/3006 sind von rsvp-app und Abstimmungstool belegt).
+* Der Port ist nur an `127.0.0.1` gebunden (`127.0.0.1:3007:3000`): Von außen kommt alles über den Cloudflare-Tunnel
+  (`cloudflared` auf dem Host, Ziel `http://127.0.0.1:3007`). Auf allen Schnittstellen wäre das Tool über die öffentliche
+  IPv6 des Servers am Tunnel vorbei erreichbar, mit selbst gesetztem `X-Forwarded-For` an der IP-Drosselung vorbei.
+  Zusätzlich hängt der Container im Docker-Netz `proxy_net`, damit Uptime Kuma intern `http://seating:3000` prüfen kann.
 * **Vor jedem Update die Daten sichern** (`data/prod.db` und `data/uploads/` kopieren).
 
 ## Umgebungsvariablen

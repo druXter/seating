@@ -1,10 +1,10 @@
 // app/admin/events/[id]/export/route.ts
+import { toCsv } from 'suite-kit/web'
 import { NextResponse } from 'next/server'
 import { prisma } from '../../../../lib/prisma'
 import { getCurrentUser } from '../../../../lib/auth'
 import { loadEventForUser } from '../../../../lib/events/store'
 import { BOOKING_SOURCE_LABELS, BOOKING_STATUS_LABELS, effectiveStatus, matchesListFilter, matchesSearch, parseListFilter } from '../../../../lib/events/admin-rules'
-import { toCsv } from '../../../../lib/csv'
 import { describePlaces } from '../../../../lib/events/places'
 import { formatShort } from '../../../../lib/timezone'
 

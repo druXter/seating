@@ -1,6 +1,6 @@
 // app/lib/booking-tokens.ts
+import { safeEqual } from 'suite-kit'
 import { createHash, createHmac, randomBytes, randomInt } from 'node:crypto'
-import { safeEqual } from './permissions'
 
 /**
  * Links und Codes für Buchende (docs/KONZEPT.md Abschnitt 6):

@@ -1,8 +1,8 @@
-# Wir nutzen eine schlanke Node.js-Version als Basis
-FROM node:20-alpine
+# Wir nutzen eine schlanke Node.js-Version als Basis (aktuelle LTS, wie alle Tools der Suite)
+FROM node:22-alpine
 
 # git wird von npm gebraucht, um das gemeinsame Paket suite-kit direkt von GitHub zu holen
-# (siehe package.json) - node:20-alpine bringt es nicht mit.
+# (siehe package.json) - node:22-alpine bringt es nicht mit.
 RUN apk add --no-cache git
 
 # Arbeitsverzeichnis anlegen und dem unprivilegierten Nutzer "node" (UID 1000) übergeben.

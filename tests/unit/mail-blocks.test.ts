@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { broadcastBlocks, esc, renderHtml, renderText } from '../../app/lib/mail-blocks'
+import { escapeHtml as esc } from 'suite-kit/web'
+import { broadcastBlocks, renderHtml, renderText } from '../../app/lib/mail-blocks'
 
 const event = {
   title: 'Gala <2026>', location: 'Festsaal', startsAt: new Date('2026-12-12T18:00:00Z'), endsAt: new Date('2026-12-12T22:30:00Z'), timezone: 'Europe/Berlin'

@@ -1,9 +1,7 @@
 // app/lib/mail.ts
 import nodemailer from 'nodemailer'
 import { APP_NAME } from './app'
-import { esc } from './mail-blocks'
-
-export { esc }
+import { escapeHtml } from 'suite-kit/web'
 
 // Gleicher Transporter-Aufbau wie in rsvp-app und im Abstimmungstool - laufen die Tools
 // über dasselbe Postfach, deckt der dort abgeschlossene AVV auch diesen Versand ab.
@@ -29,13 +27,13 @@ export function isMailConfigured(): boolean {
 function layout(heading: string, body: string, buttonLabel: string, link: string, footer: string): string {
   return `
       <div style="font-family: sans-serif; color: #333; max-width: 600px; margin: 0 auto;">
-        <h2>${esc(heading)}</h2>
-        <p>${esc(body)}</p>
+        <h2>${escapeHtml(heading)}</h2>
+        <p>${escapeHtml(body)}</p>
         <p style="text-align: center; margin: 30px 0;">
-          <a href="${esc(link)}" style="display: inline-block; padding: 12px 24px; background-color: #2563eb; color: #fff; text-decoration: none; border-radius: 5px; font-weight: bold;">${esc(buttonLabel)}</a>
+          <a href="${escapeHtml(link)}" style="display: inline-block; padding: 12px 24px; background-color: #2563eb; color: #fff; text-decoration: none; border-radius: 5px; font-weight: bold;">${escapeHtml(buttonLabel)}</a>
         </p>
-        <p style="font-size: 12px; color: #666;">Falls der Button nicht funktioniert, kopiere diesen Link in deinen Browser:<br>${esc(link)}</p>
-        <p style="font-size: 12px; color: #666;">${esc(footer)}</p>
+        <p style="font-size: 12px; color: #666;">Falls der Button nicht funktioniert, kopiere diesen Link in deinen Browser:<br>${escapeHtml(link)}</p>
+        <p style="font-size: 12px; color: #666;">${escapeHtml(footer)}</p>
       </div>
     `
 }

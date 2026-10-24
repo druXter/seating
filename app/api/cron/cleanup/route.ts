@@ -1,6 +1,6 @@
+import { safeEqual } from 'suite-kit'
 import { NextResponse } from 'next/server'
 import { prisma } from '../../../lib/prisma'
-import { safeEqual } from '../../../lib/permissions'
 import { deleteUpload } from '../../../lib/uploads'
 import { sweep } from '../../../lib/events/sweep'
 

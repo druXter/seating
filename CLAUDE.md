@@ -55,6 +55,10 @@ löschen, sonst schreibt `next dev` seinen Block direkt in diese Datei.
 
 ## Sicherheitsregeln (nicht verhandelbar)
 
+Regeln für alle Tools (Betrieb, Header, Anbindungen, Ausgaben, Tests): `../suite-kit/docs/KONVENTIONEN.md`. Gemeinsame
+Helfer kommen aus suite-kit statt aus einer eigenen Kopie: `escapeHtml`, `csvResponse`/`toCsv`, `readLimitedText` und
+die Header-Bausteine aus `suite-kit/web`, `safeEqual` und `signLinkMessage`/`verifyLinkMessage` aus `suite-kit`.
+
 Alle Regeln aus dem suite-kit-README gelten. Zusätzlich für Seating:
 
 * **Doppelbuchung verhindert der Unique-Index `Allocation(eventId, unitId)`**, nicht eine vorherige Abfrage. Buchen in

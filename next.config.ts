@@ -1,25 +1,10 @@
 import type { NextConfig } from "next";
+import { BASE_RULE, EMBEDDABLE, NO_FRAMING, NO_REFERRER, PRIVATE_PAGE, SECRET_URL_PAGE, SERVICE_WORKER } from "suite-kit/web";
 
-// Seiten, die nie in einem fremden iFrame auftauchen dürfen (Clickjacking): alles, was ein
-// Konto, eine Anmeldung oder einen persönlichen Verwaltungslink betrifft.
-const NO_FRAMING = [
-  { key: "X-Frame-Options", value: "DENY" },
-  { key: "Content-Security-Policy", value: "frame-ancestors 'none'" },
-];
-
-// Seiten, die weder in Suchmaschinen noch in Caches landen sollen.
-const PRIVATE_PAGE = [
-  ...NO_FRAMING,
-  { key: "X-Robots-Tag", value: "noindex, nofollow" },
-  { key: "Cache-Control", value: "no-store" },
-];
-
-// Einbettbare öffentliche Eventseiten (wie in rsvp-app, z.B. als iFrame in ein CMS). Fest im Code
-// statt per Env: Die Regeln hier werden beim Build festgeschrieben, eine Env-Variable im laufenden
-// Container würde nicht greifen. Wer nur bestimmte Seiten einbetten lassen will, ersetzt `*` durch
-// deren Origin(s) und baut neu.
-const EMBEDDABLE = [{ key: "Content-Security-Policy", value: "frame-ancestors *" }];
-
+// Header-Bausteine aus suite-kit (docs/KONVENTIONEN.md, "Sicherheits-Header"); hier stehen nur die Pfade dieses Tools.
+// EMBEDDABLE (frame-ancestors *) für die öffentlichen Eventseiten wie in rsvp-app, z.B. als iFrame in ein CMS. Fest im
+// Code statt per Env: Die Regeln werden beim Build festgeschrieben. Wer nur bestimmte Seiten einbetten lassen will,
+// ersetzt EMBEDDABLE durch eine Regel mit deren Origin(s) und baut neu.
 const nextConfig: NextConfig = {
   // REIHENFOLGE IST WICHTIG: Passen mehrere Regeln auf denselben Pfad und setzen denselben
   // Header, gewinnt die SPÄTERE (siehe node_modules/next/dist/docs/01-app/03-api-reference/
@@ -44,18 +29,8 @@ const nextConfig: NextConfig = {
   // da nirgends fremder Inhalt als HTML ausgegeben wird (React maskiert alles).
   async headers() {
     return [
-      {
-        // 1. Allgemein.
-        source: "/:path*",
-        headers: [
-          { key: "X-Content-Type-Options", value: "nosniff" },
-          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-          { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
-          // Nur für diesen Host (ohne includeSubDomains), damit andere Subdomains der
-          // Suite davon unberührt bleiben. Wirkt nur über HTTPS.
-          { key: "Strict-Transport-Security", value: "max-age=31536000" },
-        ],
-      },
+      // 1. Allgemein.
+      BASE_RULE,
 
       // 2. Sichere Voreinstellung für alles außer den Eventseiten.
       { source: "/", headers: NO_FRAMING },
@@ -75,12 +50,8 @@ const nextConfig: NextConfig = {
       // `/login/:path*` umfasst `/login` und die Zwischenseite `/login/continue` (Föderation, Phase 8).
       { source: "/login/:path*", headers: PRIVATE_PAGE },
       { source: "/forgot-password", headers: PRIVATE_PAGE },
-      {
-        // Der Einmal-Link steht in der URL - er darf weder per Referer weitergegeben
-        // noch zwischengespeichert werden.
-        source: "/reset-password",
-        headers: [...PRIVATE_PAGE, { key: "Referrer-Policy", value: "no-referrer" }],
-      },
+      // Der Einmal-Link steht in der URL - er darf weder per Referer weitergegeben noch zwischengespeichert werden.
+      { source: "/reset-password", headers: SECRET_URL_PAGE },
       {
         // Hochgeladene Hintergrundbilder (Vorlage, Event, öffentliche Eventseite): Diese Regeln
         // stehen HINTER den allgemeinen und ersetzen deren CSP (sonst ginge die CSP des Route
@@ -98,14 +69,14 @@ const nextConfig: NextConfig = {
         // Verifizierungsmail (/verify/<bookingId>/<token>), siehe docs/KONZEPT.md Abschnitt 6, und der
         // Einstieg aus rsvp-app mit signiertem Link (/rsvp/<eventId>?t=..., Abschnitt 9).
         source: "/:area(b|verify|rsvp)/:path*",
-        headers: [...PRIVATE_PAGE, { key: "Referrer-Policy", value: "no-referrer" }],
+        headers: SECRET_URL_PAGE,
       },
 
       {
         // 5. Die Föderations-Endpunkte (Phase 8) tragen Einmal-Werte (Login-Bestätigung,
         //    state) in der URL. Überschreibt die Referrer-Policy der allgemeinen Regel.
         source: "/api/suite/:path*",
-        headers: [{ key: "Referrer-Policy", value: "no-referrer" }],
+        headers: NO_REFERRER,
       },
 
       {
@@ -114,11 +85,7 @@ const nextConfig: NextConfig = {
         //    Ressourcen derselben Herkunft. Steht NACH Regel 3 (/:slug passt auch auf /sw.js) und
         //    ersetzt deren CSP.
         source: "/sw.js",
-        headers: [
-          { key: "Content-Type", value: "application/javascript; charset=utf-8" },
-          { key: "Cache-Control", value: "no-cache, no-store, must-revalidate" },
-          { key: "Content-Security-Policy", value: "default-src 'self'; script-src 'self'; frame-ancestors 'none'" },
-        ],
+        headers: SERVICE_WORKER,
       },
     ];
   },

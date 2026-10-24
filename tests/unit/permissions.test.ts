@@ -1,5 +1,6 @@
+import { safeEqual } from 'suite-kit'
 import { describe, expect, it } from 'vitest'
-import { canCreateEvents, eventLevel, safeEqual } from '../../app/lib/permissions'
+import { canCreateEvents, eventLevel } from '../../app/lib/permissions'
 import type { CurrentUser } from '../../app/lib/auth'
 
 describe('safeEqual', () => {
