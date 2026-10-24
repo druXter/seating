@@ -1,7 +1,10 @@
 // app/lib/mail.ts
 import nodemailer from 'nodemailer'
 import { APP_NAME } from './app'
-import { escapeHtml } from 'suite-kit/web'
+import { renderMail } from 'suite-kit/web'
+import { MAIL_BRAND } from './mail-blocks'
+
+type RenderedMail = ReturnType<typeof renderMail>
 
 // Gleicher Transporter-Aufbau wie in rsvp-app und im Abstimmungstool - laufen die Tools
 // über dasselbe Postfach, deckt der dort abgeschlossene AVV auch diesen Versand ab.
@@ -24,18 +27,18 @@ export function isMailConfigured(): boolean {
   return !!process.env.SMTP_HOST
 }
 
-function layout(heading: string, body: string, buttonLabel: string, link: string, footer: string): string {
-  return `
-      <div style="font-family: sans-serif; color: #333; max-width: 600px; margin: 0 auto;">
-        <h2>${escapeHtml(heading)}</h2>
-        <p>${escapeHtml(body)}</p>
-        <p style="text-align: center; margin: 30px 0;">
-          <a href="${escapeHtml(link)}" style="display: inline-block; padding: 12px 24px; background-color: #2563eb; color: #fff; text-decoration: none; border-radius: 5px; font-weight: bold;">${escapeHtml(buttonLabel)}</a>
-        </p>
-        <p style="font-size: 12px; color: #666;">Falls der Button nicht funktioniert, kopiere diesen Link in deinen Browser:<br>${escapeHtml(link)}</p>
-        <p style="font-size: 12px; color: #666;">${escapeHtml(footer)}</p>
-      </div>
-    `
+
+/**
+ * Mail mit Anrede, Text, einem Knopf und Kleingedrucktem - aus den Bausteinen der Suite (renderMail aus suite-kit,
+ * dieselbe Vorlage in allen Tools). HTML und Klartext aus demselben Inhalt, alles escapet.
+ */
+function layout(heading: string, body: string, buttonLabel: string, link: string, footer: string): RenderedMail {
+  return renderMail({
+    brand: MAIL_BRAND,
+    heading,
+    blocks: [{ kind: 'p', text: 'Hallo,' }, { kind: 'p', text: body }, { kind: 'button', label: buttonLabel, href: link }],
+    footer
+  })
 }
 
 export type MailAttachment = { filename: string; content: string; contentType: string }
@@ -70,7 +73,7 @@ export async function sendMail(
   }
 }
 
-async function send(toEmail: string, subject: string, text: string, html: string): Promise<boolean> {
+async function send(toEmail: string, subject: string, { html, text }: RenderedMail): Promise<boolean> {
   return (await sendMail(toEmail, subject, text, html)).ok
 }
 
@@ -79,12 +82,6 @@ export async function sendInviteEmail(toEmail: string, link: string, validDays: 
   return send(
     toEmail,
     `Einladung zu ${APP_NAME}`,
-    `Hallo,
-
-für dich wurde ein Konto bei ${APP_NAME} angelegt. Lege mit diesem Link dein Passwort fest (${validDays} Tage gültig, nur einmal nutzbar):
-${link}
-
-Falls du damit nicht gerechnet hast, ignoriere diese Mail einfach.`,
     layout(
       `Einladung zu ${APP_NAME}`,
       `Für dich wurde ein Konto angelegt. Lege jetzt dein Passwort fest - der Link ist ${validDays} Tage gültig und nur einmal nutzbar.`,
@@ -100,12 +97,6 @@ export async function sendPasswordResetEmail(toEmail: string, link: string): Pro
   return send(
     toEmail,
     `Passwort zurücksetzen - ${APP_NAME}`,
-    `Hallo,
-
-für dein Konto bei ${APP_NAME} wurde ein neues Passwort angefordert. Mit diesem Link kannst du es festlegen (1 Stunde gültig, nur einmal nutzbar):
-${link}
-
-Falls du das nicht warst, ignoriere diese Mail - dein Passwort bleibt unverändert.`,
     layout(
       'Passwort zurücksetzen',
       'Für dein Konto wurde ein neues Passwort angefordert. Der Link ist 1 Stunde gültig und nur einmal nutzbar.',

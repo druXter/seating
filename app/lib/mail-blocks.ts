@@ -1,48 +1,30 @@
 // app/lib/mail-blocks.ts
-import { escapeHtml } from 'suite-kit/web'
+import { mailHtml, mailText, type Mail, type MailBlock } from 'suite-kit/web'
 import { APP_NAME } from './app'
 import { formatRange } from './timezone'
 
 /**
- * Aufbau der Buchungsmails aus einfachen Bausteinen, gerendert als HTML und Klartext. Ohne Server-
- * Abhängigkeiten, damit die Rundmail-Vorschau im Browser genau denselben Text zeigt wie die Mail
- * (app/admin/events/[id]/mail). Alle frei wählbaren Texte werden im HTML-Teil maskiert.
+ * Aufbau der Buchungsmails aus den Bausteinen der Suite (renderMail aus suite-kit/web, dieselbe Vorlage in allen
+ * Tools), gerendert als HTML und Klartext. Ohne Server-Abhängigkeiten, damit die Rundmail-Vorschau im Browser genau
+ * denselben Text zeigt wie die Mail (app/admin/events/[id]/mail). Die Bausteine escapen jeden Text selbst.
  */
 
+export type Block = MailBlock
 
-export type Block =
-  | { kind: 'p'; text: string }
-  | { kind: 'rows'; rows: [string, string][] }
-  | { kind: 'button'; label: string; href: string }
-  | { kind: 'small'; text: string }
+/** Marke im Kopf jeder Mail, wie in der Kopfzeile. */
+export const MAIL_BRAND = { letter: 'S', name: APP_NAME }
 
-export function renderHtml(heading: string, blocks: Block[]): string {
-  const body = blocks.map(block => {
-    switch (block.kind) {
-      case 'p': return `<p>${escapeHtml(block.text).replace(/\n/g, '<br>')}</p>`
-      case 'small': return `<p style="font-size: 12px; color: #666;">${escapeHtml(block.text).replace(/\n/g, '<br>')}</p>`
-      case 'rows': return `<table style="border-collapse: collapse; margin: 16px 0;">${block.rows.map(([k, v]) =>
-        `<tr><td style="padding: 4px 12px 4px 0; color: #666; vertical-align: top;">${escapeHtml(k)}</td><td style="padding: 4px 0;">${escapeHtml(v)}</td></tr>`).join('')}</table>`
-      case 'button': return `<p style="text-align: center; margin: 30px 0;"><a href="${escapeHtml(block.href)}" style="display: inline-block; padding: 12px 24px; background-color: #2563eb; color: #fff; text-decoration: none; border-radius: 5px; font-weight: bold;">${escapeHtml(block.label)}</a></p>
-        <p style="font-size: 12px; color: #666;">Falls der Button nicht funktioniert, kopiere diesen Link in deinen Browser:<br>${escapeHtml(block.href)}</p>`
-    }
-  }).join('\n')
-  return `<div style="font-family: sans-serif; color: #333; max-width: 600px; margin: 0 auto;"><h2>${escapeHtml(heading)}</h2>${body}</div>`
+function content(heading: string, blocks: Block[]): Mail {
+  return { brand: MAIL_BRAND, heading, blocks: [{ kind: 'p', text: 'Hallo,' }, ...blocks] }
 }
 
-function renderBlocksText(blocks: Block[]): string {
-  return blocks.map(block => {
-    switch (block.kind) {
-      case 'p': case 'small': return block.text
-      case 'rows': return block.rows.map(([k, v]) => `${k}: ${v}`).join('\n')
-      case 'button': return `${block.label}:\n${block.href}`
-    }
-  }).join('\n\n')
+export function renderHtml(heading: string, blocks: Block[]): string {
+  return mailHtml(content(heading, blocks))
 }
 
 /** Klartext-Teil mit Anrede und Signatur. */
 export function renderText(blocks: Block[]): string {
-  return `Hallo,\n\n${renderBlocksText(blocks)}\n\n-- \n${APP_NAME}`
+  return mailText(content('', blocks))
 }
 
 /** mode: Modus SEAT nennt die Plätze statt eines Tisches. */

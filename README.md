@@ -477,7 +477,7 @@ prüft auf dem Server Konto, Zugriff auf das Event und dass die Buchung zu genau
     inzwischen storniert hat, wird übersprungen.
 * **CSV-Export** mit denselben Filtern wie die Liste: UTF-8 mit BOM, Semikolon, Formel-Schutz gegen CSV-Injection
   (Textzellen, die mit `= + - @`, Tab oder Zeilenumbruch beginnen, bekommen ein `'` davor) - `toCsv` aus `suite-kit/web`,
-  dasselbe Format wie in allen Tools. Ebenfalls aus suite-kit statt eigener Kopien: `escapeHtml` für alle Mails
+  dasselbe Format wie in allen Tools. Ebenfalls aus suite-kit statt eigener Kopien: die Mail-Vorlage `renderMail` für alle Mails
   (auch die Rundmail-Vorschau im Browser), `readLimitedText` für den Webhook von rsvp-app, `safeEqual`.
 * **Druckansicht**: Tischliste für Einlass und Deko (mit Abhakkästchen, unbestätigte markiert) und Tischkarten.
 
