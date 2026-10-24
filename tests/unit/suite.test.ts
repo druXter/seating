@@ -67,7 +67,7 @@ describe('Konfiguration', () => {
       BASE_URL: 'https://plaetze.example.de',
       SUITE_IDPS: '[{"issuer":"https://rsvp.example.de","label":"rsvp-app","autoProvision":false}]'
     })
-    expect(suite.getIdps()).toEqual([{ issuer: 'https://rsvp.example.de', label: 'rsvp-app', autoProvision: false, mapAdminRole: false }])
+    expect(suite.getIdps()).toEqual([{ issuer: 'https://rsvp.example.de', label: 'rsvp-app', autoProvision: false, mapAdminRole: false, participants: false }])
     expect(suite.issuerLabel('https://rsvp.example.de')).toBe('rsvp-app')
     expect(suite.issuerLabel('https://vote.example.de')).toBe('vote.example.de')
   })
