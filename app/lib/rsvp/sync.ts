@@ -32,7 +32,7 @@ export async function fetchGuestList(event: LinkedEvent): Promise<GuestListResul
   let response: Response
   try {
     response = await fetch(`${origin}/api/seating/guest-list`, {
-      method: 'POST', headers: { 'Content-Type': 'text/plain' }, body, signal: AbortSignal.timeout(10_000)
+      method: 'POST', headers: { 'Content-Type': 'text/plain' }, body, redirect: 'error', signal: AbortSignal.timeout(10_000)
     })
   } catch {
     return { ok: false, error: 'rsvp-app ist gerade nicht erreichbar. Bitte versuch es später noch einmal.' }

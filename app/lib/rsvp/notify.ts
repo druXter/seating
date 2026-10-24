@@ -47,7 +47,7 @@ export async function reportPlacements(eventId: string, options: { clear?: boole
   const body = createMessage('placements', { aud: origin, seatingEventId: event.id, rsvpEventId, placements }, secret)
   try {
     const response = await fetch(`${origin}/api/seating/placements`, {
-      method: 'POST', headers: { 'Content-Type': 'text/plain' }, body, signal: AbortSignal.timeout(5000)
+      method: 'POST', headers: { 'Content-Type': 'text/plain' }, body, redirect: 'error', signal: AbortSignal.timeout(5000)
     })
     return response.ok
   } catch {
