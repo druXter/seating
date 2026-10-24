@@ -9,6 +9,7 @@ import type { UnitVisual } from '../ui/plan/plan-svg'
 import { waitlistChoice } from '../lib/events/waitlist-rules'
 import { joinWaitlistAction, reserveAction } from './booking-actions'
 import { PendingPanel, ReserveForm, WaitlistForm } from './booking-panel'
+import { buttonClass, fieldClass, labelClass } from '../ui/kit'
 
 /**
  * Öffentliche Planansicht einer Tischbuchung (Modus TABLE): Plan mit Belegung, Gruppengröße als
@@ -117,11 +118,11 @@ export default function EventPlan({ layout, backgroundUrl, tables, tableSeats, m
     <div className="space-y-4">
       <div className="flex flex-wrap items-end gap-3">
         <div>
-          <label htmlFor={inputId} className="block text-sm font-medium text-gray-800 dark:text-gray-200 mb-1">Wie viele Personen seid ihr?</label>
+          <label htmlFor={inputId} className={labelClass}>Wie viele Personen seid ihr?</label>
           <input
             id={inputId} type="number" inputMode="numeric" min={1} max={maxCapacity} value={partyInput}
             onChange={event => setPartyInput(event.currentTarget.value)}
-            className="w-32 rounded-lg border border-gray-300 bg-white p-2 text-base sm:text-sm text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100 dark:focus:ring-blue-900"
+            className={`${fieldClass} w-32`}
           />
         </div>
         {filtering && (
@@ -139,7 +140,7 @@ export default function EventPlan({ layout, backgroundUrl, tables, tableSeats, m
       {booking.open && !busy && !selected && !waitlistOpen && choice === 'waitlist' && (
         <div className="flex flex-wrap items-center gap-3 text-sm">
           <span>Trag dich auf die Warteliste ein – wird ein passender Tisch frei, bekommst du ein Angebot per Mail.</span>
-          <button type="button" onClick={() => { setWaitlistOpen(true); setSelectedKey(null) }} className="inline-flex items-center justify-center gap-1.5 rounded-lg font-medium transition disabled:opacity-60 whitespace-nowrap px-3.5 py-2 text-sm bg-blue-600 text-white hover:bg-blue-700 border border-blue-600">
+          <button type="button" onClick={() => { setWaitlistOpen(true); setSelectedKey(null) }} className={buttonClass('primary')}>
             Auf die Warteliste
           </button>
         </div>

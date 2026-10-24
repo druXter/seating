@@ -1,5 +1,5 @@
 // app/admin/events/[id]/bookings/[bookingId]/party-view.tsx
-import { Notice, SubmitButton } from '../../../../../ui/kit'
+import { buttonClass, inputClass, labelClass, Notice, SubmitButton } from '../../../../../ui/kit'
 import Link from 'next/link'
 import { prisma } from '../../../../../lib/prisma'
 import type { LoadedEvent } from '../../../../../lib/events/store'
@@ -22,8 +22,7 @@ const DONE: Record<string, string> = {
   cancelled: 'Gruppe abgesagt, ihre Plätze sind wieder frei.'
 }
 
-const input = 'w-full rounded-lg border border-gray-300 bg-white p-2 text-base sm:text-sm text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100 dark:focus:ring-blue-900'
-const labelClass = 'block text-sm font-medium text-gray-800 dark:text-gray-200 mb-1'
+const input = inputClass
 const card = 'bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-4 sm:p-5 space-y-3'
 
 /**
@@ -130,7 +129,7 @@ export default async function PartyView({ event, booking, done }: { event: Loade
                 {hidden}
                 <label htmlFor="admin-note" className="sr-only">Interne Notiz</label>
                 <textarea id="admin-note" name="adminNote" maxLength={ADMIN_NOTE_MAX} rows={3} defaultValue={booking.adminNote ?? ''} className={input} />
-                <button type="submit" className="inline-flex items-center justify-center gap-1.5 rounded-lg font-medium transition disabled:opacity-60 whitespace-nowrap px-3.5 py-2 text-sm bg-white text-gray-800 hover:bg-gray-50 border border-gray-300 dark:bg-gray-800 dark:text-gray-100 dark:border-gray-600 dark:hover:bg-gray-700">Notiz speichern</button>
+                <button type="submit" className={buttonClass('secondary')}>Notiz speichern</button>
                 <p className="text-xs text-gray-600 dark:text-gray-400">Nur für Veranstalter*innen sichtbar, z. B. für Essenswünsche.</p>
               </ActionForm>
             </div>
@@ -142,7 +141,7 @@ export default async function PartyView({ event, booking, done }: { event: Loade
               {active && (
                 <ActionForm action={cancelBookingAdmin} confirm="Gruppe absagen? Ihre Plätze werden sofort frei, die Gruppe bleibt als abgesagt in der Liste.">
                   {hidden}
-                  <button type="submit" className="inline-flex items-center justify-center gap-1.5 rounded-lg font-medium transition disabled:opacity-60 whitespace-nowrap px-3.5 py-2 text-sm bg-white text-red-700 hover:bg-red-50 border border-red-300 dark:bg-gray-800 dark:text-red-300 dark:border-red-800 dark:hover:bg-red-950">Gruppe hat abgesagt</button>
+                  <button type="submit" className={buttonClass('danger')}>Gruppe hat abgesagt</button>
                 </ActionForm>
               )}
               <ActionForm action={deleteBookingAdmin} confirm="Gruppe endgültig löschen? Alle Daten dazu – auch Personen und Verlauf – werden gelöscht.">

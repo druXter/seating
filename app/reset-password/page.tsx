@@ -1,5 +1,5 @@
 // app/reset-password/page.tsx
-import { SubmitButton, Notice } from '../ui/kit'
+import { inputClass, labelClass, Notice, SubmitButton } from '../ui/kit'
 import Link from 'next/link'
 import { prisma } from '../lib/prisma'
 import { hashToken } from '../lib/auth'
@@ -56,20 +56,20 @@ export default async function ResetPasswordPage({
             <input type="hidden" name="token" value={token} />
             {error && ERRORS[error] && <Notice tone="error">{ERRORS[error]}</Notice>}
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-800 dark:text-gray-200 mb-1">Neues Passwort</label>
+              <label htmlFor="password" className={labelClass}>Neues Passwort</label>
               <input
                 id="password" type="password" name="password" required autoFocus
                 minLength={MIN_PASSWORD_LENGTH} autoComplete="new-password"
-                className="w-full rounded-lg border border-gray-300 bg-white p-2 text-base sm:text-sm text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100 dark:focus:ring-blue-900"
+                className={inputClass}
               />
               <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">Mindestens {MIN_PASSWORD_LENGTH} Zeichen - am besten ein ganzer Satz.</p>
             </div>
             <div>
-              <label htmlFor="passwordConfirm" className="block text-sm font-medium text-gray-800 dark:text-gray-200 mb-1">Passwort wiederholen</label>
+              <label htmlFor="passwordConfirm" className={labelClass}>Passwort wiederholen</label>
               <input
                 id="passwordConfirm" type="password" name="passwordConfirm" required
                 minLength={MIN_PASSWORD_LENGTH} autoComplete="new-password"
-                className="w-full rounded-lg border border-gray-300 bg-white p-2 text-base sm:text-sm text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100 dark:focus:ring-blue-900"
+                className={inputClass}
               />
             </div>
             <SubmitButton>Passwort speichern</SubmitButton>

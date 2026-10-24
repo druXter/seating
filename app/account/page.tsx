@@ -1,5 +1,5 @@
 // app/account/page.tsx
-import { SubmitButton, Notice, ConfirmForm } from '../ui/kit'
+import { ConfirmForm, inputClass, labelClass, Notice, SubmitButton } from '../ui/kit'
 import { prisma } from '../lib/prisma'
 import { requireUser } from '../lib/auth'
 import { MIN_PASSWORD_LENGTH } from '../lib/password'
@@ -59,24 +59,24 @@ export default async function AccountPage({
             <h2 className="font-semibold">Passwort ändern</h2>
             <form action={changePassword} className="space-y-3">
               <div>
-                <label htmlFor="currentPassword" className="block text-sm font-medium text-gray-800 dark:text-gray-200 mb-1">Aktuelles Passwort</label>
+                <label htmlFor="currentPassword" className={labelClass}>Aktuelles Passwort</label>
                 <input
                   id="currentPassword" type="password" name="currentPassword" required autoComplete="current-password"
-                  className="w-full rounded-lg border border-gray-300 bg-white p-2 text-base sm:text-sm text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100 dark:focus:ring-blue-900"
+                  className={inputClass}
                 />
               </div>
               <div>
-                <label htmlFor="newPassword" className="block text-sm font-medium text-gray-800 dark:text-gray-200 mb-1">Neues Passwort</label>
+                <label htmlFor="newPassword" className={labelClass}>Neues Passwort</label>
                 <input
                   id="newPassword" type="password" name="newPassword" required minLength={MIN_PASSWORD_LENGTH}
-                  autoComplete="new-password" className="w-full rounded-lg border border-gray-300 bg-white p-2 text-base sm:text-sm text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100 dark:focus:ring-blue-900"
+                  autoComplete="new-password" className={inputClass}
                 />
               </div>
               <div>
-                <label htmlFor="newPasswordConfirm" className="block text-sm font-medium text-gray-800 dark:text-gray-200 mb-1">Neues Passwort wiederholen</label>
+                <label htmlFor="newPasswordConfirm" className={labelClass}>Neues Passwort wiederholen</label>
                 <input
                   id="newPasswordConfirm" type="password" name="newPasswordConfirm" required minLength={MIN_PASSWORD_LENGTH}
-                  autoComplete="new-password" className="w-full rounded-lg border border-gray-300 bg-white p-2 text-base sm:text-sm text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100 dark:focus:ring-blue-900"
+                  autoComplete="new-password" className={inputClass}
                 />
               </div>
               <SubmitButton>Passwort ändern</SubmitButton>

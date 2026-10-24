@@ -1,7 +1,7 @@
 // app/admin/plans/new/plan-forms.tsx
 'use client'
 
-import { SubmitButton, Notice } from '../../../ui/kit'
+import { inputClass, labelClass, Notice, SubmitButton } from '../../../ui/kit'
 import { useActionState } from 'react'
 import { createPlan, importPlan, type FormState } from '../actions'
 
@@ -22,17 +22,17 @@ export function CreatePlanForm() {
     <form action={action} className="space-y-3">
       <Errors state={state} />
       <div>
-        <label htmlFor="create-name" className="block text-sm font-medium text-gray-800 dark:text-gray-200 mb-1">Name</label>
-        <input id="create-name" name="name" required maxLength={100} placeholder="z. B. Festsaal" className="w-full rounded-lg border border-gray-300 bg-white p-2 text-base sm:text-sm text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100 dark:focus:ring-blue-900" />
+        <label htmlFor="create-name" className={labelClass}>Name</label>
+        <input id="create-name" name="name" required maxLength={100} placeholder="z. B. Festsaal" className={inputClass} />
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label htmlFor="create-width" className="block text-sm font-medium text-gray-800 dark:text-gray-200 mb-1">Breite (m)</label>
-          <input id="create-width" name="width" type="number" min={1} max={100} step={0.1} defaultValue={20} required className="w-full rounded-lg border border-gray-300 bg-white p-2 text-base sm:text-sm text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100 dark:focus:ring-blue-900" />
+          <label htmlFor="create-width" className={labelClass}>Breite (m)</label>
+          <input id="create-width" name="width" type="number" min={1} max={100} step={0.1} defaultValue={20} required className={inputClass} />
         </div>
         <div>
-          <label htmlFor="create-height" className="block text-sm font-medium text-gray-800 dark:text-gray-200 mb-1">Länge (m)</label>
-          <input id="create-height" name="height" type="number" min={1} max={100} step={0.1} defaultValue={15} required className="w-full rounded-lg border border-gray-300 bg-white p-2 text-base sm:text-sm text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100 dark:focus:ring-blue-900" />
+          <label htmlFor="create-height" className={labelClass}>Länge (m)</label>
+          <input id="create-height" name="height" type="number" min={1} max={100} step={0.1} defaultValue={15} required className={inputClass} />
         </div>
       </div>
       <SubmitButton disabled={pending}>Leeren Raumplan anlegen</SubmitButton>
@@ -46,12 +46,12 @@ export function ImportPlanForm() {
     <form action={action} className="space-y-3">
       <Errors state={state} />
       <div>
-        <label htmlFor="import-file" className="block text-sm font-medium text-gray-800 dark:text-gray-200 mb-1">Export-Datei (.json)</label>
+        <label htmlFor="import-file" className={labelClass}>Export-Datei (.json)</label>
         <input id="import-file" name="file" type="file" accept="application/json,.json" required className="w-full text-sm" />
       </div>
       <div>
-        <label htmlFor="import-name" className="block text-sm font-medium text-gray-800 dark:text-gray-200 mb-1">Name (optional)</label>
-        <input id="import-name" name="name" maxLength={100} placeholder="sonst aus der Datei" className="w-full rounded-lg border border-gray-300 bg-white p-2 text-base sm:text-sm text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100 dark:focus:ring-blue-900" />
+        <label htmlFor="import-name" className={labelClass}>Name (optional)</label>
+        <input id="import-name" name="name" maxLength={100} placeholder="sonst aus der Datei" className={inputClass} />
       </div>
       <SubmitButton disabled={pending}>Importieren</SubmitButton>
       <p className="text-xs text-gray-600 dark:text-gray-400">

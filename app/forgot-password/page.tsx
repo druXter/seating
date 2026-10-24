@@ -1,5 +1,5 @@
 // app/forgot-password/page.tsx
-import { SubmitButton, Notice } from '../ui/kit'
+import { inputClass, labelClass, Notice, SubmitButton } from '../ui/kit'
 import Link from 'next/link'
 import { requestPasswordReset } from '../auth-actions'
 
@@ -28,10 +28,10 @@ export default async function ForgotPasswordPage({
               Gib deine E-Mail-Adresse ein. Wir schicken dir einen Link, mit dem du ein neues Passwort festlegen kannst.
             </p>
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-800 dark:text-gray-200 mb-1">E-Mail</label>
+              <label htmlFor="email" className={labelClass}>E-Mail</label>
               <input
                 id="email" type="email" name="email" required autoFocus autoComplete="username"
-                className="w-full rounded-lg border border-gray-300 bg-white p-2 text-base sm:text-sm text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100 dark:focus:ring-blue-900"
+                className={inputClass}
               />
             </div>
             <SubmitButton>Link anfordern</SubmitButton>

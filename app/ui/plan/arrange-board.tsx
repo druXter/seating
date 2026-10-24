@@ -10,7 +10,7 @@ import type { UnitState } from '../../lib/events/occupancy'
 import { initials } from '../../lib/events/assign-rules'
 import { moveBookingOnPlan, placeAttendeeOnPlan, placePartyOnPlan, type ArrangeResult } from '../../admin/events/arrange-actions'
 import PlanViewer from './plan-viewer'
-import { buttonClass } from '../kit'
+import { buttonClass, inputClass } from '../kit'
 import { STATE_TEXT, type UnitVisual } from './plan-svg'
 
 /**
@@ -285,7 +285,7 @@ export function AssignBoard({ eventId, layout, backgroundUrl, title, parties, se
         <p className="text-sm text-gray-700 dark:text-gray-300" data-testid="seated-count">{seated} von {total} {total === 1 ? 'Person hat' : 'Personen haben'} einen Platz.</p>
         <div className="space-y-2">
           <label htmlFor={`${id}-q`} className="sr-only">Gäste suchen</label>
-          <input id={`${id}-q`} value={query} onChange={e => setQuery(e.currentTarget.value)} placeholder="Suchen" className="w-full rounded-lg border border-gray-300 bg-white p-2 text-base sm:text-sm text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100 dark:focus:ring-blue-900" />
+          <input id={`${id}-q`} value={query} onChange={e => setQuery(e.currentTarget.value)} placeholder="Suchen" className={inputClass} />
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" checked={onlyOpen} onChange={e => setOnlyOpen(e.currentTarget.checked)} /> Nur Gruppen mit Personen ohne Platz
           </label>

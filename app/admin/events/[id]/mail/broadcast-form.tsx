@@ -1,13 +1,12 @@
 // app/admin/events/[id]/mail/broadcast-form.tsx
 'use client'
 
-import { Notice } from '../../../../ui/kit'
+import { buttonClass, inputClass, labelClass, Notice } from '../../../../ui/kit'
 import { useActionState, useState } from 'react'
 import { sendBroadcast, sendBroadcastTest, type BookingFormState } from '../../booking-actions'
 import { BROADCAST_LIMITS, broadcastBlocks, renderText, type DetailsEvent } from '../../../../lib/mail-blocks'
 
-const input = 'w-full rounded-lg border border-gray-300 bg-white p-2 text-base sm:text-sm text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100 dark:focus:ring-blue-900'
-const labelClass = 'block text-sm font-medium text-gray-800 dark:text-gray-200 mb-1'
+const input = inputClass
 
 export type BroadcastRecipient = { status: 'CONFIRMED' | 'PENDING'; tableKeys: string[] }
 
@@ -100,7 +99,7 @@ export default function BroadcastForm({ eventId, event, recipients, tables }: {
           <pre className="text-xs bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-3 whitespace-pre-wrap font-sans" data-testid="broadcast-preview">{`Betreff: ${subject || '(Betreff)'}\n\n${preview}`}</pre>
         </div>
 
-        <button type="submit" formAction={test} className="inline-flex items-center justify-center gap-1.5 rounded-lg font-medium transition disabled:opacity-60 whitespace-nowrap px-3.5 py-2 text-sm bg-white text-gray-800 hover:bg-gray-50 border border-gray-300 dark:bg-gray-800 dark:text-gray-100 dark:border-gray-600 dark:hover:bg-gray-700">
+        <button type="submit" formAction={test} className={buttonClass('secondary')}>
           Testmail an mich schicken
         </button>
         <label className="flex items-start gap-2 text-sm">

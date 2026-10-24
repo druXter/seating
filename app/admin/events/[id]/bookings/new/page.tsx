@@ -1,5 +1,5 @@
 // app/admin/events/[id]/bookings/new/page.tsx
-import { Notice, SubmitButton } from '../../../../../ui/kit'
+import { inputClass, labelClass, Notice, SubmitButton } from '../../../../../ui/kit'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { requireUser } from '../../../../../lib/auth'
@@ -14,8 +14,7 @@ import { seatPickerData } from '../../../../../lib/events/places'
 
 export const dynamic = 'force-dynamic'
 
-const input = 'w-full rounded-lg border border-gray-300 bg-white p-2 text-base sm:text-sm text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100 dark:focus:ring-blue-900'
-const labelClass = 'block text-sm font-medium text-gray-800 dark:text-gray-200 mb-1'
+const input = inputClass
 
 /**
  * Buchung von Hand anlegen (source ADMIN), z.B. eine telefonische Reservierung. Ohne E-Mail-Adresse

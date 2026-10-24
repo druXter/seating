@@ -1,7 +1,7 @@
 // app/[slug]/seat-booking.tsx
 'use client'
 
-import { Notice, SubmitButton } from '../ui/kit'
+import { buttonClass, Notice, SubmitButton } from '../ui/kit'
 import { useActionState, useEffect, useRef, useState } from 'react'
 import type { Layout } from '../lib/floorplan/schema'
 import type { SeatGroup } from '../lib/events/seat-rules'
@@ -111,7 +111,7 @@ export default function SeatBooking({ layout, backgroundUrl, title, seats, group
       {canWait && !waitlistOpen && (
         <div className="flex flex-wrap items-center gap-3 text-sm">
           <span>Trag dich für {missing} Plätze nebeneinander auf die Warteliste ein – werden sie frei, bekommst du ein Angebot per Mail.</span>
-          <button type="button" onClick={() => setWaitlistOpen(true)} className="inline-flex items-center justify-center gap-1.5 rounded-lg font-medium transition disabled:opacity-60 whitespace-nowrap px-3.5 py-2 text-sm bg-blue-600 text-white hover:bg-blue-700 border border-blue-600">Auf die Warteliste</button>
+          <button type="button" onClick={() => setWaitlistOpen(true)} className={buttonClass('primary')}>Auf die Warteliste</button>
         </div>
       )}
       {missing !== null && !canWait && booking.waitlist && missing > largestGroup && (

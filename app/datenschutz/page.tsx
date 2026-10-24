@@ -291,8 +291,21 @@ export default function DatenschutzPage() {
           </p>
           <p className="mt-2">
             <strong>Hosting:</strong> Diese Anwendung wird auf einem vom Verantwortlichen selbst betriebenen und
-            administrierten Server gehostet. Es findet keine Weitergabe der Daten an einen externen Hosting-Anbieter
-            statt.
+            administrierten Server gehostet. Die Daten liegen nur dort; einen externen Hosting-Anbieter gibt es nicht.
+          </p>
+          <p className="mt-2">
+            <strong>Cloudflare (Erreichbarkeit und Schutz):</strong> Der Server ist nicht direkt aus dem Internet erreichbar.
+            Alle Aufrufe dieser Anwendung laufen verschlüsselt über das Netz der Cloudflare, Inc. (101 Townsend St., San
+            Francisco, CA 94107, USA), das die Verbindung zum Server herstellt (Cloudflare Tunnel) und ihn vor Angriffen und
+            Überlastung schützt. Dabei verarbeitet Cloudflare technisch zwangsläufig alles, was beim Aufruf übertragen wird
+            - IP-Adresse, Browserangaben, Cookies und die Inhalte von Seiten und Formularen - und führt dazu Protokolle;
+            öffentliche Dateien wie Bilder und Skripte können bei Cloudflare zwischengespeichert werden. Cloudflare handelt
+            als Auftragsverarbeiter (Art. 28 DSGVO) nach dem Auftragsverarbeitungsvertrag, der Teil der
+            Nutzungsbedingungen von Cloudflare ist. Rechtsgrundlage ist unser berechtigtes Interesse an einem sicheren und
+            zuverlässigen Betrieb (Art. 6 Abs. 1 lit. f DSGVO). Cloudflare ist nach dem EU-US Data Privacy Framework
+            zertifiziert (Angemessenheitsbeschluss, Art. 45 DSGVO); zusätzlich gelten die Standardvertragsklauseln der
+            EU-Kommission. Mehr unter{' '}
+            <a href="https://www.cloudflare.com/de-de/privacypolicy/" className="underline">cloudflare.com/privacypolicy</a>.
           </p>
         </div>
 

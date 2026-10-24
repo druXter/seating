@@ -1,5 +1,5 @@
 // app/admin/events/[id]/bookings/[bookingId]/page.tsx
-import { CopyableField, Notice, SubmitButton } from '../../../../../ui/kit'
+import { buttonClass, CopyableField, inputClass, labelClass, Notice, SubmitButton } from '../../../../../ui/kit'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { prisma } from '../../../../../lib/prisma'
@@ -37,8 +37,7 @@ const DONE: Record<string, string> = {
   assigned: 'Tisch zugewiesen, die Buchung ist bestätigt.'
 }
 
-const input = 'w-full rounded-lg border border-gray-300 bg-white p-2 text-base sm:text-sm text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100 dark:focus:ring-blue-900'
-const labelClass = 'block text-sm font-medium text-gray-800 dark:text-gray-200 mb-1'
+const input = inputClass
 const card = 'bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-4 sm:p-5 space-y-3'
 
 function Checkbox({ name, label, defaultChecked = true }: { name: string; label: string; defaultChecked?: boolean }) {
@@ -197,7 +196,7 @@ export default async function BookingPage({ params, searchParams }: {
                 {hidden}
                 <label htmlFor="admin-note" className="sr-only">Interne Notiz</label>
                 <textarea id="admin-note" name="adminNote" maxLength={ADMIN_NOTE_MAX} rows={3} defaultValue={booking.adminNote ?? ''} className={input} />
-                <button type="submit" className="inline-flex items-center justify-center gap-1.5 rounded-lg font-medium transition disabled:opacity-60 whitespace-nowrap px-3.5 py-2 text-sm bg-white text-gray-800 hover:bg-gray-50 border border-gray-300 dark:bg-gray-800 dark:text-gray-100 dark:border-gray-600 dark:hover:bg-gray-700">Notiz speichern</button>
+                <button type="submit" className={buttonClass('secondary')}>Notiz speichern</button>
                 <p className="text-xs text-gray-600 dark:text-gray-400">Nur für Veranstalter*innen sichtbar – nie in Mails oder auf der Seite der Kund*in.</p>
               </ActionForm>
             </div>
@@ -218,7 +217,7 @@ export default async function BookingPage({ params, searchParams }: {
                     <p className="text-sm">Plätze für {booking.partySize} {booking.partySize === 1 ? 'Person' : 'Personen'} wählen – auch verstreute:</p>
                     <SeatPicker layout={event.layout} backgroundUrl={backgroundUrl} title={`Plan von ${event.title}`} seats={seatData.seats} groups={seatData.groups} max={null} />
                     {mailable && <Checkbox name="notify" label="Bestätigungsmail mit Kalendereintrag und Verwaltungslink schicken" />}
-                    <button type="submit" className="inline-flex items-center justify-center gap-1.5 rounded-lg font-medium transition disabled:opacity-60 whitespace-nowrap px-3.5 py-2 text-sm bg-blue-600 text-white hover:bg-blue-700 border border-blue-600">Plätze zuweisen und bestätigen</button>
+                    <button type="submit" className={buttonClass('primary')}>Plätze zuweisen und bestätigen</button>
                   </ActionForm>
                 ) : tables.length === 0 ? <p className="text-sm text-gray-600 dark:text-gray-400">Gerade ist kein Tisch frei.</p> : (
                   <ActionForm action={assignWaitlistAdmin}>
@@ -232,7 +231,7 @@ export default async function BookingPage({ params, searchParams }: {
                       </select>
                     </div>
                     {mailable && <Checkbox name="notify" label="Bestätigungsmail mit Kalendereintrag und Verwaltungslink schicken" />}
-                    <button type="submit" className="inline-flex items-center justify-center gap-1.5 rounded-lg font-medium transition disabled:opacity-60 whitespace-nowrap px-3.5 py-2 text-sm bg-blue-600 text-white hover:bg-blue-700 border border-blue-600">Tisch zuweisen und bestätigen</button>
+                    <button type="submit" className={buttonClass('primary')}>Tisch zuweisen und bestätigen</button>
                   </ActionForm>
                 )}
               </div>
@@ -245,7 +244,7 @@ export default async function BookingPage({ params, searchParams }: {
                 <ActionForm action={confirmBookingAdmin}>
                   {hidden}
                   {mailable && <Checkbox name="notify" label="Bestätigungsmail mit Kalendereintrag schicken" />}
-                  <button type="submit" className="inline-flex items-center justify-center gap-1.5 rounded-lg font-medium transition disabled:opacity-60 whitespace-nowrap px-3.5 py-2 text-sm bg-blue-600 text-white hover:bg-blue-700 border border-blue-600">Für die Gruppe annehmen</button>
+                  <button type="submit" className={buttonClass('primary')}>Für die Gruppe annehmen</button>
                 </ActionForm>
               </div>
             )}
@@ -256,13 +255,13 @@ export default async function BookingPage({ params, searchParams }: {
                 <ActionForm action={confirmBookingAdmin}>
                   {hidden}
                   {mailable && <Checkbox name="notify" label="Bestätigungsmail mit Kalendereintrag und Verwaltungslink schicken" />}
-                  <button type="submit" className="inline-flex items-center justify-center gap-1.5 rounded-lg font-medium transition disabled:opacity-60 whitespace-nowrap px-3.5 py-2 text-sm bg-blue-600 text-white hover:bg-blue-700 border border-blue-600">Manuell bestätigen</button>
+                  <button type="submit" className={buttonClass('primary')}>Manuell bestätigen</button>
                 </ActionForm>
                 {mailable && (
                   <ActionForm action={resendVerificationAdmin}>
                     {hidden}
                     <Checkbox name="renew" label={`Frist neu beginnen (${event.pendingTtlMinutes} Minuten ab jetzt)`} />
-                    <button type="submit" className="inline-flex items-center justify-center gap-1.5 rounded-lg font-medium transition disabled:opacity-60 whitespace-nowrap px-3.5 py-2 text-sm bg-white text-gray-800 hover:bg-gray-50 border border-gray-300 dark:bg-gray-800 dark:text-gray-100 dark:border-gray-600 dark:hover:bg-gray-700">Bestätigungsmail erneut senden</button>
+                    <button type="submit" className={buttonClass('secondary')}>Bestätigungsmail erneut senden</button>
                   </ActionForm>
                 )}
                 {booking.source !== 'RSVP' && (
@@ -273,7 +272,7 @@ export default async function BookingPage({ params, searchParams }: {
                       <input id="correct-email" name="email" type="email" required maxLength={254} defaultValue={booking.email ?? ''} className={input} />
                     </div>
                     <Checkbox name="renew" label="Frist neu beginnen" />
-                    <button type="submit" className="inline-flex items-center justify-center gap-1.5 rounded-lg font-medium transition disabled:opacity-60 whitespace-nowrap px-3.5 py-2 text-sm bg-white text-gray-800 hover:bg-gray-50 border border-gray-300 dark:bg-gray-800 dark:text-gray-100 dark:border-gray-600 dark:hover:bg-gray-700">Korrigieren und Bestätigungsmail schicken</button>
+                    <button type="submit" className={buttonClass('secondary')}>Korrigieren und Bestätigungsmail schicken</button>
                     <p className="text-xs text-gray-600 dark:text-gray-400">Neuer Link und Code gehen an die neue Adresse. Die alte Adresse bekommt nichts – bei einem Tippfehler gehört sie vermutlich jemand anderem.</p>
                   </ActionForm>
                 )}
@@ -287,7 +286,7 @@ export default async function BookingPage({ params, searchParams }: {
                 <ActionForm action={renewManageLinkAdmin} confirm="Neuen Link erzeugen? Der bisherige Link – auch in Kalendereinträgen – funktioniert danach nicht mehr.">
                   {hidden}
                   {mailable && <Checkbox name="notify" label="Neuen Link per Mail schicken" />}
-                  <button type="submit" className="inline-flex items-center justify-center gap-1.5 rounded-lg font-medium transition disabled:opacity-60 whitespace-nowrap px-3.5 py-2 text-sm bg-white text-gray-800 hover:bg-gray-50 border border-gray-300 dark:bg-gray-800 dark:text-gray-100 dark:border-gray-600 dark:hover:bg-gray-700">Link neu erzeugen</button>
+                  <button type="submit" className={buttonClass('secondary')}>Link neu erzeugen</button>
                   <p className="text-xs text-gray-600 dark:text-gray-400">Zum Beispiel, wenn der Link in falsche Hände geraten ist.</p>
                 </ActionForm>
               </div>
@@ -299,7 +298,7 @@ export default async function BookingPage({ params, searchParams }: {
                 <ActionForm action={cancelBookingAdmin} confirm={waiting || offered ? 'Eintrag beenden? Die Gruppe steht dann nicht mehr auf der Warteliste.' : 'Buchung stornieren? Der Tisch wird sofort wieder frei.'}>
                   {hidden}
                   {status === 'CONFIRMED' && mailable && <Checkbox name="notify" label="Kund*in per Mail benachrichtigen (Kalendereintrag wird entfernt)" />}
-                  <button type="submit" className="inline-flex items-center justify-center gap-1.5 rounded-lg font-medium transition disabled:opacity-60 whitespace-nowrap px-3.5 py-2 text-sm bg-white text-red-700 hover:bg-red-50 border border-red-300 dark:bg-gray-800 dark:text-red-300 dark:border-red-800 dark:hover:bg-red-950">{waiting || offered ? 'Eintrag beenden' : 'Buchung stornieren'}</button>
+                  <button type="submit" className={buttonClass('danger')}>{waiting || offered ? 'Eintrag beenden' : 'Buchung stornieren'}</button>
                 </ActionForm>
               )}
               <ActionForm action={deleteBookingAdmin} confirm="Buchung endgültig löschen? Alle Daten dazu – auch Verlauf und Mailprotokoll – werden gelöscht.">

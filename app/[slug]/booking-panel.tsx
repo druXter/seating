@@ -1,7 +1,7 @@
 // app/[slug]/booking-panel.tsx
 'use client'
 
-import { Notice, SubmitButton } from '../ui/kit'
+import { buttonClass, fieldClass, inputClass, labelClass, Notice, SubmitButton } from '../ui/kit'
 import { useActionState, useId } from 'react'
 import Link from 'next/link'
 import { confirmCodeAction, resendAction } from './booking-actions'
@@ -13,8 +13,7 @@ import { BOOKING_LIMITS } from '../lib/events/booking-rules'
  * Seite neu, geht es über den Link in der Mail weiter.
  */
 
-const input = 'w-full rounded-lg border border-gray-300 bg-white p-2 text-base sm:text-sm text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100 dark:focus:ring-blue-900'
-const labelClass = 'block text-sm font-medium text-gray-800 dark:text-gray-200 mb-1'
+const input = inputClass
 
 export function ReserveForm({ eventId, table, partySize, requirePhone, action, pending, errors, onClose }: {
   eventId: string
@@ -109,9 +108,9 @@ export function PendingPanel({ bookingId, children, resendHint }: { bookingId: s
         <input type="hidden" name="bookingId" value={bookingId} />
         <div>
           <label htmlFor={`${id}-code`} className={labelClass}>Code aus der Mail</label>
-          <input id={`${id}-code`} name="code" required inputMode="numeric" autoComplete="one-time-code" pattern="[0-9 ]{6,7}" maxLength={7} className="w-36 tracking-widest rounded-lg border border-gray-300 bg-white p-2 text-base sm:text-sm text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100 dark:focus:ring-blue-900" />
+          <input id={`${id}-code`} name="code" required inputMode="numeric" autoComplete="one-time-code" pattern="[0-9 ]{6,7}" maxLength={7} className={`${fieldClass} w-36 tracking-widest`} />
         </div>
-        <button type="submit" disabled={codePending} className="inline-flex items-center justify-center gap-1.5 rounded-lg font-medium transition disabled:opacity-60 whitespace-nowrap px-3.5 py-2 text-sm bg-blue-600 text-white hover:bg-blue-700 border border-blue-600">Bestätigen</button>
+        <button type="submit" disabled={codePending} className={buttonClass('primary')}>Bestätigen</button>
       </form>
       {codeState?.kind === 'error' && <Notice tone="error">{codeState.message}</Notice>}
       <form action={resend} className="text-sm">

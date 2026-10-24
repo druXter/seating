@@ -1,7 +1,7 @@
 // app/admin/events/rsvp-sync-panel.tsx
 'use client'
 
-import { Notice } from '../../ui/kit'
+import { buttonClass, Notice } from '../../ui/kit'
 import { useActionState } from 'react'
 import { reportPlacementsAction, rsvpSyncAction, type SyncState } from './rsvp-actions'
 import type { SyncKind } from '../../lib/rsvp/rules'
@@ -57,13 +57,13 @@ export default function RsvpSyncPanel({ eventId, assigned, changedSince }: { eve
             )
           })}
           {preview.items.length > 0 && (
-            <button type="submit" disabled={pending} className="inline-flex items-center justify-center gap-1.5 rounded-lg font-medium transition disabled:opacity-60 whitespace-nowrap px-3.5 py-2 text-sm bg-blue-600 text-white hover:bg-blue-700 border border-blue-600">Ausgewählte übernehmen</button>
+            <button type="submit" disabled={pending} className={buttonClass('primary')}>Ausgewählte übernehmen</button>
           )}
         </form>
       ) : (
         <form action={dispatch}>
           <input type="hidden" name="eventId" value={eventId} />
-          <button type="submit" disabled={pending} className="inline-flex items-center justify-center gap-1.5 rounded-lg font-medium transition disabled:opacity-60 whitespace-nowrap px-3.5 py-2 text-sm bg-white text-gray-800 hover:bg-gray-50 border border-gray-300 dark:bg-gray-800 dark:text-gray-100 dark:border-gray-600 dark:hover:bg-gray-700">Mit rsvp-app abgleichen</button>
+          <button type="submit" disabled={pending} className={buttonClass('secondary')}>Mit rsvp-app abgleichen</button>
         </form>
       )}
       <p className="text-xs text-gray-600 dark:text-gray-400">
