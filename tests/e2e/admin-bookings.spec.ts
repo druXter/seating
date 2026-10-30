@@ -41,7 +41,7 @@ test('Liste: Filter, Suche, Links im Plan, CSV mit Formel-Schutz; fremde Konten 
   await login(page, owner.email)
   await page.goto(`/admin/events/${event.id}`)
   // Plan: belegter Tisch -> Buchung, freier (auch mit abgelaufenem Hold) -> anlegen.
-  await expect(page.locator(`a[href="${detailUrl(event.id, liese.id)}"]`)).toHaveAttribute('aria-label', 'Tisch 1: Buchung von Lieselotte Beispiel')
+  await expect(page.locator(`a[href="${detailUrl(event.id, liese.id)}"]`)).toHaveAttribute('aria-label', /^Tisch 1 .+: Buchung von Lieselotte Beispiel$/)
   await expect(page.locator(`a[href="/admin/events/${event.id}/bookings/new?table=t3"]`)).toHaveCount(1)
 
   await page.goto(`/admin/events/${event.id}/bookings`)

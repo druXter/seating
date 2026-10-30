@@ -196,6 +196,8 @@ Warteliste, Mails, Zugang und rsvp-app; für Besitzer\*in und Admins dazu Freiga
   Änderungsfrist Name, Telefon, Anmerkung, Personenzahl und Tisch ändern oder stornieren, jeweils mit Mail und
   aktualisierter Kalenderdatei. Die E-Mail-Adresse ist nicht änderbar.
 * Die Seite ist **per iFrame einbettbar** (wie in rsvp-app, `frame-ancestors *`) und nicht indexiert (`noindex`).
+  Eingebettet meldet sie ihre Höhe per `postMessage` an die einbettende Seite (`EmbedHeight` aus suite-kit in
+  `app/[slug]/layout.tsx`, Idee Q10), etwa für die Startseite.
   Die Header werden beim Build festgeschrieben: Wer nur bestimmte Seiten einbetten lassen will, ändert
   `EMBEDDABLE` in `next.config.ts` und baut neu.
 
@@ -500,6 +502,22 @@ noch Raumpläne oder Events gehören, ausgenommen), abgelaufene Sitzungen, Einla
 Außerdem setzt der Aufruf eine unterbrochene Rundmail fort (siehe oben).
 Wird ein Konto von Hand gelöscht, gehen seine Raumpläne und Events an den löschenden Admin über.
 
+## Auskunft und Löschung zu einer Adresse
+
+Auf dem Server, ohne Endpunkt im Netz (Idee Q8, Regeln in `suite-kit/docs/KONVENTIONEN.md` „Datenschutz“):
+
+```bash
+docker compose exec -T seating node auskunft.js anna@example.org                   # alles zur Adresse als JSON
+docker compose exec -T seating node auskunft.js anna@example.org --loeschen        # Probe: was würde gelöscht
+docker compose exec -T seating node auskunft.js anna@example.org --loeschen --ja   # löschen
+```
+
+Für alle Tools auf einmal: `suite-kit/scripts/auskunft.sh <adresse> [--loeschen [--ja]]` (je Tool eine Datei in
+`~/auskunft/`). Gefunden wird ohne Groß-/Kleinschreibung; Tokens, Hashes und Push-Schlüssel stehen nie in der Ausgabe.
+Verwaltungskonten löscht das Skript nie (daran hängen Inhalte), es nennt sie in den Hinweisen.
+
+Findet Verwaltungskonto, Buchungen und das Mailprotokoll. Löschen anonymisiert Buchungen (Plätze bleiben belegt), löscht deren Änderungsprotokoll und die Mails an die Adresse.
+
 ## Setup
 
 ```bash
@@ -527,6 +545,9 @@ npm test            # Unit-Tests (vitest): Passwort, Drossel-IP, Formular-Helfer
                     # Föderation (Rollen beim ersten Login, Ziel der Zwischenseite, state-Cookie, Konfiguration)
 npm run test:e2e    # Playwright gegen eine frisch gebaute Instanz auf http://127.0.0.1:3701
 ```
+
+**Barrierefreiheit** (Idee Q11): `tests/e2e/a11y.spec.ts` prüft die wichtigsten Seiten für Gäste und Verwaltung mit
+axe (`@axe-core/playwright`) nach WCAG 2.1 A/AA, hell und dunkel; jeder Befund lässt den Test scheitern. `tests/e2e/auskunft.spec.ts` prüft `auskunft.js`.
 
 Die E2E-Tests löschen und erzeugen bei jedem Lauf ihre eigene Datenbank `prisma/test.db` und ihr Upload-Verzeichnis
 `data/test-uploads` (nie die Entwicklungs- oder Produktivdaten), bauen mit `next build` und starten `next start` – sie prüfen also das, was auch in Produktion

@@ -88,13 +88,15 @@ export default function PlanSvg({
   const background = backgroundUrl ? (layout.background ?? { x: 0, y: 0, width: layout.width, opacity: 0.5 }) : null
   // Gleiche Reihenfolge wie im Raum sinnvoll: Flächen unten, Plätze oben.
   const ordered = [...layout.elements].sort((a, b) => layer(a) - layer(b))
+  // Mit Links (Admin-Ansicht) eine Gruppe statt eines Bildes - ein Bild darf nichts Bedienbares enthalten (WCAG, Idee Q11)
+  const interactive = !!units && [...units.values()].some(visual => visual.href)
 
   return (
     <svg
       ref={svgRef}
       viewBox={`${box.x} ${box.y} ${box.width} ${box.height}`}
       className={className}
-      role="img"
+      role={interactive ? 'group' : 'img'}
       aria-label={title}
       style={{ touchAction, userSelect: 'none', background: '#f8fafc', ...style }}
       onPointerDown={onPointerDown}
@@ -235,12 +237,21 @@ function ElementShape({ element, selected, units }: { element: LayoutElement; se
       const fill = visual ? STATE_FILL[visual.state] : bookable ? TABLE_FILL : NOT_BOOKABLE
       const highlight = visual?.highlighted ? { stroke: SELECTED, strokeWidth: 8 } : outline
       const label = tableLabel(element)
+      const captions = visual ? (
+        <>
+          <UprightText rotation={element.rotation} y={-14} halo>{label}</UprightText>
+          <UprightText rotation={element.rotation} y={18} size={22} fill="#1e293b" halo>{visual.caption ?? STATE_TEXT[visual.state]}</UprightText>
+        </>
+      ) : (
+        <UprightText rotation={element.rotation}>{label}</UprightText>
+      )
       const shape = (
         <g
           opacity={visual?.dimmed ? 0.3 : 1} data-unit-key={visual ? element.id : undefined} data-state={visual?.state}
           style={(visual?.state === 'free' && !visual.dimmed) || visual?.href ? { cursor: 'pointer' } : undefined}
         >
-          {visual && <title>{visual.title ?? `${label} · ${element.seats} Plätze · ${STATE_TEXT[visual.state]}`}</title>}
+          {/* Als Link trägt der Linkname die Angaben - ein Tooltip zusätzlich wäre Text, der im Namen fehlt (WCAG 2.5.3) */}
+          {visual && !visual.href && <title>{visual.title ?? `${label} · ${element.seats} Plätze · ${STATE_TEXT[visual.state]}`}</title>}
           {seats.map((seat, index) => linked(units, `${element.id}-s${index + 1}`,
             <SeatCircle
               key={index} cx={seat.x} cy={seat.y} r={SEAT_SIZE / 2} rotation={element.rotation} units={units}
@@ -254,17 +265,16 @@ function ElementShape({ element, selected, units }: { element: LayoutElement; se
           ) : (
             <ellipse rx={element.width / 2} ry={h / 2} fill={fill} stroke="#334155" strokeWidth={3} {...highlight} />
           )}
-          {visual ? (
-            <>
-              <UprightText rotation={element.rotation} y={-14} halo>{label}</UprightText>
-              <UprightText rotation={element.rotation} y={18} size={22} fill="#1e293b" halo>{visual.caption ?? STATE_TEXT[visual.state]}</UprightText>
-            </>
-          ) : (
-            <UprightText rotation={element.rotation}>{label}</UprightText>
-          )}
+          {!visual?.href && captions}
         </g>
       )
-      return visual?.href ? <a href={visual.href} aria-label={visual.linkLabel ?? label}>{shape}</a> : shape
+      if (!visual?.href) return shape
+      // Der Name enthält den sichtbaren Text („Tisch 1 frei“) und dahinter das Ziel („: Buchung anlegen“) - WCAG 2.5.3
+      const caption = visual.caption ?? STATE_TEXT[visual.state]
+      const name = visual.linkLabel?.startsWith(label) ? `${label} ${caption}${visual.linkLabel.slice(label.length)}` : visual.linkLabel ?? `${label} ${caption}`
+      // Beschriftung über dem Link statt darin (nicht klickbar, pointerEvents none): So zählt sie nicht als sichtbarer
+      // Text des Links, und sein Name ist allein aria-label
+      return <><a href={visual.href} aria-label={name}>{shape}</a><g opacity={visual.dimmed ? 0.3 : 1}>{captions}</g></>
     }
     case 'seat':
       return (

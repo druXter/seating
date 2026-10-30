@@ -111,7 +111,7 @@ function SummaryLine({ summary }: { summary: EventSummary }) {
     return (
       <div className="mt-2 max-w-md text-sm text-gray-700 dark:text-gray-300" data-testid="event-row-stats">
         <span><strong className="font-semibold">{summary.seated}</strong> von {summary.persons} {summary.persons === 1 ? 'Person hat' : 'Personen haben'} einen Platz</span>
-        {summary.persons > 0 && <ProgressBar value={summary.seated} max={summary.persons} />}
+        {summary.persons > 0 && <ProgressBar value={summary.seated} max={summary.persons} label="Personen mit Platz" />}
       </div>
     )
   }
@@ -124,7 +124,7 @@ function SummaryLine({ summary }: { summary: EventSummary }) {
         <span><strong className="font-semibold">{summary.bookings}</strong> {summary.bookings === 1 ? 'Buchung' : 'Buchungen'}, {summary.guests} {summary.guests === 1 ? 'Person' : 'Personen'}</span>
         {summary.waitlist > 0 && <span><strong className="font-semibold">{summary.waitlist}</strong> auf der Warteliste</span>}
       </div>
-      {summary.bookable > 0 && <ProgressBar value={taken} max={summary.bookable} />}
+      {summary.bookable > 0 && <ProgressBar value={taken} max={summary.bookable} label={`${unit} belegt`} />}
     </div>
   )
 }
