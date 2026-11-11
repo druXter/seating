@@ -1,6 +1,6 @@
 // app/api/suite/callback/route.ts
 import type { NextRequest, NextResponse } from 'next/server'
-import { fetchDiscovery, safeEqual, sanitizeNextPath, type DiscoveryDocument, type IdpConfig, type LoginClaims, verifyLoginAssertion } from 'suite-kit'
+import { fetchDiscovery, safeEqual, sanitizeNextPath, type IdpConfig, type LoginClaims, verifyLoginAssertion } from 'suite-kit'
 import { prisma } from '../../../lib/prisma'
 import { cookieOptions, getCurrentUser, issueSession, SESSION_COOKIE, SESSION_DURATION_MS } from '../../../lib/auth'
 import { normalizeEmail } from '../../../lib/form'
@@ -8,21 +8,6 @@ import { getIdps, mapRole, selfOrigin } from '../../../lib/suite'
 import { parseFlow, redirectResponse, SUITE_STATE_COOKIE } from '../../../lib/suite-flow'
 
 export const dynamic = 'force-dynamic'
-
-/** Wie oft pro Anbieter das Discovery-Dokument wegen unbekannter Schlüssel-ID neu geladen werden darf. */
-const FORCED_REFRESH_INTERVAL_MS = 60 * 1000
-const lastForcedRefresh = new Map<string, number>()
-
-async function loadDiscoveryForVerification(issuer: string, force: boolean): Promise<DiscoveryDocument | null> {
-  if (force) {
-    // Ohne diese Bremse könnte jeder mit einem state-Cookie beliebig viele erzwungene Abrufe beim
-    // Anbieter auslösen, indem er Bestätigungen mit erfundener Schlüssel-ID schickt.
-    const last = lastForcedRefresh.get(issuer) ?? 0
-    if (Date.now() - last < FORCED_REFRESH_INTERVAL_MS) return null
-    lastForcedRefresh.set(issuer, Date.now())
-  }
-  return fetchDiscovery(issuer, { force })
-}
 
 /**
  * EMPFÄNGER-Seite, Schritt 3: Der Anbieter schickt den Browser mit einer signierten Login-Bestätigung
@@ -68,8 +53,9 @@ export async function GET(request: NextRequest) {
   const expectation = () => ({ issuer: idp.issuer, audience: origin, nonce: flow.state, keys: discovery!.keys })
   let result = verifyLoginAssertion(assertion, expectation())
   if (!result.ok && result.reason === 'unknown-key') {
-    // Vermutlich Schlüsselrotation beim Anbieter: EINMAL frisch laden und erneut prüfen.
-    discovery = await loadDiscoveryForVerification(idp.issuer, true)
+    // Vermutlich Schlüsselrotation beim Anbieter: EINMAL frisch laden und erneut prüfen (fetchDiscovery
+    // lädt mit force höchstens einmal pro Minute und Anbieter neu, sonst kommt das Dokument aus dem Cache).
+    discovery = await fetchDiscovery(idp.issuer, { force: true })
     if (discovery) result = verifyLoginAssertion(assertion, expectation())
   }
   if (!result.ok) return fail('sso', `Bestätigung ungültig: ${result.reason}`)
