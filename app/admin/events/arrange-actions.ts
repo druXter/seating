@@ -4,7 +4,7 @@
 import { redirect } from 'next/navigation'
 import { refresh, revalidatePath } from 'next/cache'
 import { requireUser } from '../../lib/auth'
-import { formString } from '../../lib/form'
+import { formString, formText } from '../../lib/form'
 import { loadEventForUser, type LoadedEvent } from '../../lib/events/store'
 import { adminMoveBooking, loadAdminBooking } from '../../lib/events/admin-booking'
 import { createParty, importParties, placeAttendee, placeParty, updateParty } from '../../lib/events/assign'
@@ -103,7 +103,7 @@ export async function importGuestsAction(_previous: ImportState, formData: FormD
   const { user, event } = context
   if (event.mode !== 'ASSIGNED') return { errors: ['Gäste importierst du nur bei einer Sitzordnung.'] }
 
-  let csv = formString(formData, 'csv', CSV_MAX + 1)
+  let csv = formText(formData, 'csv', CSV_MAX + 1)
   const file = formData.get('file')
   if (file instanceof File && file.size > 0) {
     if (file.size > CSV_MAX) return { errors: ['Die Datei ist zu groß (höchstens 500 KB).'] }

@@ -5,7 +5,7 @@ import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import { after } from 'next/server'
 import { requireUser } from '../../lib/auth'
-import { formString, normalizeEmail } from '../../lib/form'
+import { formString, formText, normalizeEmail } from '../../lib/form'
 import { loadEventForUser } from '../../lib/events/store'
 import { sendBroadcastTestMail } from '../../lib/booking-mail'
 import { BROADCAST_LIMITS } from '../../lib/mail-blocks'
@@ -149,7 +149,7 @@ export async function createBookingAdmin(_previous: BookingFormState, formData: 
 function parseBroadcast(formData: FormData) {
   const errors: string[] = []
   const subject = formString(formData, 'subject', BROADCAST_LIMITS.subject).replace(/[\u0000-\u001f\u007f]/g, ' ')
-  const body = formString(formData, 'body', BROADCAST_LIMITS.body).replace(/\r\n?/g, '\n').replace(/[\u0000-\u0009\u000b-\u001f\u007f]/g, '')
+  const body = formText(formData, 'body', BROADCAST_LIMITS.body).replace(/\r\n?/g, '\n').replace(/[\u0000-\u0009\u000b-\u001f\u007f]/g, '')
   if (!subject) errors.push('Bitte gib einen Betreff an.')
   if (!body) errors.push('Bitte schreib einen Text.')
   return { errors, content: { subject, body, includeIcs: formFlag(formData, 'includeIcs') } }

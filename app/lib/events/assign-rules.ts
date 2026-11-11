@@ -1,5 +1,5 @@
 // app/lib/events/assign-rules.ts
-import { formString } from '../form'
+import { formString, formText } from '../form'
 import { parseCsv } from '../csv'
 import { BOOKING_LIMITS } from './booking-rules'
 import type { SeatGroup } from './seat-rules'
@@ -42,7 +42,7 @@ export function parsePersonLines(text: string, errors: string[]): string[] {
  */
 export function parsePartyForm(formData: FormData): { ok: true; input: PartyInput } | { ok: false; errors: string[] } {
   const errors: string[] = []
-  const persons = parsePersonLines(formString(formData, 'persons', 10_000), errors)
+  const persons = parsePersonLines(formText(formData, 'persons', 10_000), errors)
   if (persons.length === 0) errors.push('Bitte gib mindestens eine Person an (eine pro Zeile).')
   const groupName = cleanName(formString(formData, 'name', 200))
   if (groupName.length > BOOKING_LIMITS.name) errors.push(`Der Gruppenname darf höchstens ${BOOKING_LIMITS.name} Zeichen lang sein.`)
@@ -75,7 +75,7 @@ export function parsePartyEdit(formData: FormData): { ok: true; input: PartyEdit
     if (personName.length > ATTENDEE_NAME_MAX) errors.push(`Namen dürfen höchstens ${ATTENDEE_NAME_MAX} Zeichen lang sein.`)
     persons.push({ id, name: personName, remove })
   }
-  const added = parsePersonLines(formString(formData, 'added', 10_000), errors)
+  const added = parsePersonLines(formText(formData, 'added', 10_000), errors)
   const remaining = persons.filter(p => !p.remove).length + added.length
   if (remaining === 0) errors.push('Eine Gruppe braucht mindestens eine Person. Die ganze Gruppe entfernst du unten mit „Absagen“ oder „Endgültig löschen“.')
   if (remaining > MAX_PARTY) errors.push(`Eine Gruppe hat höchstens ${MAX_PARTY} Personen.`)

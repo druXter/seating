@@ -1,7 +1,7 @@
 // app/lib/events/admin-rules.ts
 import type { BookingSource, BookingStatus, EventMode } from '@prisma/client'
 import { formSeatKeys } from './seat-rules'
-import { formString, normalizeEmail } from '../form'
+import { formString, formText, normalizeEmail } from '../form'
 import { holdsUnits } from './occupancy'
 import { parseContact, parsePartySize, type ContactFields } from './booking-rules'
 
@@ -138,7 +138,7 @@ export function parseAdminCreate(formData: FormData, mode: EventMode = 'TABLE'):
 }
 
 export function parseAdminNote(formData: FormData): string | null {
-  const note = formString(formData, 'adminNote', ADMIN_NOTE_MAX).replace(/\r\n?/g, '\n').replace(/[\u0000-\u0009\u000b-\u001f\u007f]/g, '').trim()
+  const note = formText(formData, 'adminNote', ADMIN_NOTE_MAX).replace(/\r\n?/g, '\n').replace(/[\u0000-\u0009\u000b-\u001f\u007f]/g, '').trim()
   return note || null
 }
 

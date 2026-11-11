@@ -1,6 +1,6 @@
 // app/lib/events/settings.ts
 import type { BookingAccess, EventMode, EventStatus } from '@prisma/client'
-import { formString, normalizeEmail } from '../form'
+import { formString, formText, normalizeEmail } from '../form'
 import { validateSlug } from '../slugs'
 import { DEFAULT_TIMEZONE, zonedInputToUtc } from '../timezone'
 import { PENDING_TTL_RANGE, SELF_EDIT_HOURS_MAX } from './booking-rules'
@@ -126,7 +126,7 @@ export function parseEventForm(formData: FormData, timeZone: string = DEFAULT_TI
   const slugError = validateSlug(slug)
   if (slugError) errors.push(`Adresse: ${slugError}`)
 
-  const description = cleanText(formString(formData, 'description', EVENT_LIMITS.description))
+  const description = cleanText(formText(formData, 'description', EVENT_LIMITS.description))
   const location = cleanText(formString(formData, 'location', EVENT_LIMITS.location)).replace(/\n/g, ' ')
 
   const startsAt = optionalDate(formData, 'startsAt', timeZone, 'Beginn', errors)
@@ -210,7 +210,7 @@ function parseBookingSettings(formData: FormData, errors: string[]): BookingSett
     oneBookingPerEmail: formData.get('oneBookingPerEmail') === 'on',
     requirePhone: formData.get('requirePhone') === 'on',
     replyTo,
-    mailNote: cleanText(formString(formData, 'mailNote', EVENT_LIMITS.mailNote)).trim(),
+    mailNote: cleanText(formText(formData, 'mailNote', EVENT_LIMITS.mailNote)).trim(),
     waitlistEnabled: formData.get('waitlistEnabled') === 'on',
     offerTtlHours: offerTtlHours ?? 24,
     maxSeatsPerBooking: maxSeatsPerBooking ?? 10,

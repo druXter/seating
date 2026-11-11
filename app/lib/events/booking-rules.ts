@@ -1,6 +1,6 @@
 // app/lib/events/booking-rules.ts
 import type { BookingAccess, EventMode, EventStatus } from '@prisma/client'
-import { formString, normalizeEmail } from '../form'
+import { formString, formText, normalizeEmail } from '../form'
 import { formatDateTime } from '../timezone'
 import { formSeatKeys } from './seat-rules'
 
@@ -66,7 +66,7 @@ export function parseContact(formData: FormData, requirePhone: boolean, errors: 
   if (phoneInput && !/^\+?[0-9 ()/-]{5,30}$/.test(phoneInput)) errors.push('Die Telefonnummer sieht nicht gültig aus.')
   if (!phoneInput && requirePhone) errors.push('Bitte gib eine Telefonnummer an.')
 
-  const noteInput = formString(formData, 'note', BOOKING_LIMITS.note).replace(/\r\n?/g, '\n').replace(/[\u0000-\u0009\u000b-\u001f\u007f]/g, '').trim()
+  const noteInput = formText(formData, 'note', BOOKING_LIMITS.note).replace(/\r\n?/g, '\n').replace(/[\u0000-\u0009\u000b-\u001f\u007f]/g, '').trim()
   return { name, phone: phoneInput || null, note: noteInput || null }
 }
 
